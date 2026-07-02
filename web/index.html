@@ -19,6 +19,7 @@
       <nav class="mode-nav">
         <button id="modeTools" class="mode-tab active" data-goto="picker">🧰 כלים</button>
         <button id="modeAI" class="mode-tab" data-goto="ai-prompt">🤖 עוזר AI</button>
+        <button id="modeDash" class="mode-tab" data-goto="dashboard">📊 בקרה</button>
       </nav>
       <span id="statLine" class="stat-line"></span>
     </div>
@@ -76,6 +77,34 @@
       </div>
     </div>
     <pre id="output" class="output"></pre>
+  </main>
+
+  <!-- ===================== DASHBOARD (מרכז בקרה) ===================== -->
+  <main id="screen-dashboard" class="screen">
+    <div class="dash-hero">
+      <div>
+        <h1>📊 מרכז הבקרה</h1>
+        <p class="dash-sub">מבט חי על הסוכנים, הידע הנצבר ויומן הפעילות</p>
+      </div>
+      <span id="dashLive" class="live-pill">● לא פעיל</span>
+    </div>
+
+    <h2 class="dash-section">🎭 הסוכנים ומצבם</h2>
+    <div id="dashAgents" class="agents-grid"></div>
+
+    <div class="dash-two">
+      <section>
+        <h2 class="dash-section">🧠 מודיעין נצבר</h2>
+        <div id="dashStats" class="stats-row"></div>
+        <div id="dashSeverity" class="severity-bars"></div>
+        <h3 class="dash-subsection">איומים נפוצים</h3>
+        <div id="dashTop" class="top-threats"></div>
+      </section>
+      <section>
+        <h2 class="dash-section">📰 יומן פעילות</h2>
+        <div id="dashFeed" class="feed"></div>
+      </section>
+    </div>
   </main>
 
   <!-- ===================== AI: PROMPT ===================== -->

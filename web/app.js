@@ -22,9 +22,14 @@ const el = (tag, cls, txt) => {
 function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   $("screen-" + name).classList.add("active");
-  const aiMode = name.startsWith("ai-") || name === "purple";
-  const mt = $("modeTools"), ma = $("modeAI");
-  if (mt && ma) { mt.classList.toggle("active", !aiMode); ma.classList.toggle("active", aiMode); }
+  const isDash = name === "dashboard";
+  const isAI = name.startsWith("ai-") || name === "purple";
+  const isTools = !isDash && !isAI;
+  const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash");
+  if (mt) mt.classList.toggle("active", isTools);
+  if (ma) ma.classList.toggle("active", isAI);
+  if (md) md.classList.toggle("active", isDash);
+  if (isDash) loadDashboard();
   window.scrollTo(0, 0);
 }
 
@@ -518,6 +523,119 @@ async function stopMission() {
   if (!MISSION_ID) return;
   await fetch("/api/mission/" + MISSION_ID + "/stop", { method: "POST" });
   pollMission();
+}
+
+/* ============================ DASHBOARD (מרכז בקרה) ======================== */
+let DASH_TIMER = null;
+
+function relTime(ts) {
+  if (!ts) return "";
+  const diff = Math.max(0, Date.now() / 1000 - ts);
+  if (diff < 60) return "הרגע";
+  if (diff < 3600) return "לפני " + Math.floor(diff / 60) + " ד׳";
+  if (diff < 86400) return "לפני " + Math.floor(diff / 3600) + " ש׳";
+  return "לפני " + Math.floor(diff / 86400) + " ימים";
+}
+
+async function loadDashboard() {
+  clearTimeout(DASH_TIMER);
+  try {
+    const d = await (await fetch("/api/dashboard")).json();
+    renderDashboard(d);
+  } catch (e) { /* ignore transient */ }
+  // keep refreshing only while the dashboard is visible
+  if ($("screen-dashboard").classList.contains("active")) {
+    DASH_TIMER = setTimeout(loadDashboard, 3000);
+  }
+}
+
+function renderDashboard(d) {
+  const live = $("dashLive");
+  live.className = "live-pill" + (d.live ? " on" : "");
+  live.textContent = d.live ? "● פעיל כעת" : "● לא פעיל";
+
+  // agents
+  const ag = $("dashAgents");
+  ag.innerHTML = "";
+  d.agents.forEach(a => {
+    const card = el("div", "agent-card " + a.status);
+    const top = el("div", "agent-top");
+    top.appendChild(el("span", "agent-ico", a.icon));
+    const info = el("div");
+    info.appendChild(el("div", "agent-name", a.name));
+    info.appendChild(el("div", "agent-role", a.role));
+    top.appendChild(info);
+    const stLabel = { active: "פעיל", idle: "ממתין", done: "סיים" }[a.status] || a.status;
+    top.appendChild(el("span", "agent-status " + a.status, stLabel));
+    card.appendChild(top);
+    card.appendChild(el("div", "agent-detail", a.detail));
+    ag.appendChild(card);
+  });
+
+  // stats
+  const k = d.knowledge;
+  const stats = $("dashStats");
+  stats.innerHTML = "";
+  const mk = (n, lbl) => { const c = el("div", "stat-card"); c.innerHTML = `<b>${n}</b><span>${lbl}</span>`; return c; };
+  stats.appendChild(mk(k.runs, "הרצות"));
+  stats.appendChild(mk(k.total_signatures, "סוגי ממצאים"));
+  stats.appendChild(mk(`${d.tools.installed}/${d.tools.total}`, "כלים מותקנים"));
+
+  // severity bars
+  const sev = $("dashSeverity");
+  sev.innerHTML = "";
+  const order = [["critical", "קריטי"], ["high", "גבוה"], ["medium", "בינוני"], ["low", "נמוך"]];
+  const max = Math.max(1, ...order.map(([c]) => k.severity[c] || 0));
+  order.forEach(([c, he]) => {
+    const n = k.severity[c] || 0;
+    const row = el("div", "sev-row");
+    row.appendChild(el("span", "lbl", he));
+    const bar = el("div", "bar");
+    const fill = el("div", "fill " + c);
+    fill.style.width = (n / max * 100) + "%";
+    bar.appendChild(fill);
+    row.appendChild(bar);
+    row.appendChild(el("span", "n", n));
+    sev.appendChild(row);
+  });
+
+  // top threats
+  const top = $("dashTop");
+  top.innerHTML = "";
+  if (!k.top.length) top.appendChild(el("div", "feed-empty", "אין נתונים עדיין — הרץ משימת Purple"));
+  k.top.forEach(t => {
+    const row = el("div", "top-threat");
+    row.appendChild(el("span", null, (SEV_ICON[t.severity] || "•") + " " + t.name));
+    row.appendChild(el("span", "cnt", t.count + "×"));
+    top.appendChild(row);
+  });
+
+  // activity feed (magazine)
+  const feed = $("dashFeed");
+  feed.innerHTML = "";
+  if (!d.activity.length) { feed.appendChild(el("div", "feed-empty", "עדיין לא בוצעו משימות. עבור ל🤖 עוזר AI כדי להתחיל.")); return; }
+  d.activity.forEach(a => {
+    const card = el("div", "feed-card" + (a.type === "purple" ? " purple" : ""));
+    const head = el("div", "feed-head");
+    const icon = a.type === "purple" ? "🟣" : "🤖";
+    head.appendChild(el("span", null, `${icon} ${a.intent || "משימה"}`));
+    head.appendChild(el("span", "feed-when", relTime(a.ts) || a.when));
+    card.appendChild(head);
+    const body = el("div", "feed-body");
+    if (a.type === "purple") {
+      body.innerHTML = `<span class="tag">🎯 ${escapeHtml(a.target)}</span>` +
+        `<span class="tag">🔴 ${a.red_findings} ממצאים</span>` +
+        `<span class="tag">🔵 ${a.threats} איומים</span>` +
+        (a.severity ? `<span class="tag">${SEV_ICON[a.severity] || ""} ${SEV_HE[a.severity] || a.severity}</span>` : "") +
+        (a.new_learned && a.new_learned.length ? `<div class="learn-new">🧠 נלמד חדש: ${escapeHtml(a.new_learned.join(", "))}</div>` : "");
+    } else {
+      body.innerHTML = `<span class="tag">🎯 ${escapeHtml(a.target)}</span>` +
+        `<span class="tag">${a.steps} שלבים</span>` +
+        `<span class="tag">🔎 ${a.findings} ממצאים</span>`;
+    }
+    card.appendChild(body);
+    feed.appendChild(card);
+  });
 }
 
 /* ================= PURPLE TEAM (Red -> Broker -> Blue -> Orchestrator) ===== */

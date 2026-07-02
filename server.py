@@ -214,10 +214,11 @@ MISSIONS_LOCK = threading.Lock()
 
 class Mission:
     """Executor + Verifier + Reporter orchestration over a plan of steps."""
-    def __init__(self, intent, target, steps):
+    def __init__(self, intent, target, steps, do_log=True):
         self.id = uuid.uuid4().hex[:12]
         self.intent = intent
         self.target = target
+        self.do_log = do_log
         self.steps = []
         for s in steps:
             self.steps.append({
@@ -289,6 +290,13 @@ class Mission:
         when = datetime.now().strftime("%Y-%m-%d %H:%M")
         payload = {"intent": self.intent, "target": self.target, "steps": self.steps}
         self.report = agents.llm_report(payload, when) or agents.report(payload, when)
+        if self.do_log:
+            findings = sum(len((s.get("verdict") or {}).get("findings", [])) for s in self.steps)
+            bluered.log_activity({
+                "ts": time.time(), "when": when, "type": "mission",
+                "intent": self.intent, "target": self.target,
+                "steps": len(self.steps), "findings": findings, "status": self.status,
+            })
 
     def stop(self):
         self._stop = True
@@ -316,7 +324,7 @@ class PurpleMission:
         self.id = uuid.uuid4().hex[:12]
         self.intent = intent
         self.target = target
-        self.mission = Mission(intent, target, steps)
+        self.mission = Mission(intent, target, steps, do_log=False)
         self.phase = "red"          # red | blue | done
         self.status = "running"
         self.threats = []
@@ -351,6 +359,17 @@ class PurpleMission:
                                             self.mission.steps, self.threats, self.learning, when)
         self.phase = "done"
         self.status = "stopped" if self._stop else "done"
+        red_findings = sum(len((s.get("verdict") or {}).get("findings", []))
+                           for s in self.mission.steps)
+        top_sev = self.threats[0]["severity"] if self.threats else None
+        bluered.log_activity({
+            "ts": time.time(), "when": when, "type": "purple",
+            "intent": self.intent, "target": self.target,
+            "red_findings": red_findings, "threats": len(self.threats),
+            "severity": top_sev,
+            "new_learned": (self.learning or {}).get("new_this_run", []),
+            "status": self.status,
+        })
 
     def stop(self):
         self._stop = True
@@ -422,6 +441,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_env()
         if p == "/api/knowledge":
             return self._send_json(bluered.load_kb())
+        if p == "/api/dashboard":
+            return self._api_dashboard()
         if p.startswith("/api/purple/"):
             return self._api_purple_get(p.rsplit("/", 1)[-1])
         if p.startswith("/api/mission/"):
@@ -458,6 +479,86 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json({
             "is_root": (hasattr(os, "geteuid") and os.geteuid() == 0),
             "llm": bool(os.environ.get("OLLAMA_URL") and os.environ.get("OLLAMA_MODEL")),
+        })
+
+    def _api_dashboard(self):
+        # --- live agent status derived from running missions/purple runs ---
+        with PURPLE_LOCK:
+            purples = list(PURPLE.values())
+        with MISSIONS_LOCK:
+            missions = list(MISSIONS.values())
+        run_purple = next((p for p in purples if p.status == "running"), None)
+        run_mission = next((m for m in missions if m.status == "running"), None)
+
+        kb = bluered.load_kb()
+        sigs = kb.get("signatures", {})
+
+        def A(icon, name, role, status, detail):
+            return {"icon": icon, "name": name, "role": role, "status": status, "detail": detail}
+
+        if run_purple:
+            rp = run_purple
+            cur = rp.mission.snapshot()
+            cur_tool = ""
+            if 0 <= cur.get("current", -1) < len(cur["steps"]):
+                cur_tool = cur["steps"][cur["current"]]["tool_name"]
+            if rp.phase == "red":
+                agents_state = [
+                    A("🔴", "צוות אדום", "תקיפה וגילוי פרצות", "active", f"מריץ {cur_tool} על {rp.target}"),
+                    A("🟢", "מתווך", "תיווך ממצאים לצוות הכחול", "idle", "ממתין לסיום התקיפה"),
+                    A("🔵", "צוות כחול", "הגנה, חסימה וניטור", "idle", "ממתין"),
+                    A("🧠", "סוכן למידה", "צבירת ידע בין הרצות", "idle", f"{len(sigs)} סוגי ממצאים ידועים"),
+                    A("🟣", "מתזמר", "ניצוח, תזמון ודיווח", "active", f"מנצח משימה על {rp.target}"),
+                ]
+            else:
+                agents_state = [
+                    A("🔴", "צוות אדום", "תקיפה וגילוי פרצות", "done", "סיים איסוף ממצאים"),
+                    A("🟢", "מתווך", "תיווך ממצאים לצוות הכחול", "active", "ממפה ממצאים להגנות"),
+                    A("🔵", "צוות כחול", "הגנה, חסימה וניטור", "active", "מייצר תוכנית הגנה"),
+                    A("🧠", "סוכן למידה", "צבירת ידע בין הרצות", "active", "מעדכן בסיס ידע"),
+                    A("🟣", "מתזמר", "ניצוח, תזמון ודיווח", "active", "מרכיב דוח"),
+                ]
+        elif run_mission:
+            agents_state = [
+                A("🔴", "צוות אדום", "תקיפה וגילוי פרצות", "active", f"מריץ משימה על {run_mission.target}"),
+                A("🟢", "מתווך", "תיווך ממצאים לצוות הכחול", "idle", "לא פעיל במצב זה"),
+                A("🔵", "צוות כחול", "הגנה, חסימה וניטור", "idle", "לא פעיל במצב זה"),
+                A("🧠", "סוכן למידה", "צבירת ידע בין הרצות", "idle", f"{len(sigs)} סוגי ממצאים ידועים"),
+                A("🟣", "מתזמר", "ניצוח, תזמון ודיווח", "active", "מנצח משימה"),
+            ]
+        else:
+            agents_state = [
+                A("🔴", "צוות אדום", "תקיפה וגילוי פרצות", "idle", "ממתין למשימה"),
+                A("🟢", "מתווך", "תיווך ממצאים לצוות הכחול", "idle", "ממתין"),
+                A("🔵", "צוות כחול", "הגנה, חסימה וניטור", "idle", "ממתין"),
+                A("🧠", "סוכן למידה", "צבירת ידע בין הרצות", "idle", f"{len(sigs)} סוגי ממצאים ידועים"),
+                A("🟣", "מתזמר", "ניצוח, תזמון ודיווח", "idle", "ממתין"),
+            ]
+
+        # --- intelligence stats from the learning KB ---
+        sev_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        for s in sigs.values():
+            sev_counts[s.get("severity", "low")] = sev_counts.get(s.get("severity", "low"), 0) + 1
+        top = sorted(sigs.items(), key=lambda kv: -kv[1]["count"])[:6]
+        top_list = [{"name": v["name"], "count": v["count"], "severity": v["severity"],
+                     "last_seen": v.get("last_seen", "")} for _, v in top]
+
+        activity = list(reversed(bluered.load_activity()))[:25]
+
+        cat = load_catalog()
+        installed = sum(1 for t in cat["tools"] if tool_installed(t["binary"]))
+
+        return self._send_json({
+            "agents": agents_state,
+            "live": bool(run_purple or run_mission),
+            "knowledge": {
+                "runs": kb.get("runs", 0),
+                "total_signatures": len(sigs),
+                "severity": sev_counts,
+                "top": top_list,
+            },
+            "activity": activity,
+            "tools": {"installed": installed, "total": len(cat["tools"])},
         })
 
     def _api_plan(self):

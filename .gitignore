@@ -8,8 +8,9 @@ __pycache__/
 *.log
 scan_result*.txt
 
-# Runtime learning knowledge base (grows per run)
+# Runtime learning knowledge base + activity feed (grow per run)
 knowledge.json
+activity.json
 
 # OS
 .DS_Store

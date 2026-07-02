@@ -22,7 +22,38 @@ import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KB_FILE = os.path.join(HERE, "knowledge.json")
+ACTIVITY_FILE = os.path.join(HERE, "activity.json")
 _KB_LOCK = threading.Lock()
+_ACT_LOCK = threading.Lock()
+
+# ------------------------------------------------------ 📰 activity feed -----
+def log_activity(entry):
+    """Append one activity entry (for the dashboard magazine feed). Keeps last 200."""
+    with _ACT_LOCK:
+        data = []
+        if os.path.isfile(ACTIVITY_FILE):
+            try:
+                with open(ACTIVITY_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
+                data = []
+        data.append(entry)
+        data = data[-200:]
+        try:
+            with open(ACTIVITY_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+def load_activity():
+    with _ACT_LOCK:
+        if os.path.isfile(ACTIVITY_FILE):
+            try:
+                with open(ACTIVITY_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return []
 
 # ---------------------------------------------------------- defense knowledge
 # Ordered specific -> generic. First matching rule wins.
