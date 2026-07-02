@@ -1,0 +1,25 @@
+[Unit]
+Description=Kali Tools GUI - purple-team security console
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/mnt/c/ClaudeCode/kali-gui
+ExecStart=/usr/bin/python3 /mnt/c/ClaudeCode/kali-gui/server.py
+# Security: bind to localhost only (root process that executes tools).
+Environment=KALIGUI_HOST=127.0.0.1
+Environment=KALIGUI_PORT=8777
+Environment=KALIGUI_STEP_TIMEOUT=300
+# Optional shared token — uncomment and set to require auth:
+# Environment=KALIGUI_TOKEN=change-me
+Restart=on-failure
+RestartSec=3
+# Basic hardening
+NoNewPrivileges=false
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

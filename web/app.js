@@ -618,6 +618,7 @@ function renderDashboard(d) {
   if (!d.activity.length) { feed.appendChild(el("div", "feed-empty", "עדיין לא בוצעו משימות. עבור ל🤖 עוזר AI כדי להתחיל.")); return; }
   d.activity.forEach(a => {
     const card = el("div", "feed-card" + (a.type === "purple" ? " purple" : ""));
+    if (a.id) { card.classList.add("clickable"); card.onclick = () => openSavedReport(a.id); }
     const head = el("div", "feed-head");
     const icon = a.type === "purple" ? "🟣" : "🤖";
     head.appendChild(el("span", null, `${icon} ${a.intent || "משימה"}`));
@@ -638,6 +639,16 @@ function renderDashboard(d) {
     card.appendChild(body);
     feed.appendChild(card);
   });
+}
+
+async function openSavedReport(id) {
+  try {
+    const res = await fetch("/api/report/" + encodeURIComponent(id));
+    const d = await res.json();
+    if (!res.ok || !d.report) return;
+    REPORT_MD = d.report;
+    showReport();
+  } catch (e) { /* ignore */ }
 }
 
 async function openThreat(sig) {

@@ -39,9 +39,58 @@ SAFE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 RUN_ENV = dict(os.environ)
 RUN_ENV["PATH"] = SAFE_PATH + ":" + RUN_ENV.get("PATH", "")
 
+VERSION = "1.0.0"
 PORT = int(os.environ.get("KALIGUI_PORT", "8777"))
+# Security: bind to localhost by default. This process runs as root and executes
+# tools, so it must NOT be exposed to the network. WSL2 still forwards Windows
+# localhost -> WSL 127.0.0.1, so the browser on Windows keeps working.
+HOST = os.environ.get("KALIGUI_HOST", "127.0.0.1")
+TOKEN = os.environ.get("KALIGUI_TOKEN", "")  # optional shared secret (defense in depth)
 MAX_OUTPUT = 5 * 1024 * 1024  # cap stored output per job (bytes)
 STEP_TIMEOUT = int(os.environ.get("KALIGUI_STEP_TIMEOUT", "300"))  # sec per mission step
+MAX_KEEP = int(os.environ.get("KALIGUI_MAX_KEEP", "50"))  # in-memory run history cap
+LOG_FILE = os.path.join(HERE, "server.log")
+REPORTS_DIR = os.path.join(HERE, "reports")
+START_TIME = time.time()
+_LOG_LOCK = threading.Lock()
+
+def log(msg):
+    line = "%s  %s" % (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), msg)
+    try:
+        with _LOG_LOCK:
+            with open(LOG_FILE, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+    except Exception:
+        pass
+    try:
+        sys.stderr.write(line + "\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+
+def _prune(store):
+    """Evict oldest *finished* runs so memory stays bounded (keeps last MAX_KEEP)."""
+    if len(store) <= MAX_KEEP:
+        return
+    for k in list(store.keys()):
+        if len(store) <= MAX_KEEP:
+            break
+        obj = store[k]
+        if getattr(obj, "status", "done") != "running":
+            del store[k]
+
+def save_report(run_id, kind, intent, target, report):
+    """Persist a report to disk so it survives restarts."""
+    if not report:
+        return
+    try:
+        os.makedirs(REPORTS_DIR, exist_ok=True)
+        meta = {"id": run_id, "kind": kind, "intent": intent, "target": target,
+                "ts": time.time(), "when": datetime.now().strftime("%Y-%m-%d %H:%M")}
+        with open(os.path.join(REPORTS_DIR, run_id + ".json"), "w", encoding="utf-8") as f:
+            json.dump({"meta": meta, "report": report}, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        log("save_report failed: %s" % e)
 
 # ---------------------------------------------------------------- catalog ----
 def load_catalog():
@@ -293,10 +342,12 @@ class Mission:
         if self.do_log:
             findings = sum(len((s.get("verdict") or {}).get("findings", [])) for s in self.steps)
             bluered.log_activity({
-                "ts": time.time(), "when": when, "type": "mission",
+                "id": self.id, "ts": time.time(), "when": when, "type": "mission",
                 "intent": self.intent, "target": self.target,
                 "steps": len(self.steps), "findings": findings, "status": self.status,
             })
+            save_report(self.id, "mission", self.intent, self.target, self.report)
+            log("mission %s done: %s / %s (%d findings)" % (self.id, self.intent, self.target, findings))
 
     def stop(self):
         self._stop = True
@@ -363,7 +414,7 @@ class PurpleMission:
                            for s in self.mission.steps)
         top_sev = self.threats[0]["severity"] if self.threats else None
         bluered.log_activity({
-            "ts": time.time(), "when": when, "type": "purple",
+            "id": self.id, "ts": time.time(), "when": when, "type": "purple",
             "intent": self.intent, "target": self.target,
             "red_findings": red_findings, "threats": len(self.threats),
             "severity": top_sev,
@@ -371,6 +422,8 @@ class PurpleMission:
             "new_learned": (self.learning or {}).get("new_this_run", []),
             "status": self.status,
         })
+        save_report(self.id, "purple", self.intent, self.target, self.report)
+        log("purple %s done: %s / %s (%d threats)" % (self.id, self.intent, self.target, len(self.threats)))
 
     def stop(self):
         self._stop = True
@@ -433,9 +486,38 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    # -- auth (optional shared token) --
+    def _authorized(self):
+        if not TOKEN:
+            return True
+        supplied = self.headers.get("X-KaliGUI-Token", "")
+        if not supplied:
+            from urllib.parse import urlparse, parse_qs
+            supplied = (parse_qs(urlparse(self.path).query).get("token", [""])[0])
+        return supplied == TOKEN
+
     # -- routing --
     def do_GET(self):
         p = self.path.split("?", 1)[0]
+        # health is unauthenticated (for service monitoring)
+        if p == "/api/health":
+            return self._send_json({"status": "ok", "version": VERSION,
+                                    "uptime_sec": int(time.time() - START_TIME),
+                                    "is_root": (hasattr(os, "geteuid") and os.geteuid() == 0)})
+        if p.startswith("/api/") and not self._authorized():
+            return self._send_json({"error": "unauthorized"}, 401)
+        try:
+            return self._route_get(p)
+        except BrokenPipeError:
+            pass
+        except Exception as e:
+            log("GET %s error: %s" % (p, e))
+            try:
+                return self._send_json({"error": "internal server error"}, 500)
+            except Exception:
+                pass
+
+    def _route_get(self, p):
         if p == "/api/tools":
             return self._api_tools()
         if p == "/api/env":
@@ -444,6 +526,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(bluered.load_kb())
         if p == "/api/dashboard":
             return self._api_dashboard()
+        if p == "/api/reports":
+            return self._api_reports()
+        if p.startswith("/api/report/"):
+            return self._api_report_get(p.rsplit("/", 1)[-1])
         if p.startswith("/api/threat/"):
             return self._api_threat(p.rsplit("/", 1)[-1])
         if p.startswith("/api/purple/"):
@@ -456,6 +542,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         p = self.path.split("?", 1)[0]
+        if p.startswith("/api/") and not self._authorized():
+            return self._send_json({"error": "unauthorized"}, 401)
+        try:
+            return self._route_post(p)
+        except BrokenPipeError:
+            pass
+        except Exception as e:
+            log("POST %s error: %s" % (p, e))
+            try:
+                return self._send_json({"error": "internal server error"}, 500)
+            except Exception:
+                pass
+
+    def _route_post(self, p):
         if p == "/api/run":
             return self._api_run()
         if p == "/api/install":
@@ -565,6 +665,33 @@ class Handler(BaseHTTPRequestHandler):
             "tools": {"installed": installed, "total": len(cat["tools"])},
         })
 
+    def _api_reports(self):
+        items = []
+        try:
+            for fn in os.listdir(REPORTS_DIR):
+                if not fn.endswith(".json"):
+                    continue
+                try:
+                    with open(os.path.join(REPORTS_DIR, fn), "r", encoding="utf-8") as f:
+                        items.append(json.load(f).get("meta", {}))
+                except Exception:
+                    continue
+        except FileNotFoundError:
+            pass
+        items.sort(key=lambda m: m.get("ts", 0), reverse=True)
+        return self._send_json({"reports": items[:100]})
+
+    def _api_report_get(self, rid):
+        rid = os.path.basename(rid)  # prevent traversal
+        path = os.path.join(REPORTS_DIR, rid + ".json")
+        if not os.path.isfile(path):
+            return self._send_json({"error": "דוח לא נמצא"}, 404)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return self._send_json(json.load(f))
+        except Exception:
+            return self._send_json({"error": "שגיאה בקריאת הדוח"}, 500)
+
     def _api_threat(self, sig):
         from urllib.parse import unquote
         sig = unquote(sig)
@@ -612,6 +739,7 @@ class Handler(BaseHTTPRequestHandler):
         mission = Mission(intent, target, steps)
         with MISSIONS_LOCK:
             MISSIONS[mission.id] = mission
+            _prune(MISSIONS)
         mission.start()
         return self._send_json({"mission_id": mission.id})
 
@@ -643,6 +771,7 @@ class Handler(BaseHTTPRequestHandler):
         pm = PurpleMission(intent, target, steps)
         with PURPLE_LOCK:
             PURPLE[pm.id] = pm
+            _prune(PURPLE)
         pm.start()
         return self._send_json({"purple_id": pm.id})
 
@@ -686,6 +815,7 @@ class Handler(BaseHTTPRequestHandler):
         job = Job(argv, label=tool["name"])
         with JOBS_LOCK:
             JOBS[job.id] = job
+            _prune(JOBS)
         job.start()
         return self._send_json({"job_id": job.id, "command": job.snapshot()["command"]})
 
@@ -732,16 +862,29 @@ class Handler(BaseHTTPRequestHandler):
             globals()["RUN_ENV"] = orig
         return self._send_json({"job_id": job.id})
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True        # don't block shutdown on active request threads
+    allow_reuse_address = True   # rebind quickly after restart
+
 def main():
     if not os.path.isdir(WEB_DIR):
         raise SystemExit("web/ directory missing next to server.py")
-    httpd = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print("Kali Tools GUI running:  http://localhost:%d" % PORT)
-    print("Serving from: %s" % HERE)
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    is_root = hasattr(os, "geteuid") and os.geteuid() == 0
+    log("Kali Tools GUI v%s starting on %s:%d (root=%s, auth=%s)"
+        % (VERSION, HOST, PORT, is_root, bool(TOKEN)))
+    try:
+        httpd = Server((HOST, PORT), Handler)
+    except OSError as e:
+        log("FATAL: cannot bind %s:%d (%s)" % (HOST, PORT, e))
+        raise SystemExit(1)
+    log("listening — http://localhost:%d" % PORT)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\nמכבה...")
+        log("shutting down (SIGINT)")
+    finally:
+        httpd.shutdown()
 
 if __name__ == "__main__":
     main()
