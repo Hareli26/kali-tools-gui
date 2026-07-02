@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kali Tools GUI</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" id="homeBtn">
+      <span class="logo">🐉</span>
+      <div>
+        <div class="brand-title">Kali Tools GUI</div>
+        <div class="brand-sub">ממשק גרפי לכלי Kali Linux</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <nav class="mode-nav">
+        <button id="modeTools" class="mode-tab active" data-goto="picker">🧰 כלים</button>
+        <button id="modeAI" class="mode-tab" data-goto="ai-prompt">🤖 עוזר AI</button>
+      </nav>
+      <span id="statLine" class="stat-line"></span>
+    </div>
+  </header>
+
+  <!-- ===================== SCREEN 1: PICKER ===================== -->
+  <main id="screen-picker" class="screen active">
+    <div class="picker-controls">
+      <input type="text" id="search" placeholder="🔎 חיפוש כלי..." autocomplete="off">
+      <div id="catFilters" class="cat-filters"></div>
+    </div>
+    <div id="toolGrid" class="tool-grid"></div>
+    <div id="pickerEmpty" class="empty hidden">לא נמצאו כלים תואמים.</div>
+  </main>
+
+  <!-- ===================== SCREEN 2: FORM ===================== -->
+  <main id="screen-form" class="screen">
+    <button class="back-btn" data-goto="picker">← חזרה לרשימת הכלים</button>
+    <div class="tool-head">
+      <div class="tool-head-icon" id="formIcon">🛠️</div>
+      <div>
+        <h1 id="formTitle"></h1>
+        <p id="formDesc" class="tool-head-desc"></p>
+        <code id="formBinary" class="binary-chip"></code>
+      </div>
+    </div>
+
+    <div class="form-layout">
+      <form id="toolForm" class="tool-form"></form>
+      <aside class="preview-pane">
+        <div class="preview-label">הפקודה שתורץ:</div>
+        <pre id="cmdPreview" class="cmd-preview"></pre>
+        <button id="runBtn" class="run-btn">▶ הרץ</button>
+        <div id="formError" class="form-error hidden"></div>
+        <div class="examples" id="formExamples"></div>
+        <div class="warn-note">⚠️ הרץ כלים אך ורק על מטרות שיש לך הרשאה חוקית לבדוק.</div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- ===================== SCREEN 3: RESULTS ===================== -->
+  <main id="screen-results" class="screen">
+    <button class="back-btn" data-goto="form">← חזרה לטופס</button>
+    <div class="results-head">
+      <div>
+        <h1 id="resultsTitle"></h1>
+        <code id="resultsCmd" class="cmd-preview inline"></code>
+      </div>
+      <div class="results-actions">
+        <span id="resultsStatus" class="status-badge"></span>
+        <button id="stopBtn" class="stop-btn hidden">⏹ עצור</button>
+        <button id="copyBtn" class="ghost-btn">📋 העתק</button>
+        <button id="downloadBtn" class="ghost-btn">⬇ הורד</button>
+        <button id="rerunBtn" class="ghost-btn">🔁 הרץ שוב</button>
+      </div>
+    </div>
+    <pre id="output" class="output"></pre>
+  </main>
+
+  <!-- ===================== AI: PROMPT ===================== -->
+  <main id="screen-ai-prompt" class="screen">
+    <div class="ai-hero">
+      <div class="ai-hero-icon">🤖</div>
+      <h1>עוזר הבדיקות החכם</h1>
+      <p>תאר במילים שלך מה תרצה לבדוק — הסוכן יבחר את הכלים המתאימים, יבנה תוכנית, יריץ, יאמת ויפיק דוח.</p>
+    </div>
+    <div class="ai-form">
+      <label class="ai-label">מה תרצה לבדוק?</label>
+      <textarea id="aiIntent" rows="3" placeholder="לדוגמה: בדיקת DNS מקיפה / בדיקת חדירות לאתר / סריקת פורטים ושירותים / אנומרציית SMB"></textarea>
+      <div class="ai-chips" id="aiExamples"></div>
+      <label class="ai-label">מטרה (Target)</label>
+      <input type="text" id="aiTarget" placeholder="example.com  /  192.168.1.10  /  https://example.com">
+      <button id="planBtn" class="run-btn">🧠 צור תוכנית</button>
+      <div id="aiPromptErr" class="form-error hidden"></div>
+      <div class="warn-note">⚠️ הסוכן יריץ כלים אמיתיים. השתמש אך ורק על מטרות שיש לך הרשאה חוקית לבדוק.</div>
+    </div>
+  </main>
+
+  <!-- ===================== AI: PLAN ===================== -->
+  <main id="screen-ai-plan" class="screen">
+    <button class="back-btn" data-goto="ai-prompt">← חזרה</button>
+    <div class="ai-plan-head">
+      <h1>🧠 תוכנית הבדיקה</h1>
+      <div id="planMeta" class="plan-meta"></div>
+    </div>
+    <p class="plan-hint">הסוכן בחר את השלבים הבאים. בטל סימון בשלבים שאינך רוצה, ואז הפעל את המשימה.</p>
+    <div id="planSteps" class="plan-steps"></div>
+    <div class="plan-actions">
+      <button id="missionBtn" class="run-btn">▶ הפעל משימה (<span id="planCount">0</span> שלבים)</button>
+    </div>
+  </main>
+
+  <!-- ===================== AI: MISSION ===================== -->
+  <main id="screen-ai-mission" class="screen">
+    <div class="results-head">
+      <div>
+        <h1>⚙️ ביצוע המשימה</h1>
+        <div id="missionMeta" class="plan-meta"></div>
+      </div>
+      <div class="results-actions">
+        <span id="missionStatus" class="status-badge running">רץ</span>
+        <button id="missionStopBtn" class="stop-btn">⏹ עצור</button>
+        <button id="viewReportBtn" class="run-btn hidden">📄 צפה בדוח</button>
+      </div>
+    </div>
+    <div id="missionSteps" class="mission-steps"></div>
+  </main>
+
+  <!-- ===================== AI: REPORT ===================== -->
+  <main id="screen-ai-report" class="screen">
+    <button class="back-btn" data-goto="ai-mission">← חזרה למשימה</button>
+    <div class="results-head">
+      <h1>📄 דוח</h1>
+      <div class="results-actions">
+        <button id="reportCopyBtn" class="ghost-btn">📋 העתק</button>
+        <button id="reportDownloadBtn" class="ghost-btn">⬇ הורד</button>
+        <button id="newMissionBtn" class="ghost-btn">🤖 משימה חדשה</button>
+      </div>
+    </div>
+    <article id="reportBody" class="report-body"></article>
+  </main>
+
+  <!-- ===================== INSTALL MODAL ===================== -->
+  <div id="installModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>התקנת כלי</h2>
+      <p id="installMsg"></p>
+      <p class="modal-hint">נדרשת סיסמת sudo (משמשת מקומית בלבד להתקנה, לא נשמרת).</p>
+      <input type="password" id="sudoPass" placeholder="סיסמת sudo">
+      <div class="modal-actions">
+        <button id="installCancel" class="ghost-btn">ביטול</button>
+        <button id="installGo" class="run-btn">התקן</button>
+      </div>
+      <pre id="installOut" class="output small hidden"></pre>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

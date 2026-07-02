@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4;
+    margin: 22mm 18mm;
+    @bottom-center { content: "Kali Tools GUI — מדריך מלא · Hareli D."; font-size: 8pt; color: #888; }
+    @bottom-left   { content: counter(page) " / " counter(pages); font-size: 8pt; color: #888; }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Noto Sans Hebrew', 'DejaVu Sans', 'Arial', sans-serif; color: #1b2330; line-height: 1.65; font-size: 10.5pt; }
+  h1 { color: #0d3b66; font-size: 20pt; margin: 0 0 6pt; }
+  h2 { color: #12507a; font-size: 15pt; margin: 20pt 0 6pt; border-bottom: 2px solid #2f81f7; padding-bottom: 4pt; }
+  h3 { color: #1b2330; font-size: 12pt; margin: 12pt 0 4pt; }
+  p, li { font-size: 10.5pt; }
+  code { font-family: 'DejaVu Sans Mono', monospace; background: #eef2f7; padding: 1px 5px; border-radius: 3px; font-size: 9.5pt; direction: ltr; unicode-bidi: embed; }
+  pre { background: #0d1117; color: #7ee787; font-family: 'DejaVu Sans Mono', monospace; font-size: 9pt;
+        padding: 10px 12px; border-radius: 6px; direction: ltr; text-align: left; white-space: pre-wrap; }
+  table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 10pt; }
+  th, td { border: 1px solid #cfd8e3; padding: 6px 9px; text-align: right; }
+  th { background: #eaf1fb; color: #0d3b66; }
+  .cover { text-align: center; page-break-after: always; padding-top: 55mm; }
+  .cover .logo { font-size: 70pt; }
+  .cover h1 { font-size: 30pt; color: #0d3b66; border: none; margin: 8pt 0; }
+  .cover .sub { font-size: 14pt; color: #12507a; margin-bottom: 40mm; }
+  .cover .author { font-size: 13pt; color: #1b2330; }
+  .cover .author strong { font-size: 16pt; color: #0d3b66; }
+  .cover .meta { margin-top: 6mm; font-size: 10pt; color: #667; }
+  .badge { display: inline-block; background: #2f81f7; color: #fff; padding: 3px 12px; border-radius: 12px; font-size: 9pt; margin: 2px; }
+  .warn { background: #fff4e5; border-right: 4px solid #d29922; padding: 8px 12px; border-radius: 4px; margin: 10pt 0; font-size: 10pt; }
+  .toc { page-break-after: always; }
+  .toc ol { font-size: 12pt; line-height: 2.1; }
+  .flow { background: #f2f7ff; border: 1px solid #cfe0fb; border-radius: 6px; padding: 10px 14px; direction: ltr; text-align: center; font-family: 'DejaVu Sans Mono', monospace; font-size: 9.5pt; }
+  .section { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ===== COVER ===== -->
+<div class="cover">
+  <div class="logo">🐉</div>
+  <h1>Kali Tools GUI</h1>
+  <div class="sub">ממשק גרפי ושכבת סוכני AI לכלי Kali Linux</div>
+  <div>
+    <span class="badge">70 כלים</span>
+    <span class="badge">11 קטגוריות</span>
+    <span class="badge">4 סוכני AI</span>
+    <span class="badge">WSL2 · Windows</span>
+  </div>
+  <div class="author" style="margin-top:35mm">
+    מדריך הפעלה והדרכה מלא<br><br>
+    מאת: <strong>Hareli D.</strong><br>
+    hareli26@gmail.com
+  </div>
+  <div class="meta">גרסה 1.0 · 2026</div>
+</div>
+
+<!-- ===== TOC ===== -->
+<div class="toc">
+  <h1>תוכן עניינים</h1>
+  <ol>
+    <li>סקירה כללית</li>
+    <li>דרישות מקדימות ומה צריך להתקין</li>
+    <li>התקנה והפעלה</li>
+    <li>מצב "כלים" — שימוש ידני</li>
+    <li>מצב "עוזר AI" — שכבת הסוכנים</li>
+    <li>ארכיטקטורה</li>
+    <li>קטלוג הכלים והקטגוריות</li>
+    <li>פתרון תקלות</li>
+    <li>אבטחה ואתיקה</li>
+  </ol>
+</div>
+
+<!-- 1 -->
+<div class="section">
+<h2>1. סקירה כללית</h2>
+<p><strong>Kali Tools GUI</strong> היא מערכת גרפית (Web) המאחדת את כלי ה‑Kali Linux הרצים תחת WSL2 על Windows.
+המערכת מציעה שני מצבי עבודה:</p>
+<ul>
+  <li><strong>🧰 מצב כלים</strong> — בחירת כלי מרשת כרטיסים, מילוי טופס יכולות עם תצוגת פקודה חיה, הרצה וצפייה בתוצאות במסך נפרד.</li>
+  <li><strong>🤖 מצב עוזר AI</strong> — תיאור חופשי של הבדיקה הרצויה; שכבת סוכנים מתכננת, מריצה, מאמתת ומפיקה דוח.</li>
+</ul>
+<p>השרת רץ <em>בתוך</em> Kali WSL בספריית פייתון סטנדרטית בלבד (אפס תלויות), ומזהה אוטומטית אילו כלים מותקנים.</p>
+</div>
+
+<!-- 2 -->
+<div class="section">
+<h2>2. דרישות מקדימות ומה צריך להתקין</h2>
+<table>
+  <tr><th>רכיב</th><th>גרסה</th><th>בדיקה</th></tr>
+  <tr><td>Windows 10/11 (64‑bit)</td><td>—</td><td>—</td></tr>
+  <tr><td>WSL2</td><td>עדכני</td><td><code>wsl --version</code></td></tr>
+  <tr><td>Kali Linux (WSL)</td><td>Rolling 2025+</td><td><code>wsl -l -v</code></td></tr>
+  <tr><td>Python 3 (בתוך Kali)</td><td>3.9+</td><td><code>python3 --version</code></td></tr>
+  <tr><td>דפדפן מודרני</td><td>Chrome/Edge/Firefox</td><td>—</td></tr>
+</table>
+<p><strong>התקנת WSL + Kali</strong> (PowerShell כמנהל):</p>
+<pre>wsl --install
+wsl --install -d kali-linux</pre>
+<p><strong>התקנת כלי Kali</strong> — ההתקנה הבסיסית מינימלית. בחר סט:</p>
+<pre># סט סטנדרטי (מומלץ)
+sudo apt update &amp;&amp; sudo apt install -y kali-linux-default
+
+# או הכול (כבד, עשרות GB)
+sudo apt install -y kali-linux-everything</pre>
+<div class="warn">אין צורך ב‑pip או חבילות פייתון חיצוניות. אין חובה להתקין את כל הכלים מראש — המערכת מזהה אוטומטית ומציעה כפתור התקנה לכל כלי חסר.</div>
+</div>
+
+<!-- 3 -->
+<div class="section">
+<h2>3. התקנה והפעלה</h2>
+<p>המערכת מורצת כ‑<strong>root</strong> (ללא סיסמה, דרך <code>-u root</code>) כדי שכל הכלים יעבדו.</p>
+<pre># הפעלה מהירה
+C:\ClaudeCode\kali-gui\start.ps1
+
+# או ידנית
+wsl -d kali-linux -u root -- python3 /mnt/c/ClaudeCode/kali-gui/server.py</pre>
+<p>פתח בדפדפן: <code>http://localhost:8777</code></p>
+<p><strong>תיקון DNS</strong> (אם דומיינים חיצוניים לא נפתרים):</p>
+<pre>printf '[network]\ngenerateResolvConf = false\n' | sudo tee /etc/wsl.conf
+sudo rm -f /etc/resolv.conf
+printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' | sudo tee /etc/resolv.conf</pre>
+</div>
+
+<!-- 4 -->
+<div class="section">
+<h2>4. מצב "כלים" — שימוש ידני</h2>
+<h3>שלב א — בחירת כלי</h3>
+<p>חפש בתיבת החיפוש או סנן לפי קטגוריה. כרטיס ירוק = מותקן, אפור = לא מותקן (לחיצה מציעה התקנה).</p>
+<h3>שלב ב — טופס והרצה</h3>
+<p>מלא את השדות; <strong>הפקודה המלאה מתעדכנת בזמן אמת</strong>. שדות חובה מסומנים ב‑<code>*</code>. לחץ ▶ הרץ.</p>
+<h3>שלב ג — תוצאות</h3>
+<p>מסך נפרד עם פלט חי, סטטוס וכפתורי עצור / העתק / הורד / הרץ שוב.</p>
+</div>
+
+<!-- 5 -->
+<div class="section">
+<h2>5. מצב "עוזר AI" — שכבת הסוכנים</h2>
+<div class="flow">Intent ─► Planner ─► [Approve] ─► Executor ─► Verifier ─► Reporter ─► Report</div>
+<h3>Planner (מתכנן)</h3>
+<p>מקבל כוונה בשפה חופשית + מטרה, מזהה את ה‑playbook המתאים ובונה תוכנית שלבים עם פקודות מוכנות והצעות.</p>
+<h3>Executor (מבצע)</h3>
+<p>מריץ כל שלב ברצף לאחר אישורך.</p>
+<h3>Verifier (מאמת)</h3>
+<p>מנתח פלט + קוד יציאה ונותן verdict: ✅ תקין · 🔎 ממצאים · ⚠️ אזהרה · ❌ נכשל, כולל חילוץ ממצאים.</p>
+<h3>Reporter (מדווח)</h3>
+<p>מפיק דוח מלא: סיכום מנהלים, ממצאים עיקריים ופירוט שלבים — ניתן להעתקה/הורדה.</p>
+<p><strong>Playbooks זמינים:</strong> DNS · תת‑דומיינים · סריקת פורטים · בדיקת חדירות · SMB/Windows · Active Directory · API · מיפוי רשת · SSL/TLS · SQL Injection · WordPress · OSINT.</p>
+</div>
+
+<!-- 6 -->
+<div class="section">
+<h2>6. ארכיטקטורה</h2>
+<pre>דפדפן (Windows)
+    │  HTTP (localhost:8777)
+    ▼
+server.py  (Python stdlib, root, בתוך Kali WSL)
+    ├── tools.json   קטלוג 70 כלים
+    ├── agents.py    Planner / Verifier / Reporter
+    └── subprocess ─► כלי Kali אמיתיים (argv, ללא shell)</pre>
+<p>עקרון אבטחה מרכזי: הפקודות נבנות בצד השרת כמערך <code>argv</code> ללא shell — הגנה מהזרקת פקודות.</p>
+</div>
+
+<!-- 7 -->
+<div class="section">
+<h2>7. קטלוג הכלים והקטגוריות</h2>
+<table>
+  <tr><th>קטגוריה</th><th>כלים לדוגמה</th></tr>
+  <tr><td>Recon / איסוף מידע</td><td>whois, whatweb, theHarvester, subfinder, dmitry, sherlock</td></tr>
+  <tr><td>DNS</td><td>dig, dnsenum, dnsrecon, fierce</td></tr>
+  <tr><td>Network / רשת</td><td>nmap, masscan, netdiscover, arp-scan, hping3, fping, tcpdump</td></tr>
+  <tr><td>Web</td><td>nikto, gobuster, ffuf, wpscan, sqlmap, nuclei, httpx, wfuzz</td></tr>
+  <tr><td>SMB / Enumeration</td><td>enum4linux-ng, smbclient, crackmapexec, rpcclient, snmpwalk</td></tr>
+  <tr><td>Passwords</td><td>hydra, medusa, john, hashcat, crunch, cewl, hashid</td></tr>
+  <tr><td>SSL / TLS</td><td>sslscan, sslyze</td></tr>
+  <tr><td>Exploitation</td><td>searchsploit, msfvenom</td></tr>
+  <tr><td>Forensics</td><td>binwalk, foremost, exiftool, steghide, strings</td></tr>
+  <tr><td>Wireless</td><td>aircrack-ng</td></tr>
+  <tr><td>Utilities</td><td>ping, curl, traceroute, macchanger</td></tr>
+</table>
+</div>
+
+<!-- 8 -->
+<div class="section">
+<h2>8. פתרון תקלות</h2>
+<table>
+  <tr><th>תקלה</th><th>פתרון</th></tr>
+  <tr><td>הדף לא נטען</td><td>ודא שהשרת רץ ושפורט 8777 פנוי</td></tr>
+  <tr><td>כלי "לא מותקן"</td><td>לחץ התקן, או <code>apt install &lt;package&gt;</code></td></tr>
+  <tr><td>"דרוש root"</td><td>ודא הרצה עם <code>-u root</code></td></tr>
+  <tr><td>דומיין לא נפתר</td><td>בצע תיקון DNS (סעיף 3)</td></tr>
+  <tr><td>כלי אלחוטי לא עובד</td><td>WSL ללא monitor mode — צפוי; רק aircrack-ng offline</td></tr>
+</table>
+</div>
+
+<!-- 9 -->
+<div class="section">
+<h2>9. אבטחה ואתיקה</h2>
+<div class="warn"><strong>אזהרה:</strong> הרץ כלים אך ורק על מטרות שיש לך הרשאה חוקית מפורשת לבדוק. שימוש בכלי פנטסט כנגד מערכות ללא רשות עלול להיות עבירה פלילית.</div>
+<ul>
+  <li>המערכת מקומית בלבד; הפקודות נבנות בצד השרת ללא shell.</li>
+  <li>שכבת ה‑AI <em>מציעה</em> תוכנית — אתה מאשר לפני כל הרצה. שמור על שלב אישור זה.</li>
+  <li>הסיסמה בשדה ההתקנה (במצב non‑root) משמשת מקומית בלבד ואינה נשמרת.</li>
+</ul>
+<p style="margin-top:20pt; text-align:center; color:#667;">— סוף המדריך · Hareli D. · 2026 —</p>
+</div>
+
+</body>
+</html>
