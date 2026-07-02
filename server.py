@@ -29,7 +29,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import agents  # noqa: E402  (agent engine: planner / verifier / reporter)
+import agents   # noqa: E402  (agent engine: planner / verifier / reporter)
+import bluered  # noqa: E402  (purple-team: broker / blue team / learning)
 WEB_DIR = os.path.join(HERE, "web")
 TOOLS_FILE = os.path.join(HERE, "tools.json")
 
@@ -305,6 +306,66 @@ class Mission:
             } for s in self.steps],
         }
 
+# -------------------------------------------------- purple-team orchestrator -
+PURPLE = {}
+PURPLE_LOCK = threading.Lock()
+
+class PurpleMission:
+    """🟣 Orchestrator: runs the Red mission, then Broker + Blue Team + learning."""
+    def __init__(self, intent, target, steps):
+        self.id = uuid.uuid4().hex[:12]
+        self.intent = intent
+        self.target = target
+        self.mission = Mission(intent, target, steps)
+        self.phase = "red"          # red | blue | done
+        self.status = "running"
+        self.threats = []
+        self.learning = None
+        self.report = None
+        self._stop = False
+
+    def start(self):
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def _run(self):
+        # 🔴 Red phase — reuse the mission executor + verifier
+        self.mission.start()
+        while self.mission.status == "running":
+            if self._stop:
+                self.mission.stop()
+            time.sleep(0.5)
+
+        # 🟢 Broker — collect & correlate red findings
+        self.phase = "blue"
+        red = []
+        for s in self.mission.steps:
+            vd = s.get("verdict") or {}
+            for f in vd.get("findings", []):
+                red.append({"tool": s["tool_name"], "text": f})
+        self.threats = bluered.broker(red)
+
+        # 🧠 Learning + 🟣 report
+        when = datetime.now().strftime("%Y-%m-%d %H:%M")
+        self.learning = bluered.update_kb(self.threats, when)
+        self.report = bluered.purple_report(self.intent, self.target,
+                                            self.mission.steps, self.threats, self.learning, when)
+        self.phase = "done"
+        self.status = "stopped" if self._stop else "done"
+
+    def stop(self):
+        self._stop = True
+        self.mission.stop()
+
+    def snapshot(self):
+        return {
+            "id": self.id, "intent": self.intent, "target": self.target,
+            "phase": self.phase, "status": self.status,
+            "red": self.mission.snapshot(),
+            "threats": self.threats,
+            "learning": self.learning,
+            "report": self.report,
+        }
+
 # ---------------------------------------------------------------- handler ----
 class Handler(BaseHTTPRequestHandler):
     server_version = "KaliGUI/1.0"
@@ -359,6 +420,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_tools()
         if p == "/api/env":
             return self._api_env()
+        if p == "/api/knowledge":
+            return self._send_json(bluered.load_kb())
+        if p.startswith("/api/purple/"):
+            return self._api_purple_get(p.rsplit("/", 1)[-1])
         if p.startswith("/api/mission/"):
             return self._api_mission_get(p.rsplit("/", 1)[-1])
         if p.startswith("/api/job/"):
@@ -375,6 +440,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_plan()
         if p == "/api/mission":
             return self._api_mission_start()
+        if p == "/api/purple":
+            return self._api_purple_start()
+        if p.startswith("/api/purple/") and p.endswith("/stop"):
+            pid = p[len("/api/purple/"):-len("/stop")]
+            return self._api_purple_stop(pid)
         if p.startswith("/api/mission/") and p.endswith("/stop"):
             mid = p[len("/api/mission/"):-len("/stop")]
             return self._api_mission_stop(mid)
@@ -429,6 +499,37 @@ class Handler(BaseHTTPRequestHandler):
         if not m:
             return self._send_json({"error": "משימה לא נמצאה"}, 404)
         m.stop()
+        return self._send_json({"ok": True})
+
+    # -- purple team --
+    def _api_purple_start(self):
+        data = self._read_json()
+        intent = (data.get("intent") or "").strip()
+        target = (data.get("target") or "").strip()
+        steps = data.get("steps") or []
+        if not steps:
+            return self._send_json({"error": "אין שלבים להרצה"}, 400)
+        cat = load_catalog()
+        steps = [enrich_step(s, cat) for s in steps]
+        pm = PurpleMission(intent, target, steps)
+        with PURPLE_LOCK:
+            PURPLE[pm.id] = pm
+        pm.start()
+        return self._send_json({"purple_id": pm.id})
+
+    def _api_purple_get(self, pid):
+        with PURPLE_LOCK:
+            pm = PURPLE.get(pid)
+        if not pm:
+            return self._send_json({"error": "משימת Purple לא נמצאה"}, 404)
+        return self._send_json(pm.snapshot())
+
+    def _api_purple_stop(self, pid):
+        with PURPLE_LOCK:
+            pm = PURPLE.get(pid)
+        if not pm:
+            return self._send_json({"error": "משימת Purple לא נמצאה"}, 404)
+        pm.stop()
         return self._send_json({"ok": True})
 
     # -- endpoints --

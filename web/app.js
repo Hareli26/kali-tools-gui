@@ -22,7 +22,7 @@ const el = (tag, cls, txt) => {
 function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   $("screen-" + name).classList.add("active");
-  const aiMode = name.startsWith("ai-");
+  const aiMode = name.startsWith("ai-") || name === "purple";
   const mt = $("modeTools"), ma = $("modeAI");
   if (mt && ma) { mt.classList.toggle("active", !aiMode); ma.classList.toggle("active", aiMode); }
   window.scrollTo(0, 0);
@@ -520,6 +520,168 @@ async function stopMission() {
   pollMission();
 }
 
+/* ================= PURPLE TEAM (Red -> Broker -> Blue -> Orchestrator) ===== */
+let PURPLE_ID = null;
+let PURPLE_TIMER = null;
+
+async function startPurple() {
+  if (!PLAN) return;
+  const included = [];
+  document.querySelectorAll("#planSteps input[type=checkbox]").forEach(cb => {
+    if (cb.checked) included.push(PLAN.steps[parseInt(cb.dataset.idx, 10)]);
+  });
+  if (!included.length) return;
+  $("purpleBtn").disabled = true;
+  try {
+    const res = await fetch("/api/purple", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intent: PLAN.intent, target: PLAN.target, steps: included })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || "שגיאה"); return; }
+    PURPLE_ID = data.purple_id;
+    $("purpleMeta").innerHTML =
+      `<span class="pill">${escapeHtml(PLAN.intent)}</span><span class="pill">${escapeHtml(PLAN.target)}</span>`;
+    $("purpleReportBtn").classList.add("hidden");
+    $("purpleStopBtn").classList.remove("hidden");
+    $("purpleBlue").innerHTML = '<div class="threats-empty">⏳ ממתין לממצאי הצוות האדום...</div>';
+    $("purpleLearn").innerHTML = "";
+    showScreen("purple");
+    pollPurple();
+  } finally {
+    $("purpleBtn").disabled = false;
+  }
+}
+
+async function pollPurple() {
+  clearTimeout(PURPLE_TIMER);
+  if (!PURPLE_ID) return;
+  try {
+    const res = await fetch("/api/purple/" + PURPLE_ID);
+    const p = await res.json();
+    renderPurpleRed(p.red);
+    // phase badge
+    const badge = $("purplePhase");
+    if (p.phase === "red") { badge.className = "status-badge running"; badge.textContent = "🔴 צוות אדום פועל"; }
+    else if (p.phase === "blue") { badge.className = "status-badge running blue-phase"; badge.textContent = "🔵 צוות כחול מנתח"; }
+    else { badge.className = "status-badge done"; badge.textContent = "🟣 הושלם"; }
+
+    if (p.threats && (p.threats.length || p.phase === "done")) renderThreats(p.threats);
+    if (p.learning) renderLearning(p.learning);
+
+    if (p.status === "running") {
+      PURPLE_TIMER = setTimeout(pollPurple, 1000);
+    } else {
+      $("purpleStopBtn").classList.add("hidden");
+      if (p.report) { REPORT_MD = p.report; $("purpleReportBtn").classList.remove("hidden"); }
+    }
+  } catch (e) {
+    PURPLE_TIMER = setTimeout(pollPurple, 1500);
+  }
+}
+
+function renderPurpleRed(m) {
+  const box = $("purpleRed");
+  box.innerHTML = "";
+  if (!m || !m.steps) return;
+  m.steps.forEach((s, i) => {
+    const wrap = el("div", "mstep" + (i === m.current && m.status === "running" ? " active" : ""));
+    const head = el("div", "mstep-head");
+    let ico = S_ICON[s.status] || "•", vcls = "v-pending", vlabel = "ממתין";
+    if (s.status === "running") { ico = "🔄"; vcls = "v-running"; vlabel = "רץ"; }
+    if (s.verdict) {
+      const v = s.verdict.verdict;
+      vcls = "v-" + v; vlabel = s.verdict.label || v;
+      ico = { ok: "✅", ok_findings: "🔎", warn: "⚠️", fail: "❌", stopped: "⏹️" }[v] || "•";
+    }
+    head.appendChild(el("span", "mstep-ico", ico));
+    const info = el("div", "mstep-info");
+    info.appendChild(el("div", "mstep-title", `${i + 1}. ${s.tool_name}`));
+    info.appendChild(el("div", "mstep-why", s.why || ""));
+    head.appendChild(info);
+    head.appendChild(el("span", "mstep-verdict " + vcls, vlabel));
+    wrap.appendChild(head);
+    if (s.verdict && s.verdict.findings && s.verdict.findings.length) {
+      const f = el("div", "mstep-findings");
+      s.verdict.findings.slice(0, 6).forEach(x => f.appendChild(el("code", null, x)));
+      wrap.appendChild(f);
+    }
+    box.appendChild(wrap);
+  });
+}
+
+const SEV_HE = { critical: "קריטי", high: "גבוה", medium: "בינוני", low: "נמוך" };
+const SEV_ICON = { critical: "🟥", high: "🟧", medium: "🟨", low: "🟩" };
+
+function renderThreats(threats) {
+  const box = $("purpleBlue");
+  box.innerHTML = "";
+  if (!threats.length) {
+    box.innerHTML = '<div class="threats-empty">לא נמצאו ממצאים למיפוי הגנתי בהרצה זו.</div>';
+    return;
+  }
+  threats.forEach(t => {
+    const card = el("div", "threat sev-" + t.severity);
+    const title = el("div", "threat-title");
+    title.appendChild(el("span", null, `${SEV_ICON[t.severity]} ${t.name}`));
+    title.appendChild(el("span", "threat-sev", SEV_HE[t.severity] || t.severity));
+    card.appendChild(title);
+    card.appendChild(el("div", "threat-desc", t.threat));
+    if (t.mitre) card.appendChild(el("div", "threat-mitre", "MITRE ATT&CK: " + t.mitre));
+
+    const ev = el("div", "evidence");
+    ev.appendChild(el("h4", null, "🔴 עדות (צוות אדום):"));
+    (t.evidence || []).slice(0, 3).forEach(e => ev.appendChild(el("code", null, e)));
+    card.appendChild(ev);
+
+    const def = el("div");
+    def.appendChild(el("h4", null, "🛡️ פעולות הגנה:"));
+    const ul = el("ul");
+    t.defenses.forEach(d => ul.appendChild(el("li", null, d)));
+    def.appendChild(ul);
+    card.appendChild(def);
+
+    const det = el("div");
+    det.appendChild(el("h4", null, "👁️ זיהוי וניטור:"));
+    const ul2 = el("ul");
+    t.detections.forEach(d => ul2.appendChild(el("li", null, d)));
+    det.appendChild(ul2);
+    card.appendChild(det);
+
+    if (t.config) {
+      card.appendChild(el("h4", null, "⚙️ תצורה לדוגמה:"));
+      card.appendChild(el("pre", null, t.config));
+    }
+    box.appendChild(card);
+  });
+}
+
+function renderLearning(l) {
+  const box = $("purpleLearn");
+  box.innerHTML = "";
+  const h = el("h3", null, "🧠 למידה מצטברת");
+  box.appendChild(h);
+  const stat = el("div", "stat");
+  const s1 = el("div"); s1.innerHTML = `<b>${l.runs}</b><span>הרצות</span>`;
+  const s2 = el("div"); s2.innerHTML = `<b>${l.total_signatures}</b><span>סוגי ממצאים ידועים</span>`;
+  const s3 = el("div"); s3.innerHTML = `<b>${l.new_this_run.length}</b><span>חדשים בהרצה זו</span>`;
+  stat.appendChild(s1); stat.appendChild(s2); stat.appendChild(s3);
+  box.appendChild(stat);
+  if (l.new_this_run.length) box.appendChild(el("div", "learn-new", "✨ חדש: " + l.new_this_run.join(", ")));
+  if (l.top && l.top.length) {
+    box.appendChild(el("div", null, "הנפוצים ביותר:"));
+    const ul = el("ul");
+    l.top.forEach(x => ul.appendChild(el("li", null, `${x.name} — ${x.count}×`)));
+    box.appendChild(ul);
+  }
+}
+
+async function stopPurple() {
+  if (!PURPLE_ID) return;
+  await fetch("/api/purple/" + PURPLE_ID + "/stop", { method: "POST" });
+  pollPurple();
+}
+
 /* ---- minimal, safe Markdown -> HTML for the report ---- */
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -573,6 +735,9 @@ function initAI() {
   $("missionBtn").onclick = startMission;
   $("missionStopBtn").onclick = stopMission;
   $("viewReportBtn").onclick = showReport;
+  $("purpleBtn").onclick = startPurple;
+  $("purpleStopBtn").onclick = stopPurple;
+  $("purpleReportBtn").onclick = showReport;
   $("reportCopyBtn").onclick = () => navigator.clipboard.writeText(REPORT_MD);
   $("reportDownloadBtn").onclick = downloadReport;
   $("newMissionBtn").onclick = () => { showScreen("ai-prompt"); };

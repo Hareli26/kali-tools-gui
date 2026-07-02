@@ -108,6 +108,34 @@
     <div id="planSteps" class="plan-steps"></div>
     <div class="plan-actions">
       <button id="missionBtn" class="run-btn">▶ הפעל משימה (<span id="planCount">0</span> שלבים)</button>
+      <button id="purpleBtn" class="purple-btn">🟣 Purple Team — אדום + כחול</button>
+    </div>
+  </main>
+
+  <!-- ===================== PURPLE TEAM ===================== -->
+  <main id="screen-purple" class="screen">
+    <div class="results-head">
+      <div>
+        <h1>🟣 Purple Team</h1>
+        <div id="purpleMeta" class="plan-meta"></div>
+      </div>
+      <div class="results-actions">
+        <span id="purplePhase" class="status-badge running">🔴 צוות אדום פועל</span>
+        <button id="purpleStopBtn" class="stop-btn">⏹ עצור</button>
+        <button id="purpleReportBtn" class="run-btn hidden">📄 דוח מלא</button>
+      </div>
+    </div>
+
+    <div class="purple-cols">
+      <section class="purple-col">
+        <h2 class="col-title red">🔴 צוות אדום — תקיפה וגילוי</h2>
+        <div id="purpleRed" class="mission-steps"></div>
+      </section>
+      <section class="purple-col">
+        <h2 class="col-title blue">🔵 צוות כחול — הגנה וניטרול</h2>
+        <div id="purpleBlue" class="threats"></div>
+        <div id="purpleLearn" class="learn-panel"></div>
+      </section>
     </div>
   </main>
 
