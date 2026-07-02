@@ -40,25 +40,37 @@ Kali WSL בהתקנת ברירת מחדל היא **מינימלית** — רוב
   - הרצה: כפתור "🟣 Purple Team" במסך התוכנית. נקודות קצה: `/api/purple`, `/api/knowledge`.
 
 ## הרשאות (root)
-השרת מורץ כ‑**root** בתוך WSL (`wsl -u root` — ללא סיסמה) כדי שכל הכלים יעבדו
-(nmap -sS, tcpdump, masscan, hping3 ...) וגם התקנת חבילות ללא סיסמה.
+השרת מורץ כ‑**root** בתוך WSL כדי שכל הכלים יעבדו (nmap -sS, tcpdump, masscan ...)
+וגם התקנת חבילות ללא סיסמה.
 
-## הרצה
-מ‑PowerShell ב‑Windows:
+## הרצה — ייצור (מומלץ)
+התקנה חד‑פעמית כשירות systemd שמופעל אוטומטית ומתאושש מקריסה:
+```powershell
+C:\ClaudeCode\kali-gui\install-service.ps1
+```
+זה מתקין את `kali-gui.service` (enable + start), ורושם משימת Windows שמעלה את WSL בכל התחברות.
+לאחר מכן פתח: **http://localhost:8777**
+
+ניהול:
+```powershell
+wsl -d kali-linux -u root -- systemctl status kali-gui     # מצב
+wsl -d kali-linux -u root -- systemctl restart kali-gui    # הפעלה מחדש
+wsl -d kali-linux -u root -- journalctl -u kali-gui -n 50  # לוגים
+```
+
+## הרצה — פיתוח (ad-hoc)
 ```powershell
 C:\ClaudeCode\kali-gui\start.ps1
-```
-או ידנית:
-```powershell
-wsl -d kali-linux -u root -- python3 /mnt/c/ClaudeCode/kali-gui/server.py
-# ואז דפדפן: http://localhost:8777
-```
-WSL2 מעביר `localhost` אוטומטית — הדפדפן ב‑Windows ניגש ישירות.
-
-עצירה:
-```powershell
+# עצירה:
 wsl -d kali-linux -u root -- pkill -f server.py
 ```
+
+## אבטחת ייצור
+- **מאזין ל‑127.0.0.1 בלבד** (לא חשוף לרשת) — WSL2 מעביר `localhost` מ‑Windows.
+- **טוקן אופציונלי**: הגדר `KALIGUI_TOKEN` (ב‑`docs/kali-gui.service`) כדי לדרוש אימות.
+- בדיקת בריאות: `GET /api/health` (ללא אימות) → גרסה, uptime.
+- דוחות נשמרים ב‑`reports/<id>.json` ושורדים אתחולים (`/api/reports`, `/api/report/<id>`).
+- משתני סביבה: `KALIGUI_PORT`, `KALIGUI_HOST`, `KALIGUI_STEP_TIMEOUT`, `KALIGUI_MAX_KEEP`.
 
 ## הפעלת מנוע AI אמיתי (אופציונלי)
 כברירת מחדל הסוכנים מבוססי-חוקים (עובד מיד). לניסוח דוחות ע"י LLM מקומי:
