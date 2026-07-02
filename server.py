@@ -40,7 +40,7 @@ RUN_ENV = dict(os.environ)
 RUN_ENV["PATH"] = SAFE_PATH + ":" + RUN_ENV.get("PATH", "")
 
 VERSION = "1.0.0"
-PORT = int(os.environ.get("KALIGUI_PORT", "8777"))
+PORT = int(os.environ.get("KALIGUI_PORT") or os.environ.get("PORT") or "8777")
 # Security: bind to localhost by default. This process runs as root and executes
 # tools, so it must NOT be exposed to the network. WSL2 still forwards Windows
 # localhost -> WSL 127.0.0.1, so the browser on Windows keeps working.
