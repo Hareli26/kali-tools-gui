@@ -35,7 +35,7 @@ if (-not $exists) {
   Write-Host "Creating GitHub repo $me/$RepoName ..." -ForegroundColor Cyan
   gh repo create $RepoName --$Visibility --source "." --remote origin --description $Desc --push
 } else {
-  Write-Host "Repo already exists — pushing latest..." -ForegroundColor Cyan
+  Write-Host "Repo already exists - pushing latest..." -ForegroundColor Cyan
   git remote get-url origin *> $null
   if ($LASTEXITCODE -ne 0) { git remote add origin "https://github.com/$me/$RepoName.git" }
   git branch -M main

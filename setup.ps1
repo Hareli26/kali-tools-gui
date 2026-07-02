@@ -1,5 +1,5 @@
 # ============================================================
-#  Kali Tools GUI — Full Installer
+#  Kali Tools GUI - Full Installer
 #  Author: Hareli D.  (hareli26@gmail.com)
 # ============================================================
 #  Installs the app as an always-on service inside Kali WSL:
