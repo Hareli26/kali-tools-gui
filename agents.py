@@ -81,8 +81,9 @@ PLAYBOOKS = [
         "build": lambda v: [
             _step("whatweb", "טביעת אצבע – טכנולוגיות, שרת, CMS", {"aggr": "3", "target": v["url"]}),
             _step("wafw00f", "זיהוי Web Application Firewall", {"target": v["url"]}),
-            _step("nikto", "סריקת חולשות בשרת הווב", {"host": v["url"]},
-                  "חפש קבצים חשופים, כותרות חסרות וגרסאות פגיעות"),
+            _step("nikto", "סריקת חולשות בשרת הווב (ממוקד + מוגבל בזמן)",
+                  {"host": v["url"], "tuning": "123b", "maxtime": "150s"},
+                  "כוונון 123b = קבצים מעניינים, תצורה שגויה, חשיפת מידע, זיהוי תוכנה"),
             _step("nuclei", "סריקת חולשות מבוססת תבניות", {"url": v["url"], "severity": "critical,high,medium"}),
             _step("gobuster", "גילוי תיקיות וקבצים נסתרים",
                   {"mode": "dir", "url": v["url"], "wordlist": "/usr/share/wordlists/dirb/common.txt"}),
@@ -98,7 +99,8 @@ PLAYBOOKS = [
             _step("nmap", "סריקת סקריפטים לזיהוי חולשות ידועות",
                   {"sc": True, "sv": True, "timing": "-T4", "target": v["host"]}),
             _step("whatweb", "טכנולוגיות ווב (אם יש שירות HTTP)", {"aggr": "3", "target": v["url"]}),
-            _step("nikto", "חולשות בשרת ווב", {"host": v["url"]}),
+            _step("nikto", "חולשות בשרת ווב (ממוקד + מוגבל בזמן)",
+                  {"host": v["url"], "tuning": "123b", "maxtime": "120s"}),
             _step("nuclei", "סריקת חולשות מבוססת תבניות", {"url": v["url"], "severity": "critical,high"}),
         ],
     },
@@ -257,10 +259,18 @@ _FIND_PATTERNS = [
     re.compile(r"\d+/(tcp|udp)\s+open", re.I),
     re.compile(r"VULNERABLE", re.I),
     re.compile(r"CVE-\d{4}-\d+", re.I),
-    re.compile(r"^\s*\[\+\]", re.I),
+    re.compile(r"OSVDB-\d+", re.I),
+    re.compile(r"^\s*\[\+\]", re.I),          # generic [+]
+    re.compile(r"^\s*\+\s+\S", re.I),          # nikto "+ ..." findings
     re.compile(r"\[(critical|high|medium)\]", re.I),
-    re.compile(r"Status:\s*200", re.I),
+    re.compile(r"Status:\s*(200|301|302|401|403)", re.I),
+    re.compile(r"\(Status:\s*\d+\)", re.I),   # gobuster "(Status: 200)"
 ]
+
+# noise lines (banners/headers) to ignore even if they match a pattern
+_SKIP_LINES = ("target ip", "target hostname", "target port", "start time",
+               "end time", "- nikto v", "host(s) tested", "requests:", "ssl info",
+               "root:", "server:", "retrieved x-powered")
 
 def verify(tool_id, snap):
     out = snap.get("output", "") or ""
@@ -291,6 +301,9 @@ def verify(tool_id, snap):
     for line in out.splitlines():
         l = line.strip()
         if not l or len(l) > 200:
+            continue
+        ll = l.lower()
+        if any(sk in ll for sk in _SKIP_LINES):
             continue
         for pat in _FIND_PATTERNS:
             if pat.search(l):

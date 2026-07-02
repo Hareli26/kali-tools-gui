@@ -159,9 +159,10 @@
         { "id": "host", "flag": "-h", "label": "מטרה (host/URL)", "type": "text", "required": true, "placeholder": "https://example.com" },
         { "id": "port", "flag": "-p", "label": "פורט", "type": "number", "placeholder": "443" },
         { "id": "ssl", "flag": "-ssl", "label": "כפה SSL (-ssl)", "type": "bool" },
-        { "id": "tuning", "flag": "-Tuning", "label": "כוונון בדיקות (Tuning)", "type": "text", "placeholder": "1234", "help": "1=קבצים 2=misconfig 3=info disclosure 9=SQLi" }
+        { "id": "tuning", "flag": "-Tuning", "label": "כוונון בדיקות (Tuning)", "type": "text", "placeholder": "1234", "help": "1=קבצים 2=misconfig 3=info disclosure 9=SQLi" },
+        { "id": "maxtime", "flag": "-maxtime", "label": "זמן מקסימלי", "type": "text", "placeholder": "150s", "help": "מגביל את משך הסריקה, למשל 150s — מחזיר ממצאים חלקיים בזמן" }
       ],
-      "examples": [ "nikto -h https://example.com" ]
+      "examples": [ "nikto -h https://example.com -maxtime 150s" ]
     },
     {
       "id": "gobuster", "name": "Gobuster", "binary": "gobuster", "package": "gobuster", "category": "web",
