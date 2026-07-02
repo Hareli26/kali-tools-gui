@@ -367,6 +367,7 @@ class PurpleMission:
             "intent": self.intent, "target": self.target,
             "red_findings": red_findings, "threats": len(self.threats),
             "severity": top_sev,
+            "threat_sigs": [t["signature"] for t in self.threats],
             "new_learned": (self.learning or {}).get("new_this_run", []),
             "status": self.status,
         })
@@ -443,6 +444,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(bluered.load_kb())
         if p == "/api/dashboard":
             return self._api_dashboard()
+        if p.startswith("/api/threat/"):
+            return self._api_threat(p.rsplit("/", 1)[-1])
         if p.startswith("/api/purple/"):
             return self._api_purple_get(p.rsplit("/", 1)[-1])
         if p.startswith("/api/mission/"):
@@ -540,8 +543,9 @@ class Handler(BaseHTTPRequestHandler):
         for s in sigs.values():
             sev_counts[s.get("severity", "low")] = sev_counts.get(s.get("severity", "low"), 0) + 1
         top = sorted(sigs.items(), key=lambda kv: -kv[1]["count"])[:6]
-        top_list = [{"name": v["name"], "count": v["count"], "severity": v["severity"],
-                     "last_seen": v.get("last_seen", "")} for _, v in top]
+        top_list = [{"signature": kid, "name": v["name"], "count": v["count"],
+                     "severity": v["severity"], "last_seen": v.get("last_seen", "")}
+                    for kid, v in top]
 
         activity = list(reversed(bluered.load_activity()))[:25]
 
@@ -559,6 +563,30 @@ class Handler(BaseHTTPRequestHandler):
             },
             "activity": activity,
             "tools": {"installed": installed, "total": len(cat["tools"])},
+        })
+
+    def _api_threat(self, sig):
+        from urllib.parse import unquote
+        sig = unquote(sig)
+        rule = bluered.get_defense(sig)
+        if not rule:
+            return self._send_json({"error": "איום לא ידוע"}, 404)
+        kb = bluered.load_kb()
+        rec = kb.get("signatures", {}).get(sig, {})
+        # occurrences: purple runs where this signature appeared
+        occ = []
+        for a in reversed(bluered.load_activity()):
+            if a.get("type") == "purple" and sig in (a.get("threat_sigs") or []):
+                occ.append({"when": a.get("when", ""), "ts": a.get("ts"),
+                            "target": a.get("target", ""), "intent": a.get("intent", "")})
+        return self._send_json({
+            "signature": sig,
+            "name": rule["name"], "severity": rule["severity"], "threat": rule["threat"],
+            "defenses": rule["defenses"], "detections": rule["detections"],
+            "config": rule.get("config", ""), "mitre": rule.get("mitre", ""),
+            "count": rec.get("count", 0), "first_seen": rec.get("first_seen", ""),
+            "last_seen": rec.get("last_seen", ""),
+            "occurrences": occ,
         })
 
     def _api_plan(self):

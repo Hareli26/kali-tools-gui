@@ -605,8 +605,10 @@ function renderDashboard(d) {
   if (!k.top.length) top.appendChild(el("div", "feed-empty", "אין נתונים עדיין — הרץ משימת Purple"));
   k.top.forEach(t => {
     const row = el("div", "top-threat");
+    row.appendChild(el("span", "arrow", "‹"));
     row.appendChild(el("span", null, (SEV_ICON[t.severity] || "•") + " " + t.name));
     row.appendChild(el("span", "cnt", t.count + "×"));
+    row.onclick = () => openThreat(t.signature);
     top.appendChild(row);
   });
 
@@ -636,6 +638,49 @@ function renderDashboard(d) {
     card.appendChild(body);
     feed.appendChild(card);
   });
+}
+
+async function openThreat(sig) {
+  const modal = $("threatModal"), body = $("threatBody");
+  body.innerHTML = '<p style="color:var(--text-dim)">טוען...</p>';
+  modal.classList.remove("hidden");
+  let t;
+  try {
+    const res = await fetch("/api/threat/" + encodeURIComponent(sig));
+    t = await res.json();
+    if (!res.ok) { body.innerHTML = `<p>${escapeHtml(t.error || "שגיאה")}</p>`; return; }
+  } catch (e) { body.innerHTML = "<p>שגיאת רשת</p>"; return; }
+
+  const list = (arr) => "<ul>" + arr.map(x => `<li>${escapeHtml(x)}</li>`).join("") + "</ul>";
+  let html = "";
+  html += `<div class="tm-head"><h2>${SEV_ICON[t.severity] || ""} ${escapeHtml(t.name)}</h2>`;
+  html += `<span class="tm-sev ${t.severity}">${SEV_HE[t.severity] || t.severity}</span></div>`;
+  if (t.mitre) html += `<div class="tm-meta">MITRE ATT&CK: <span class="mitre">${escapeHtml(t.mitre)}</span></div>`;
+
+  html += `<div class="tm-stats">`;
+  html += `<div class="tm-stat"><b>${t.count}</b><span>הופעות</span></div>`;
+  html += `<div class="tm-stat"><b>${t.occurrences.length}</b><span>הרצות</span></div>`;
+  if (t.first_seen) html += `<div class="tm-stat"><b style="font-size:12px">${escapeHtml(t.first_seen)}</b><span>נראה לראשונה</span></div>`;
+  html += `</div>`;
+
+  html += `<div class="tm-threat">⚠️ ${escapeHtml(t.threat)}</div>`;
+  html += `<h4>🛡️ פעולות הגנה מומלצות</h4>${list(t.defenses)}`;
+  html += `<h4>👁️ זיהוי וניטור</h4>${list(t.detections)}`;
+  if (t.config) html += `<h4>⚙️ תצורה לדוגמה</h4><pre>${escapeHtml(t.config)}</pre>`;
+
+  html += `<h4>📍 היכן נצפה</h4>`;
+  if (t.occurrences.length) {
+    html += `<div class="tm-occ">`;
+    t.occurrences.forEach(o => {
+      html += `<div class="tm-occ-row"><span class="t">${escapeHtml(o.target)}</span>` +
+              `<span>${escapeHtml(o.intent || "")}</span>` +
+              `<span class="w">${o.ts ? relTime(o.ts) : escapeHtml(o.when)}</span></div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<p style="color:var(--text-dim);font-size:13px">אין רישום מפורט של הופעות (הידע נצבר לפני הוספת יומן הפעילות).</p>`;
+  }
+  body.innerHTML = html;
 }
 
 /* ================= PURPLE TEAM (Red -> Broker -> Blue -> Orchestrator) ===== */
@@ -870,6 +915,8 @@ function init() {
   $("copyBtn").onclick = () => navigator.clipboard.writeText($("output").textContent);
   $("downloadBtn").onclick = download;
   $("rerunBtn").onclick = () => { if (CURRENT_TOOL) { showScreen("form"); } };
+  $("threatClose").onclick = () => $("threatModal").classList.add("hidden");
+  $("threatModal").onclick = (e) => { if (e.target === $("threatModal")) $("threatModal").classList.add("hidden"); };
   $("installCancel").onclick = () => $("installModal").classList.add("hidden");
   $("installGo").onclick = doInstall;
   $("sudoPass").onkeydown = (e) => { if (e.key === "Enter") doInstall(); };

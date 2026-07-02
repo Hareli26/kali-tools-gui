@@ -209,6 +209,11 @@ DEFENSE_KB = [
 ]
 
 _SEV_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+DEFENSE_BY_ID = {r["id"]: r for r in DEFENSE_KB}
+
+def get_defense(signature):
+    """Return the full defense rule for a signature id, or None."""
+    return DEFENSE_BY_ID.get(signature)
 
 def analyze_finding(text):
     low = text.lower()
