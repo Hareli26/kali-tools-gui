@@ -40,6 +40,7 @@ RUN_ENV["PATH"] = SAFE_PATH + ":" + RUN_ENV.get("PATH", "")
 
 PORT = int(os.environ.get("KALIGUI_PORT", "8777"))
 MAX_OUTPUT = 5 * 1024 * 1024  # cap stored output per job (bytes)
+STEP_TIMEOUT = int(os.environ.get("KALIGUI_STEP_TIMEOUT", "300"))  # sec per mission step
 
 # ---------------------------------------------------------------- catalog ----
 def load_catalog():
@@ -172,9 +173,10 @@ def build_argv(tool, values):
             argv.append(flag)
             argv.append(val)
 
-    # required primary check
+    # required positional-primary check (only for flag-less primaries;
+    # primaries that carry a flag are validated by the empty-value check above)
     for opt in tool.get("options", []):
-        if opt.get("primary") and opt.get("required") and positional is None:
+        if opt.get("primary") and opt.get("flag", "") == "" and opt.get("required") and positional is None:
             raise ValueError("שדה חובה חסר: %s" % opt.get("label", opt["id"]))
 
     extra = values.get("_extra", "")
@@ -258,8 +260,14 @@ class Mission:
             self._curjob = job
             s["command"] = job.snapshot()["command"]
             job.start()
+            started = time.monotonic()
+            timed_out = False
             while job.status in ("starting", "running"):
                 if self._stop:
+                    job.stop()
+                    break
+                if time.monotonic() - started > STEP_TIMEOUT:
+                    timed_out = True
                     job.stop()
                     break
                 time.sleep(0.4)
@@ -267,7 +275,13 @@ class Mission:
             s["output"] = snap["output"]
             s["returncode"] = snap["returncode"]
             s["status"] = "done"
-            s["verdict"] = agents.verify(s["tool_id"], snap)
+            if timed_out:
+                vd = agents.verify(s["tool_id"], snap)
+                s["verdict"] = {"verdict": "warn", "label": "חריגת זמן",
+                                "note": "השלב נעצר לאחר %d שניות. ניתן להריץ אותו ידנית עם פרמטרים ממוקדים יותר." % STEP_TIMEOUT,
+                                "findings": vd.get("findings", [])}
+            else:
+                s["verdict"] = agents.verify(s["tool_id"], snap)
             self._curjob = None
 
         self.status = "stopped" if self._stop else "done"
