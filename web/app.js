@@ -422,6 +422,23 @@ function updatePlanCount() {
   $("missionBtn").disabled = n === 0;
 }
 
+async function runMission(intent, target, steps) {
+  const res = await fetch("/api/mission", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ intent, target, steps })
+  });
+  const data = await res.json();
+  if (!res.ok) { alert(data.error || "שגיאה"); return false; }
+  MISSION_ID = data.mission_id;
+  $("missionMeta").innerHTML =
+    `<span class="pill">${escapeHtml(intent)}</span><span class="pill">${escapeHtml(target)}</span>`;
+  $("viewReportBtn").classList.add("hidden");
+  $("missionStopBtn").classList.remove("hidden");
+  showScreen("ai-mission");
+  pollMission();
+  return true;
+}
+
 async function startMission() {
   if (!PLAN) return;
   const included = [];
@@ -430,23 +447,8 @@ async function startMission() {
   });
   if (!included.length) return;
   $("missionBtn").disabled = true;
-  try {
-    const res = await fetch("/api/mission", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intent: PLAN.intent, target: PLAN.target, steps: included })
-    });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error || "שגיאה"); return; }
-    MISSION_ID = data.mission_id;
-    $("missionMeta").innerHTML =
-      `<span class="pill">${escapeHtml(PLAN.intent)}</span><span class="pill">${escapeHtml(PLAN.target)}</span>`;
-    $("viewReportBtn").classList.add("hidden");
-    $("missionStopBtn").classList.remove("hidden");
-    showScreen("ai-mission");
-    pollMission();
-  } finally {
-    $("missionBtn").disabled = false;
-  }
+  try { await runMission(PLAN.intent, PLAN.target, included); }
+  finally { $("missionBtn").disabled = false; }
 }
 
 const V_LABEL = { ok: "תקין", ok_findings: "ממצאים", warn: "אזהרה", fail: "נכשל", stopped: "נעצר" };
@@ -835,7 +837,6 @@ function renderDashboard(d) {
   if (!d.activity.length) { feed.appendChild(el("div", "feed-empty", "עדיין לא בוצעו משימות. עבור ל🤖 עוזר AI כדי להתחיל.")); return; }
   d.activity.forEach(a => {
     const card = el("div", "feed-card" + (a.type === "purple" ? " purple" : ""));
-    if (a.id) { card.classList.add("clickable"); card.onclick = () => openSavedReport(a.id); }
     const head = el("div", "feed-head");
     const icon = a.type === "purple" ? "🟣" : "🤖";
     head.appendChild(el("span", null, `${icon} ${a.intent || "משימה"}`));
@@ -854,6 +855,16 @@ function renderDashboard(d) {
         `<span class="tag">🔎 ${a.findings} ממצאים</span>`;
     }
     card.appendChild(body);
+    const actions = el("div", "feed-actions");
+    if (a.id) {
+      const rep = el("button", "feed-btn", "📄 דוח");
+      rep.onclick = (e) => { e.stopPropagation(); openSavedReport(a.id); };
+      actions.appendChild(rep);
+    }
+    const rerun = el("button", "feed-btn run", "▶ הרץ שוב");
+    rerun.onclick = (e) => { e.stopPropagation(); rerunActivity(a); };
+    actions.appendChild(rerun);
+    card.appendChild(actions);
     feed.appendChild(card);
   });
 }
@@ -915,6 +926,25 @@ async function openThreat(sig) {
 let PURPLE_ID = null;
 let PURPLE_TIMER = null;
 
+async function runPurple(intent, target, steps) {
+  const res = await fetch("/api/purple", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ intent, target, steps })
+  });
+  const data = await res.json();
+  if (!res.ok) { alert(data.error || "שגיאה"); return false; }
+  PURPLE_ID = data.purple_id;
+  $("purpleMeta").innerHTML =
+    `<span class="pill">${escapeHtml(intent)}</span><span class="pill">${escapeHtml(target)}</span>`;
+  $("purpleReportBtn").classList.add("hidden");
+  $("purpleStopBtn").classList.remove("hidden");
+  $("purpleBlue").innerHTML = '<div class="threats-empty">⏳ ממתין לממצאי הצוות האדום...</div>';
+  $("purpleLearn").innerHTML = "";
+  showScreen("purple");
+  pollPurple();
+  return true;
+}
+
 async function startPurple() {
   if (!PLAN) return;
   const included = [];
@@ -923,25 +953,23 @@ async function startPurple() {
   });
   if (!included.length) return;
   $("purpleBtn").disabled = true;
+  try { await runPurple(PLAN.intent, PLAN.target, included); }
+  finally { $("purpleBtn").disabled = false; }
+}
+
+// Re-run an activity-feed entry: re-plan its intent/target, then run it again.
+async function rerunActivity(a) {
   try {
-    const res = await fetch("/api/purple", {
+    const res = await fetch("/api/plan", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intent: PLAN.intent, target: PLAN.target, steps: included })
+      body: JSON.stringify({ intent: a.intent, target: a.target })
     });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error || "שגיאה"); return; }
-    PURPLE_ID = data.purple_id;
-    $("purpleMeta").innerHTML =
-      `<span class="pill">${escapeHtml(PLAN.intent)}</span><span class="pill">${escapeHtml(PLAN.target)}</span>`;
-    $("purpleReportBtn").classList.add("hidden");
-    $("purpleStopBtn").classList.remove("hidden");
-    $("purpleBlue").innerHTML = '<div class="threats-empty">⏳ ממתין לממצאי הצוות האדום...</div>';
-    $("purpleLearn").innerHTML = "";
-    showScreen("purple");
-    pollPurple();
-  } finally {
-    $("purpleBtn").disabled = false;
-  }
+    const plan = await res.json();
+    if (!res.ok || !plan.steps || !plan.steps.length) { alert(plan.error || "לא ניתן לתכנן מחדש"); return; }
+    PLAN = plan;
+    if (a.type === "purple") await runPurple(a.intent, a.target, plan.steps);
+    else await runMission(a.intent, a.target, plan.steps);
+  } catch (e) { alert("שגיאה: " + e); }
 }
 
 async function pollPurple() {
