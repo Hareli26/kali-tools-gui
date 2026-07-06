@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4; margin: 20mm 18mm 22mm 18mm;
+    @bottom-center { content: "מסמך אפיון מוצר (PRD) · Kali Tools GUI"; font-size: 8pt; color: #999; }
+    @bottom-left { content: "עמ' " counter(page) " מתוך " counter(pages); font-size: 8pt; color: #999; }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Noto Sans Hebrew','DejaVu Sans',Arial,sans-serif; color: #1a2230; line-height: 1.7; font-size: 10.5pt; }
+  h1 { color: #14396b; font-size: 18pt; margin: 0 0 4pt; }
+  h2 { color: #14396b; font-size: 14pt; margin: 18pt 0 6pt; border-bottom: 2px solid #2f6fd0; padding-bottom: 4pt; }
+  h3 { color: #223; font-size: 11.5pt; margin: 12pt 0 4pt; }
+  p, li { font-size: 10.5pt; }
+  ul, ol { padding-inline-start: 20px; margin: 4pt 0; }
+  li { margin: 2pt 0; }
+  code { font-family: 'DejaVu Sans Mono',monospace; background: #eef2f8; padding: 1px 5px; border-radius: 3px;
+    font-size: 9.3pt; direction: ltr; unicode-bidi: embed; }
+  table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 9.8pt; }
+  th, td { border: 1px solid #c9d5e6; padding: 5px 8px; text-align: right; vertical-align: top; }
+  th { background: #e8f0fb; color: #14396b; font-weight: 700; }
+  .cover { text-align: center; page-break-after: always; padding-top: 40mm; }
+  .cover .kicker { color: #2f6fd0; letter-spacing: 3px; font-size: 12pt; }
+  .cover h1 { font-size: 30pt; color: #14396b; margin: 10pt 0; border: none; }
+  .cover .sub { font-size: 14pt; color: #445; margin-bottom: 6mm; }
+  .cover .logo { font-size: 60pt; }
+  .cover .box { display: inline-block; text-align: right; margin-top: 30mm; border: 1px solid #c9d5e6;
+    border-radius: 8px; padding: 14px 26px; font-size: 11pt; background: #f7fafd; }
+  .cover .box b { color: #14396b; }
+  .toc { page-break-after: always; }
+  .toc ol { font-size: 11.5pt; line-height: 2.05; }
+  .lead { background: #f2f7fd; border-right: 4px solid #2f6fd0; padding: 10px 14px; border-radius: 4px; margin: 8pt 0; }
+  .tag { display: inline-block; background: #14396b; color: #fff; font-size: 8.5pt; padding: 2px 9px; border-radius: 10px; margin: 1px; }
+  .req-id { font-family: 'DejaVu Sans Mono',monospace; color: #2f6fd0; font-weight: 700; }
+  .diagram { background: #0e1726; color: #d6e2f2; font-family: 'DejaVu Sans Mono',monospace; font-size: 8.6pt;
+    border-radius: 8px; padding: 12px 14px; direction: ltr; text-align: left; white-space: pre; overflow-x: auto; line-height: 1.35; }
+  .section { page-break-inside: avoid; }
+  .muted { color: #667; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="logo">🐉</div>
+  <div class="kicker">PRODUCT REQUIREMENTS DOCUMENT</div>
+  <h1>Kali Tools GUI</h1>
+  <div class="sub">ממשק גרפי ושכבת סוכני AI מסוג Purple‑Team לכלי Kali Linux</div>
+  <div>
+    <span class="tag">מסמך אפיון מוצר</span>
+    <span class="tag">גרסה 1.0</span>
+    <span class="tag">אבטחת מידע</span>
+  </div>
+  <div class="box">
+    <div>מגיש: <b>Hareli D.</b></div>
+    <div>דוא"ל: hareli26@gmail.com</div>
+    <div>תאריך: יולי 2026</div>
+    <div>מוסד / קורס: ______________________</div>
+    <div>מנחה: ______________________</div>
+  </div>
+</div>
+
+<div class="toc">
+  <h1>תוכן עניינים</h1>
+  <ol>
+    <li>תקציר מנהלים</li>
+    <li>רקע ומוטיבציה</li>
+    <li>מטרות המוצר</li>
+    <li>קהל יעד ופרסונות</li>
+    <li>דרישות פונקציונליות</li>
+    <li>דרישות לא‑פונקציונליות</li>
+    <li>סקירת ארכיטקטורה</li>
+    <li>תכונות המוצר בפירוט</li>
+    <li>מדדי הצלחה (KPIs)</li>
+    <li>גבולות המערכת (Scope)</li>
+    <li>סיכונים והנחות</li>
+    <li>מפת דרכים עתידית</li>
+  </ol>
+</div>
+
+<div class="section">
+<h2>1. תקציר מנהלים</h2>
+<div class="lead">
+<strong>Kali Tools GUI</strong> היא מערכת גרפית (Web) המאחדת את עשרות כלי ה‑Kali Linux הרצים תחת WSL2 על Windows,
+ומוסיפה מעליהם שכבת סוכנים חכמה בגישת <strong>Purple Team</strong>: צוות אדום שמאתר פרצות, צוות כחול שמפיק הגנות,
+סוכן מתווך ביניהם, וסוכן מתזמר שמנצח את התהליך ומדווח — עם למידה מצטברת בין הרצות.
+</div>
+<p>המערכת פותרת פער מרכזי: כלי הפנטסט חזקים אך דורשים ידע בשורת פקודה ובעשרות דגלים, והתוצאות מפוזרות וקשות
+לפרשנות. המערכת מנגישה אותם דרך טפסים גרפיים, ומעל זה מאפשרת למשתמש לתאר <em>כוונה</em> בשפה חופשית ולקבל
+בדיקה שלמה שמתוכננת, מורצת, מאומתת ומדווחת אוטומטית — כולל המלצות הגנה קונקרטיות.</p>
+</div>
+
+<div class="section">
+<h2>2. רקע ומוטיבציה</h2>
+<p>Kali Linux היא הפצת לינוקס המובילה לבדיקות חדירות, המכילה מאות כלים. עם זאת:</p>
+<table>
+  <tr><th>הבעיה</th><th>ההשפעה</th><th>הפתרון במערכת</th></tr>
+  <tr><td>תחביר מורכב ודגלים רבים לכל כלי</td><td>עקומת למידה תלולה, שגיאות</td><td>טופס דינמי + תצוגת פקודה חיה</td></tr>
+  <tr><td>לא ברור באיזה כלי להשתמש לכל מטרה</td><td>בזבוז זמן, כיסוי חלקי</td><td>סוכן Planner שממפה כוונה→כלים</td></tr>
+  <tr><td>תוצאות מפוזרות וקשות לפרשנות</td><td>קושי להסיק מסקנות</td><td>סוכני Verifier ו‑Reporter</td></tr>
+  <tr><td>פער בין מציאת פרצה ליכולת להגן</td><td>ממצא ללא פעולה</td><td>שכבת Blue Team עם המלצות הגנה</td></tr>
+</table>
+<p>המוטיבציה החינוכית: מערכת המדגימה עקרונות של Red/Blue/Purple Team, ארכיטקטורת מיקרו‑שירות פשוטה,
+בניית פקודות בטוחה, ותכנון מבוסס‑ידע — כל זאת ללא תלות בספריות חיצוניות.</p>
+</div>
+
+<div class="section">
+<h2>3. מטרות המוצר</h2>
+<ol>
+  <li><strong>הנגשה:</strong> להפוך כלי פנטסט מורכבים לנגישים דרך ממשק גרפי אינטואיטיבי בעברית.</li>
+  <li><strong>אוטומציה חכמה:</strong> לתרגם כוונה בשפה טבעית לתוכנית בדיקה מלאה שמתבצעת מקצה לקצה.</li>
+  <li><strong>ערך הגנתי:</strong> לא רק לגלות חולשות אלא להפיק לכל ממצא המלצת הגנה, ניטור ומיפוי MITRE ATT&CK.</li>
+  <li><strong>למידה:</strong> לצבור ידע על ממצאים חוזרים ולשקף מגמות לאורך זמן.</li>
+  <li><strong>עמידות:</strong> לפעול כשירות ייצור יציב, מאובטח וזמין תמידית.</li>
+</ol>
+</div>
+
+<div class="section">
+<h2>4. קהל יעד ופרסונות</h2>
+<table>
+  <tr><th>פרסונה</th><th>צורך עיקרי</th><th>כיצד המערכת עונה</th></tr>
+  <tr><td>סטודנט לאבטחת מידע</td><td>ללמוד כלים ותהליכים</td><td>ממשק מודרך + הסברים לכל כלי ואיום</td></tr>
+  <tr><td>בודק חדירות מתחיל</td><td>להריץ בלי לזכור תחביר</td><td>טפסים + Playbooks מוכנים</td></tr>
+  <tr><td>אנליסט הגנה (Blue)</td><td>לדעת כיצד להתגונן</td><td>המלצות הגנה, ניטור ו‑MITRE לכל ממצא</td></tr>
+  <tr><td>חובב CTF</td><td>מהירות וכיסוי</td><td>שרשראות כלים אוטומטיות + דוח מרוכז</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>5. דרישות פונקציונליות</h2>
+<table>
+  <tr><th>מזהה</th><th>דרישה</th><th>עדיפות</th></tr>
+  <tr><td class="req-id">FR‑01</td><td>הצגת קטלוג כלים עם חיפוש, סינון לפי קטגוריה וזיהוי מותקן/לא‑מותקן</td><td>חובה</td></tr>
+  <tr><td class="req-id">FR‑02</td><td>טופס דינמי לכל כלי עם תצוגת פקודה מתעדכנת בזמן אמת</td><td>חובה</td></tr>
+  <tr><td class="req-id">FR‑03</td><td>הרצת כלי והצגת פלט חי במסך תוצאות נפרד, עם עצירה/העתקה/הורדה</td><td>חובה</td></tr>
+  <tr><td class="req-id">FR‑04</td><td>התקנת כלי חסר מתוך הממשק</td><td>רצוי</td></tr>
+  <tr><td class="req-id">FR‑05</td><td>תרגום כוונה בשפה חופשית לתוכנית שלבים (Planner)</td><td>חובה</td></tr>
+  <tr><td class="req-id">FR‑06</td><td>הרצת שלבים ברצף עם אימות אוטומטי של כל שלב (Executor+Verifier)</td><td>חובה</td></tr>
+  <tr><td class="req-id">FR‑07</td><td>הפקת דוח Markdown מלא (Reporter) ושמירתו לצפייה חוזרת</td><td>חובה</td></tr>
+  <tr><td class="req-id">FR‑08</td><td>מיפוי כל ממצא אדום להמלצת הגנה, ניטור, תצורה ו‑MITRE (Blue Team)</td><td>חובה</td></tr>
+  <tr><td class="req-id">FR‑09</td><td>צבירת ידע על ממצאים חוזרים בין הרצות (Learning)</td><td>חובה</td></tr>
+  <tr><td class="req-id">FR‑10</td><td>דשבורד "מרכז בקרה": מצב סוכנים חי, מודיעין נצבר ויומן פעילות</td><td>חובה</td></tr>
+  <tr><td class="req-id">FR‑11</td><td>תצוגת "מוח סוכן" גרפית עם התקרבות סמנטית (semantic zoom)</td><td>רצוי</td></tr>
+  <tr><td class="req-id">FR‑12</td><td>הרצה חוזרת של פעילות קיימת עם אישור מפורש</td><td>רצוי</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>6. דרישות לא‑פונקציונליות</h2>
+<table>
+  <tr><th>מזהה</th><th>דרישה</th></tr>
+  <tr><td class="req-id">NFR‑01</td><td><b>אבטחה:</b> בניית פקודות כמערך <code>argv</code> ללא shell (הגנה מהזרקה); האזנה ל‑127.0.0.1 בלבד; טוקן אופציונלי.</td></tr>
+  <tr><td class="req-id">NFR‑02</td><td><b>אפס תלויות:</b> צד השרת בספריית פייתון סטנדרטית בלבד — עובד על Kali מינימלי.</td></tr>
+  <tr><td class="req-id">NFR‑03</td><td><b>זמינות:</b> שירות systemd עם הפעלה אוטומטית והתאוששות מקריסה.</td></tr>
+  <tr><td class="req-id">NFR‑04</td><td><b>עמידות:</b> טיפול גלובלי בשגיאות, גיזום זיכרון, לוגים, נקודת בריאות.</td></tr>
+  <tr><td class="req-id">NFR‑05</td><td><b>שפה ונגישות:</b> ממשק RTL מלא בעברית, ערכת נושא כהה.</td></tr>
+  <tr><td class="req-id">NFR‑06</td><td><b>ביצועים:</b> זמן ממחשבה עד הרצה &lt; 30 שניות; פלט מוזרם עם מגבלת גודל.</td></tr>
+  <tr><td class="req-id">NFR‑07</td><td><b>שקיפות:</b> הידע מבוסס‑חוקים ניתן לביקורת ולעריכה (JSON/פייתון).</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>7. סקירת ארכיטקטורה</h2>
+<div class="diagram">┌───────────────────────────────────────────────────────────┐
+│  Browser (Windows)  —  RTL SPA (vanilla JS)               │
+│  Tools · AI Assistant · Dashboard · Agent-Brain           │
+└───────────────┬───────────────────────────────────────────┘
+                │  HTTP (localhost:8777)
+┌───────────────▼───────────────────────────────────────────┐
+│  server.py  (Python stdlib, root, inside Kali WSL)         │
+│   ├── tools.json    catalog (70 tools / 11 categories)     │
+│   ├── agents.py     Planner · Verifier · Reporter          │
+│   ├── bluered.py    Broker · Blue Team · Learning          │
+│   └── subprocess ──► real Kali tools (argv, no shell)      │
+└───────────────┬───────────────────────────────────────────┘
+                │  reads/writes
+        knowledge.json · activity.json · reports/</div>
+<p class="muted">איור 1 — סקירת ארכיטקטורה. פירוט מלא במסמך התכן הנלווה.</p>
+</div>
+
+<div class="section">
+<h2>8. תכונות המוצר בפירוט</h2>
+<h3>8.1 מצב "כלים" (שימוש ידני)</h3>
+<p>קטלוג של 70 כלים ב‑11 קטגוריות (Recon, DNS, Network, Web, SMB, Passwords, SSL, Exploitation, Forensics, Wireless, Utilities).
+בחירת כלי פותחת טופס יכולות דינמי; הפקודה נבנית בזמן אמת; ההרצה מוצגת במסך תוצאות נפרד.</p>
+<h3>8.2 מצב "עוזר AI" (שכבת סוכנים)</h3>
+<p>המשתמש מתאר כוונה (למשל "בדיקת חדירות לאתר") ומטרה. הסוכנים פועלים ברצף:
+<strong>Planner</strong> (כוונה→תוכנית) ← אישור המשתמש → <strong>Executor</strong> (הרצה) →
+<strong>Verifier</strong> (אימות + חילוץ ממצאים) → <strong>Reporter</strong> (דוח).</p>
+<h3>8.3 שכבת Purple Team</h3>
+<p>הצוות האדום מאתר פרצות, סוכן ה‑<strong>Broker</strong> ממפה כל ממצא לכלל הגנה, הצוות ה‑<strong>כחול</strong> מפיק
+הגנות/ניטור/תצורה ומיפוי MITRE, וה‑<strong>Orchestrator</strong> מתזמר ומפיק דוח Purple. סוכן ה‑<strong>Learning</strong>
+צובר חתימות ממצאים בין הרצות.</p>
+<h3>8.4 מרכז בקרה (Dashboard)</h3>
+<p>מבט חי על מצב הסוכנים, מודיעין נצבר (חלוקת חומרה, איומים נפוצים), ויומן פעילות בסגנון מגזין.
+לחיצה על סוכן פותחת <strong>תצוגת "מוח"</strong> גרפית עתידנית עם התקרבות סמנטית החושפת שכבות יכולות.</p>
+</div>
+
+<div class="section">
+<h2>9. מדדי הצלחה (KPIs)</h2>
+<table>
+  <tr><th>מדד</th><th>יעד</th></tr>
+  <tr><td>זמן מכוונה עד הרצה</td><td>פחות מ‑30 שניות</td></tr>
+  <tr><td>אחוז כלים הניתנים להרצה ללא CLI ידני</td><td>100% מהקטלוג</td></tr>
+  <tr><td>דוח מלא בסיום כל משימה</td><td>אוטומטי, 100%</td></tr>
+  <tr><td>המלצת הגנה לכל ממצא מזוהה</td><td>מיפוי מלא ל‑DEFENSE_KB</td></tr>
+  <tr><td>זמינות השירות</td><td>הפעלה אוטומטית + התאוששות מקריסה</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>10. גבולות המערכת (Scope)</h2>
+<p><strong>בתוך הגבולות:</strong> ממשק מקומי חד‑משתמשי; הרצת כלי Kali; שכבת סוכנים מבוססת‑חוקים; דשבורד ולמידה.</p>
+<p><strong>מחוץ לגבולות (גרסה נוכחית):</strong> אימות מרובה‑משתמשים והרשאות תפקידים; מסד נתונים מנוהל (כרגע קבצים);
+כלים אלחוטיים חיים (WSL ללא גישת monitor mode לחומרה).</p>
+</div>
+
+<div class="section">
+<h2>11. סיכונים והנחות</h2>
+<table>
+  <tr><th>סיכון / הנחה</th><th>מיטיגציה</th></tr>
+  <tr><td>שימוש לרעה כנגד מטרות ללא רשות</td><td>אזהרות בממשק ובדוחות; שלב אישור לפני כל הרצה</td></tr>
+  <tr><td>כלי איטי תוקע משימה</td><td>מגבלת זמן לכל שלב (timeout) והמשך אוטומטי</td></tr>
+  <tr><td>הרצה כ‑root</td><td>האזנה ל‑localhost בלבד; פקודות argv ללא shell</td></tr>
+  <tr><td>כלים אלחוטיים תחת WSL</td><td>נתמך רק aircrack-ng (offline); שאר האלחוטי מחוץ לגבולות</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>12. מפת דרכים עתידית</h2>
+<ul>
+  <li>אינטגרציית LLM מקומי (Ollama) לתכנון וניסוח דוחות חכם יותר.</li>
+  <li>עורך Playbooks וכללי הגנה מתוך הממשק (ללא נגיעה בקוד).</li>
+  <li>הרחבת בסיס הידע ההגנתי (חוקי Sigma/Suricata לזיהוי).</li>
+  <li>מסך היסטוריית דוחות והשוואת סריקות לאורך זמן.</li>
+  <li>תמיכה רב‑משתמשית והרשאות תפקידים.</li>
+</ul>
+<p style="margin-top:16pt; text-align:center; color:#667;">— סוף מסמך ה‑PRD · Hareli D. · 2026 —</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4; margin: 20mm 18mm 22mm 18mm;
+    @bottom-center { content: "מסמך תכן והסבר מערכת · Kali Tools GUI"; font-size: 8pt; color: #999; }
+    @bottom-left { content: "עמ' " counter(page) " מתוך " counter(pages); font-size: 8pt; color: #999; }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Noto Sans Hebrew','DejaVu Sans',Arial,sans-serif; color: #1a2230; line-height: 1.7; font-size: 10.5pt; }
+  h1 { color: #4a1d6b; font-size: 18pt; margin: 0 0 4pt; }
+  h2 { color: #4a1d6b; font-size: 14pt; margin: 18pt 0 6pt; border-bottom: 2px solid #7c3aed; padding-bottom: 4pt; }
+  h3 { color: #223; font-size: 11.5pt; margin: 12pt 0 4pt; }
+  p, li { font-size: 10.5pt; }
+  ul, ol { padding-inline-start: 20px; margin: 4pt 0; }
+  li { margin: 2pt 0; }
+  code { font-family: 'DejaVu Sans Mono',monospace; background: #f1ecf8; padding: 1px 5px; border-radius: 3px;
+    font-size: 9.3pt; direction: ltr; unicode-bidi: embed; }
+  pre { background: #0e1020; color: #c9b8f0; font-family: 'DejaVu Sans Mono',monospace; font-size: 8.8pt;
+    border-radius: 8px; padding: 10px 12px; direction: ltr; text-align: left; white-space: pre-wrap; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 9.8pt; }
+  th, td { border: 1px solid #d8cdea; padding: 5px 8px; text-align: right; vertical-align: top; }
+  th { background: #f3edfb; color: #4a1d6b; font-weight: 700; }
+  .cover { text-align: center; page-break-after: always; padding-top: 40mm; }
+  .cover .kicker { color: #7c3aed; letter-spacing: 3px; font-size: 12pt; }
+  .cover h1 { font-size: 28pt; color: #4a1d6b; margin: 10pt 0; border: none; }
+  .cover .sub { font-size: 14pt; color: #445; margin-bottom: 6mm; }
+  .cover .logo { font-size: 60pt; }
+  .cover .box { display: inline-block; text-align: right; margin-top: 30mm; border: 1px solid #d8cdea;
+    border-radius: 8px; padding: 14px 26px; font-size: 11pt; background: #faf8fd; }
+  .cover .box b { color: #4a1d6b; }
+  .toc { page-break-after: always; }
+  .toc ol { font-size: 11.5pt; line-height: 2.05; }
+  .diagram { background: #0e1020; color: #d8ccf2; font-family: 'DejaVu Sans Mono',monospace; font-size: 8.5pt;
+    border-radius: 8px; padding: 12px 14px; direction: ltr; text-align: left; white-space: pre; overflow-x: auto; line-height: 1.35; }
+  .note { background: #f6f2fc; border-right: 4px solid #7c3aed; padding: 10px 14px; border-radius: 4px; margin: 8pt 0; }
+  .agent { border: 1px solid #d8cdea; border-radius: 8px; padding: 10px 14px; margin: 7pt 0; }
+  .agent .h { font-weight: 700; font-size: 11.5pt; }
+  .section { page-break-inside: avoid; }
+  .muted { color: #667; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="logo">🧠</div>
+  <div class="kicker">SYSTEM DESIGN &amp; TECHNICAL OVERVIEW</div>
+  <h1>Kali Tools GUI</h1>
+  <div class="sub">מסמך תכן והסבר מערכת — ארכיטקטורה, סוכנים וזרימת נתונים</div>
+  <div class="box">
+    <div>מחבר: <b>Hareli D.</b></div>
+    <div>דוא"ל: hareli26@gmail.com</div>
+    <div>תאריך: יולי 2026</div>
+    <div>מאגר קוד: github.com/Hareli26/kali-tools-gui</div>
+  </div>
+</div>
+
+<div class="toc">
+  <h1>תוכן עניינים</h1>
+  <ol>
+    <li>מבוא</li>
+    <li>סקירת ארכיטקטורה כללית</li>
+    <li>שכבת ה‑Backend (server.py)</li>
+    <li>מנוע הכלים ובניית פקודות</li>
+    <li>שכבת הסוכנים (agents.py)</li>
+    <li>שכבת Purple Team (bluered.py)</li>
+    <li>זרימת נתונים — מאיפה הסוכנים יודעים?</li>
+    <li>שכבת ה‑Frontend ותצוגת המוח</li>
+    <li>אבטחה</li>
+    <li>פריסה ותפעול בייצור</li>
+    <li>טכנולוגיות (Tech Stack)</li>
+    <li>סיכום</li>
+  </ol>
+</div>
+
+<div class="section">
+<h2>1. מבוא</h2>
+<p>מסמך זה מתאר את התכן ההנדסי של מערכת <strong>Kali Tools GUI</strong>: ממשק גרפי ושכבת סוכנים בגישת Purple Team
+המורצת מעל כלי Kali Linux תחת WSL2. המסמך נועד להסביר <em>כיצד</em> המערכת בנויה, כיצד רכיביה משתלבים,
+ובמיוחד — מאיפה הסוכנים "יודעים" לפעול ולקבל נתונים.</p>
+</div>
+
+<div class="section">
+<h2>2. סקירת ארכיטקטורה כללית</h2>
+<div class="diagram">╔════════════════════════════════════════════════════════════╗
+║  FRONTEND — RTL Single Page App (vanilla JS, no build)     ║
+║  screens: Tools · AI · Dashboard · Report · Agent-Brain    ║
+╚═══════════════════════════╤════════════════════════════════╝
+                            │ fetch() JSON  (localhost:8777)
+╔═══════════════════════════▼════════════════════════════════╗
+║  BACKEND — server.py  (Python stdlib · runs as root)       ║
+║  ┌──────────────┬───────────────┬────────────────────────┐ ║
+║  │ Job runner   │ Mission       │ PurpleMission          │ ║
+║  │ (subprocess) │ orchestrator  │ orchestrator           │ ║
+║  └──────┬───────┴───────┬───────┴───────────┬────────────┘ ║
+║   agents.py       bluered.py            tools.json          ║
+║   Planner         Broker/Blue           tool catalog       ║
+║   Verifier        DEFENSE_KB                                ║
+║   Reporter        Learning KB                               ║
+╚═══════════════════════════╤════════════════════════════════╝
+                            │ subprocess (argv, NO shell)
+                    real Kali tools (nmap, nikto, ...)
+                            │
+             knowledge.json · activity.json · reports/</div>
+<p class="muted">איור 1 — שכבות המערכת וזרימת הבקרה.</p>
+</div>
+
+<div class="section">
+<h2>3. שכבת ה‑Backend (server.py)</h2>
+<p>שרת HTTP רב‑תהליכי (ThreadingHTTPServer) בספריית פייתון הסטנדרטית. מגיש את קבצי ה‑Frontend וחושף API ב‑JSON.</p>
+<h3>3.1 מודל ה‑Job</h3>
+<p>כל הרצת כלי היא אובייקט <code>Job</code>: מריץ <code>subprocess.Popen</code> בקבוצת תהליכים נפרדת, קורא פלט
+בתהליכון (thread) עם מגבלת גודל, ומאפשר עצירה נקייה. הפלט זמין ל‑polling מהדפדפן.</p>
+<h3>3.2 נקודות קצה עיקריות</h3>
+<table>
+  <tr><th>נקודת קצה</th><th>תפקיד</th></tr>
+  <tr><td><code>GET /api/tools</code></td><td>קטלוג הכלים + סטטוס התקנה</td></tr>
+  <tr><td><code>POST /api/run</code></td><td>הרצת כלי בודד</td></tr>
+  <tr><td><code>POST /api/plan</code></td><td>Planner: כוונה+מטרה → תוכנית שלבים</td></tr>
+  <tr><td><code>POST /api/mission</code></td><td>הרצת משימה (Executor+Verifier+Reporter)</td></tr>
+  <tr><td><code>POST /api/purple</code></td><td>הרצת Purple (Red→Broker→Blue→Orchestrator)</td></tr>
+  <tr><td><code>GET /api/dashboard</code></td><td>מצב סוכנים חי + מודיעין + יומן</td></tr>
+  <tr><td><code>GET /api/brain</code></td><td>גרף יכולות הסוכן + נתונים חיים</td></tr>
+  <tr><td><code>GET /api/health</code></td><td>בריאות השירות (גרסה, uptime)</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>4. מנוע הכלים ובניית פקודות</h2>
+<p>הקטלוג <code>tools.json</code> מגדיר לכל כלי: בינארי, קטגוריה, ואת שדות הטופס (סוג, דגל, ברירת מחדל).
+פונקציית <code>build_argv</code> בונה את הפקודה כ<strong>מערך argv</strong> — כל אסימון בנפרד, <strong>ללא shell</strong>.
+זהו עיקרון אבטחה מרכזי: ערכי המשתמש לעולם אינם מתפרשים ע"י מעטפת, ולכן הזרקת פקודות נמנעת.</p>
+<pre>argv = [binary]
+for opt in options:            # לפי סדר ההגדרה
+    if bool ומסומן:  argv += [flag]
+    elif ערך קיים:   argv += [flag, value]   # או "flag=value"
+argv += [positional target]</pre>
+</div>
+
+<div class="section">
+<h2>5. שכבת הסוכנים (agents.py)</h2>
+<p>מנוע מבוסס‑חוקים (Playbooks) — ללא תלות ב‑LLM, דטרמיניסטי וניתן לביקורת.</p>
+<div class="agent"><span class="h">🧭 Planner (מתכנן)</span><br>
+מקבל כוונה חופשית + מטרה. מנקד כל Playbook לפי מילות מפתח (עברית+אנגלית), בוחר את המתאים ובונה שלבים
+(כלי + פקודה + הסבר + הצעה). לדוגמה: "בדיקת DNS" → dig/dnsenum/dnsrecon.</div>
+<div class="agent"><span class="h">▶️ Executor (מבצע)</span><br>
+מריץ כל שלב ברצף כ‑Job, עם מגבלת זמן לכל שלב (ברירת מחדל 300 שניות) כדי שכלי איטי לא יתקע את המשימה.</div>
+<div class="agent"><span class="h">🔎 Verifier (מאמת)</span><br>
+מנתח את הפלט וקוד היציאה של הכלי. באמצעות דפוסי <code>regex</code> מזהה שגיאות (דרוש root, מטרה לא זמינה)
+ומחלץ ממצאים (פורטים פתוחים, CVE, חולשות). מפיק verdict: תקין / ממצאים / אזהרה / נכשל.</div>
+<div class="agent"><span class="h">📄 Reporter (מדווח)</span><br>
+מרכיב דוח Markdown: סיכום מנהלים, ממצאים עיקריים ופירוט שלבים. אם מוגדר Ollama — משדרג את הניסוח ב‑LLM.</div>
+</div>
+
+<div class="section">
+<h2>6. שכבת Purple Team (bluered.py)</h2>
+<div class="agent"><span class="h">🟢 Broker (מתווך)</span><br>
+מקבל את ממצאי הצוות האדום, ממפה כל ממצא לכלל הגנה מתוך <code>DEFENSE_KB</code>, מאחד עדויות ומדרג לפי חומרה.</div>
+<div class="agent"><span class="h">🔵 Blue Team (צוות כחול)</span><br>
+בסיס ידע של ~15 כללי הגנה. לכל איום: תיאור, פעולות הגנה/הקשחה, זיהוי וניטור, תצורה לדוגמה, ומיפוי
+<strong>MITRE ATT&amp;CK</strong> (למשל T1190, T1110).</div>
+<div class="agent"><span class="h">🧠 Learning (למידה)</span><br>
+כל ממצא מנורמל ל<em>חתימה</em> ונצבר ב‑<code>knowledge.json</code> (מונה + first/last seen). כך המערכת "לומדת"
+אילו איומים חוזרים לאורך זמן.</div>
+<div class="agent"><span class="h">🟣 Orchestrator (מתזמר)</span><br>
+מנצח את כל הזרימה: מריץ את הצוות האדום, מפעיל את המתווך והכחול, מעדכן את הלמידה, ומפיק דוח Purple מלא.</div>
+</div>
+
+<div class="section">
+<h2>7. זרימת נתונים — מאיפה הסוכנים יודעים?</h2>
+<div class="note">שאלת מפתח: הסוכנים אינם "ממציאים" נתונים. הם שואבים משלושה מקורות ברורים וניתנים לביקורת.</div>
+<table>
+  <tr><th>מקור</th><th>מה הוא מכיל</th><th>מי משתמש בו</th></tr>
+  <tr><td><b>1. ידע סטטי (קוד/JSON)</b></td>
+      <td><code>tools.json</code> (קטלוג ופקודות), <code>agents.py</code> (Playbooks + דפוסי חילוץ),
+          <code>bluered.py</code> (כללי הגנה + MITRE)</td>
+      <td>Planner, Verifier, Blue</td></tr>
+  <tr><td><b>2. נתונים אמיתיים (הכלים)</b></td>
+      <td>הפלט האמיתי של כלי Kali על המטרה — פורטים, גרסאות, חולשות. <b>אמת הקרקע.</b></td>
+      <td>Executor → Verifier</td></tr>
+  <tr><td><b>3. זיכרון מצטבר (קבצים)</b></td>
+      <td><code>knowledge.json</code> (למידה), <code>activity.json</code> (יומן), <code>reports/</code> (דוחות)</td>
+      <td>Learning, Dashboard, Brain</td></tr>
+</table>
+<div class="diagram">intent + target
+     │
+     ▼
+[Planner]  ── reads tools.json + PLAYBOOKS ──►  plan (steps)
+     │
+     ▼
+[Executor] ── subprocess ──►  REAL Kali tool  ──►  raw output
+     │                                               │
+     ▼                                               ▼
+[Verifier] ── regex patterns ──────────────►  findings
+     │
+     ▼
+[Broker] ── maps to DEFENSE_KB ──►  threats + defenses
+     │
+     ▼
+[Learning] ── writes ──►  knowledge.json   (grows every run)
+     │
+     ▼
+[Reporter] ──►  report.md  ──►  reports/  +  activity.json</div>
+<p class="muted">איור 2 — זרימת הנתונים בין הסוכנים. הממצאים האמיתיים מגיעים תמיד מהכלים עצמם.</p>
+</div>
+
+<div class="section">
+<h2>8. שכבת ה‑Frontend ותצוגת המוח</h2>
+<p>אפליקציית עמוד יחיד (SPA) ב‑vanilla JS ללא שלב build. שלושה מצבים: כלים, עוזר AI, ומרכז בקרה.
+הדשבורד מציג את מצב הסוכנים החי (נגזר מהרצות פעילות), מודיעין נצבר ויומן פעילות.</p>
+<h3>8.1 תצוגת "מוח סוכן"</h3>
+<p>לחיצה על סוכן פותחת ויזואליזציה עתידנית מבוססת SVG: ליבה זוהרת במרכז, יכולות במסלולים סביבה,
+סינפסות עם חלקיקי אנרגיה, וליבה "נושמת". המנגנון המרכזי הוא <strong>Semantic Zoom (Level-of-Detail)</strong>:
+ככל שמתקרבים (גלגלת) נחשפות שכבות עמוקות יותר — יכולות → כלים → פרטים. הנתונים נשאבים מ‑<code>brain.json</code>
+ומועשרים בנתונים חיים (כלים מותקנים, ממצאים ידועים) דרך <code>/api/brain</code>.</p>
+</div>
+
+<div class="section">
+<h2>9. אבטחה</h2>
+<ul>
+  <li><b>בניית פקודות בטוחה:</b> מערך <code>argv</code> ללא shell — מונע הזרקת פקודות.</li>
+  <li><b>האזנה מקומית:</b> ברירת מחדל <code>127.0.0.1</code> בלבד — התהליך (root) אינו חשוף לרשת.</li>
+  <li><b>אימות אופציונלי:</b> טוקן משותף (<code>KALIGUI_TOKEN</code>) כהגנה נוספת.</li>
+  <li><b>מניעת traversal:</b> הגשת קבצים סטטיים מוגבלת לתיקיית web בלבד.</li>
+  <li><b>שלב אישור:</b> שכבת ה‑AI מציעה תוכנית; ההרצה מתבצעת רק לאחר אישור המשתמש.</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>10. פריסה ותפעול בייצור</h2>
+<p>המערכת מותקנת כשירות <strong>systemd</strong> בתוך Kali WSL (<code>kali-gui.service</code>) עם הפעלה אוטומטית
+והתאוששות מקריסה (<code>Restart=on-failure</code>). מתקין חד‑פעמי (<code>Install.bat</code> / <code>setup.ps1</code>)
+מבצע: בדיקת דרישות, תיקון DNS, התקנת השירות, ורישום משימת Windows להעלאת WSL בהתחברות.</p>
+<pre>systemctl status  kali-gui     # מצב
+systemctl restart kali-gui     # הפעלה מחדש
+journalctl -u kali-gui -n 50   # לוגים</pre>
+<p>עמידות: טיפול גלובלי בשגיאות בכל בקשה, גיזום היסטוריית הרצות בזיכרון, לוגים לקובץ ול‑journald,
+ושמירת דוחות לדיסק (שורדים אתחול).</p>
+</div>
+
+<div class="section">
+<h2>11. טכנולוגיות (Tech Stack)</h2>
+<table>
+  <tr><th>שכבה</th><th>טכנולוגיה</th><th>נימוק</th></tr>
+  <tr><td>Backend</td><td>Python 3 — ספרייה סטנדרטית בלבד</td><td>אפס תלויות; עובד על Kali מינימלי</td></tr>
+  <tr><td>Frontend</td><td>HTML/CSS/Vanilla JS (ללא build)</td><td>פשטות, אפס כלי בנייה, RTL</td></tr>
+  <tr><td>ויזואליזציה</td><td>SVG + requestAnimationFrame</td><td>גרפיקה וקטורית אינטראקטיבית + אנימציה</td></tr>
+  <tr><td>אחסון</td><td>קבצי JSON מקומיים</td><td>שקיפות, פשטות, ניתן לביקורת</td></tr>
+  <tr><td>סביבת ריצה</td><td>Kali Linux תחת WSL2</td><td>גישה מלאה לכלי הפנטסט</td></tr>
+  <tr><td>שירות</td><td>systemd + Windows Task Scheduler</td><td>זמינות תמידית</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>12. סיכום</h2>
+<p>המערכת מדגימה ארכיטקטורה מודולרית וברורה: מנוע כלים בטוח, שכבת סוכנים מבוססת‑ידע דטרמיניסטית,
+גישת Purple Team שמחברת בין תקיפה להגנה, ולמידה מצטברת. כל רכיב שקוף וניתן להרחבה — הוספת כלי, Playbook
+או כלל הגנה נעשית בעריכת נתונים בלבד. התוצאה: כלי חינוכי ומעשי המנגיש בדיקות אבטחה ומחבר אותן לפעולה הגנתית.</p>
+<p style="margin-top:16pt; text-align:center; color:#667;">— סוף מסמך התכן · Hareli D. · 2026 —</p>
+</div>
+
+</body>
+</html>
