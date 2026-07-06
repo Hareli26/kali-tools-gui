@@ -1,0 +1,65 @@
+# ============================================================
+#  Kali Tools GUI - full secure stack via Docker Compose
+#  Internet -> caddy(443,TLS) -> oauth2-proxy(Google) -> app(internal)
+#
+#  1) cp .env.example .env   and fill DOMAIN + GOOGLE_* + ADMIN_EMAIL
+#  2) put approved emails in deploy/authenticated-emails.txt
+#  3) docker compose up -d --build
+# ============================================================
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8777"          # internal only - never published to the host
+    volumes:
+      - kg-data:/data   # persist knowledge/activity/audit/reports
+    networks: [kgnet]
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    restart: unless-stopped
+    depends_on: [app]
+    command: >
+      --provider=google
+      --client-id=${GOOGLE_CLIENT_ID}
+      --client-secret=${GOOGLE_CLIENT_SECRET}
+      --cookie-secret=${COOKIE_SECRET}
+      --redirect-url=https://${DOMAIN}/oauth2/callback
+      --authenticated-emails-file=/emails.txt
+      --http-address=0.0.0.0:4180
+      --upstream=http://app:8777
+      --reverse-proxy=true
+      --pass-user-headers=true
+      --set-xauthrequest=true
+      --cookie-secure=true
+    volumes:
+      - ./deploy/authenticated-emails.txt:/emails.txt:ro
+    expose:
+      - "4180"
+    networks: [kgnet]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [oauth2-proxy]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile.docker:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [kgnet]
+
+volumes:
+  kg-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  kgnet:

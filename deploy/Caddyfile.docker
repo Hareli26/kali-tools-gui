@@ -1,0 +1,8 @@
+# Caddy config for the Docker Compose stack. TLS is issued automatically.
+{$DOMAIN} {
+    encode gzip
+    reverse_proxy oauth2-proxy:4180
+    log {
+        output stdout
+    }
+}

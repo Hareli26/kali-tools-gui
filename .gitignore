@@ -22,3 +22,7 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Secrets (deployment) — never commit
+.env
+deploy/deploy.env

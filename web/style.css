@@ -211,6 +211,23 @@ html, body {
   border: 1px solid rgba(255,255,255,.12); color: #e6edf3; font-size: 18px; cursor: pointer; }
 .brain-close:hover { background: rgba(255,255,255,.14); }
 
+/* ---------- audit log ---------- */
+.dash-hero-actions { display: flex; align-items: center; gap: 10px; }
+.audit-modal { width: min(820px, 95vw); max-height: 86vh; overflow-y: auto; position: relative; }
+.muted-sm { font-size: 12px; color: var(--text-dim); margin: 2px 0 12px; }
+.audit-body { display: flex; flex-direction: column; gap: 4px; }
+.audit-row { display: grid; grid-template-columns: 130px 1fr; gap: 10px; align-items: start;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg-3); font-size: 12.5px; }
+.audit-row .when { color: var(--text-dim); font-family: var(--mono); font-size: 11px; }
+.audit-row .who { color: var(--accent); font-weight: 600; }
+.audit-row .act { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 9px; margin-inline-end: 6px; }
+.audit-row .act.run-tool { background: rgba(63,185,80,.15); color: var(--accent-2); }
+.audit-row .act.mission { background: rgba(47,129,247,.15); color: var(--accent); }
+.audit-row .act.purple { background: rgba(161,47,151,.18); color: #d17be0; }
+.audit-row .act.install { background: rgba(210,153,34,.15); color: var(--warn); }
+.audit-row .det { color: var(--text-dim); font-family: var(--mono); direction: ltr; text-align: left; word-break: break-all; }
+.audit-empty { color: var(--text-dim); text-align: center; padding: 24px; font-size: 13px; }
+
 /* ---------- footer credit ---------- */
 .app-footer {
   text-align: center; padding: 18px 22px 26px; margin-top: 20px;

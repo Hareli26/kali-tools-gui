@@ -49,9 +49,12 @@ TOKEN = os.environ.get("KALIGUI_TOKEN", "")  # optional shared secret (defense i
 MAX_OUTPUT = 5 * 1024 * 1024  # cap stored output per job (bytes)
 STEP_TIMEOUT = int(os.environ.get("KALIGUI_STEP_TIMEOUT", "300"))  # sec per mission step
 MAX_KEEP = int(os.environ.get("KALIGUI_MAX_KEEP", "50"))  # in-memory run history cap
-LOG_FILE = os.path.join(HERE, "server.log")
-AUDIT_FILE = os.path.join(HERE, "audit.log")
-REPORTS_DIR = os.path.join(HERE, "reports")
+# Runtime data dir (override to a mounted volume in Docker). Defaults next to code.
+DATA_DIR = os.environ.get("KALIGUI_DATA_DIR") or HERE
+os.makedirs(DATA_DIR, exist_ok=True)
+LOG_FILE = os.path.join(DATA_DIR, "server.log")
+AUDIT_FILE = os.path.join(DATA_DIR, "audit.log")
+REPORTS_DIR = os.path.join(DATA_DIR, "reports")
 START_TIME = time.time()
 _LOG_LOCK = threading.Lock()
 _AUDIT_LOCK = threading.Lock()
@@ -546,6 +549,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_env()
         if p == "/api/whoami":
             return self._send_json({"user": self._user()})
+        if p == "/api/audit":
+            return self._api_audit()
         if p == "/api/knowledge":
             return self._send_json(bluered.load_kb())
         if p == "/api/dashboard":
@@ -716,6 +721,24 @@ class Handler(BaseHTTPRequestHandler):
             if k in brain:
                 brain[k]["live"] = v
         return self._send_json(brain)
+
+    def _api_audit(self):
+        entries = []
+        try:
+            with open(AUDIT_FILE, "r", encoding="utf-8") as f:
+                lines = f.readlines()[-500:]
+            for ln in reversed(lines):
+                parts = ln.rstrip("\n").split("\t")
+                if len(parts) >= 3:
+                    entries.append({
+                        "ts": parts[0],
+                        "user": parts[1].replace("user=", "", 1),
+                        "action": parts[2].replace("action=", "", 1),
+                        "detail": parts[3] if len(parts) > 3 else "",
+                    })
+        except FileNotFoundError:
+            pass
+        return self._send_json({"entries": entries})
 
     def _api_reports(self):
         items = []

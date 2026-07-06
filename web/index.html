@@ -87,7 +87,10 @@
         <h1>📊 מרכז הבקרה</h1>
         <p class="dash-sub">מבט חי על הסוכנים, הידע הנצבר ויומן הפעילות</p>
       </div>
-      <span id="dashLive" class="live-pill">● לא פעיל</span>
+      <div class="dash-hero-actions">
+        <button id="auditBtn" class="ghost-btn">🔒 יומן ביקורת</button>
+        <span id="dashLive" class="live-pill">● לא פעיל</span>
+      </div>
     </div>
 
     <h2 class="dash-section">🎭 הסוכנים ומצבם</h2>
@@ -199,6 +202,16 @@
     </div>
     <article id="reportBody" class="report-body"></article>
   </main>
+
+  <!-- ===================== AUDIT LOG MODAL ===================== -->
+  <div id="auditModal" class="modal-overlay hidden">
+    <div class="modal audit-modal">
+      <button id="auditClose" class="modal-x">✕</button>
+      <h2>🔒 יומן ביקורת</h2>
+      <p class="muted-sm">מי נכנס והריץ מה. מקור: <code>audit.log</code> (מאחורי התחברות Google בשרת).</p>
+      <div id="auditBody" class="audit-body"></div>
+    </div>
+  </div>
 
   <!-- ===================== CONFIRM MODAL ===================== -->
   <div id="confirmModal" class="modal-overlay hidden">

@@ -76,6 +76,29 @@ sudo bash deploy/install-vps.sh
 
 ---
 
+---
+
+## ⚡ קיצור דרך — התקנה בפקודה אחת מ‑Windows
+אם יש לך גישת SSH מבוססת‑מפתח ל‑VPS, אפשר לדלג על שלבים 3–5 ולהריץ מ‑PowerShell במחשב שלך:
+```powershell
+./deploy/deploy-remote.ps1 -VpsHost <IP> -Domain kali.example.com `
+    -ClientId "xxx.apps.googleusercontent.com" -ClientSecret "GOCSPX-xxx"
+```
+הסקריפט מתחבר ל‑VPS, מושך את הקוד, כותב את ההגדרות ומריץ את המתקין. (דורש `ssh` פועל ללא סיסמה — `ssh-copy-id` פעם אחת.)
+
+---
+
+## 🐳 אלטרנטיבה — Docker Compose
+במקום systemd, אפשר להריץ את כל המחסנית בקונטיינרים (כולל כלי Kali בתוך ה‑image):
+```bash
+cp .env.example .env        # מלא DOMAIN + GOOGLE_* + COOKIE_SECRET + ADMIN_EMAIL
+nano deploy/authenticated-emails.txt
+docker compose up -d --build
+```
+המחסנית: `caddy` (443,TLS) → `oauth2-proxy` (Google) → `app` (פנימי בלבד). נתוני הריצה נשמרים ב‑volume בשם `kg-data`.
+
+---
+
 ## שלב 6 — אישור משתמשים (רשימת היתר)
 אתה שולט מי נכנס. ערוך את קובץ ההיתר — מייל אחד בכל שורה:
 ```bash

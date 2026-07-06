@@ -529,6 +529,31 @@ async function stopMission() {
   pollMission();
 }
 
+/* ============================ AUDIT LOG ==================================== */
+async function openAudit() {
+  const body = $("auditBody");
+  body.innerHTML = '<div class="audit-empty">טוען...</div>';
+  $("auditModal").classList.remove("hidden");
+  try {
+    const d = await (await fetch("/api/audit")).json();
+    const ents = d.entries || [];
+    if (!ents.length) { body.innerHTML = '<div class="audit-empty">אין רשומות ביקורת עדיין.</div>'; return; }
+    body.innerHTML = "";
+    const actLabel = { "run-tool": "כלי", "mission": "משימה", "purple": "Purple", "install": "התקנה" };
+    ents.forEach(e => {
+      const row = el("div", "audit-row");
+      row.appendChild(el("span", "when", e.ts));
+      const right = el("div");
+      const who = el("span", "who", "👤 " + e.user + "  ");
+      const act = el("span", "act " + e.action, actLabel[e.action] || e.action);
+      right.appendChild(who); right.appendChild(act);
+      if (e.detail) right.appendChild(el("div", "det", e.detail));
+      row.appendChild(right);
+      body.appendChild(row);
+    });
+  } catch (err) { body.innerHTML = '<div class="audit-empty">שגיאה בטעינת היומן.</div>'; }
+}
+
 /* ===================== AGENT BRAIN — futuristic capability map ============= */
 const SVGNS = "http://www.w3.org/2000/svg";
 const svgEl = (t, attrs) => { const e = document.createElementNS(SVGNS, t); for (const k in (attrs||{})) e.setAttribute(k, attrs[k]); return e; };
@@ -1202,6 +1227,9 @@ function init() {
   $("downloadBtn").onclick = download;
   $("rerunBtn").onclick = () => { if (CURRENT_TOOL) { showScreen("form"); } };
   initBrain();
+  $("auditBtn").onclick = openAudit;
+  $("auditClose").onclick = () => $("auditModal").classList.add("hidden");
+  $("auditModal").onclick = (e) => { if (e.target === $("auditModal")) $("auditModal").classList.add("hidden"); };
   $("threatClose").onclick = () => $("threatModal").classList.add("hidden");
   $("threatModal").onclick = (e) => { if (e.target === $("threatModal")) $("threatModal").classList.add("hidden"); };
   $("installCancel").onclick = () => $("installModal").classList.add("hidden");

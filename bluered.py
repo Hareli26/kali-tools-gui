@@ -21,8 +21,9 @@ import re
 import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-KB_FILE = os.path.join(HERE, "knowledge.json")
-ACTIVITY_FILE = os.path.join(HERE, "activity.json")
+DATA_DIR = os.environ.get("KALIGUI_DATA_DIR") or HERE
+KB_FILE = os.path.join(DATA_DIR, "knowledge.json")
+ACTIVITY_FILE = os.path.join(DATA_DIR, "activity.json")
 _KB_LOCK = threading.Lock()
 _ACT_LOCK = threading.Lock()
 
