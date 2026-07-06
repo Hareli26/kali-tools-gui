@@ -1,7 +1,7 @@
 # PRD — Kali Tools GUI
 
 **מסמך דרישות מוצר (Product Requirements Document)**
-מחבר: Hareli D. · hareli26@gmail.com
+מחבר: הראלי דודאי · hareli26@gmail.com
 גרסה: 1.0
 
 ---

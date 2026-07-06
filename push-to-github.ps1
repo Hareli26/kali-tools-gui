@@ -1,5 +1,5 @@
 # ============================================================
-#  Push Kali Tools GUI to GitHub   (by Hareli D.)
+#  Push Kali Tools GUI to GitHub   (by Hareli Dudai)
 # ============================================================
 #  Run this once. It logs you in to GitHub the first time
 #  (opens a browser), then creates the repo and pushes.
@@ -11,7 +11,7 @@ Set-Location "C:\ClaudeCode\kali-gui"
 
 $RepoName   = "kali-tools-gui"
 $Visibility = "public"        # or "private"
-$Desc       = "Kali Tools GUI - web console + AI purple-team agents for Kali Linux under WSL2 (by Hareli D.)"
+$Desc       = "Kali Tools GUI - web console + AI purple-team agents for Kali Linux under WSL2 (by Hareli Dudai)"
 
 # 1) Authenticate (opens browser / device code). Skips if already logged in.
 gh auth status 2>$null

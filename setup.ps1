@@ -1,6 +1,6 @@
 # ============================================================
 #  Kali Tools GUI - Full Installer
-#  Author: Hareli D.  (hareli26@gmail.com)
+#  Author: Hareli Dudai  (hareli26@gmail.com)
 # ============================================================
 #  Installs the app as an always-on service inside Kali WSL:
 #   1. verifies WSL + Kali + Python
@@ -21,7 +21,7 @@ function Fail($m){ Write-Host "  [X] $m" -ForegroundColor Red }
 
 Write-Host ""
 Write-Host "==================================================" -ForegroundColor Magenta
-Write-Host "   Kali Tools GUI - Installer  (by Hareli D.)"       -ForegroundColor Magenta
+Write-Host "   Kali Tools GUI - Installer  (by Hareli Dudai)"       -ForegroundColor Magenta
 Write-Host "==================================================" -ForegroundColor Magenta
 Write-Host ""
 
