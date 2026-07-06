@@ -78,7 +78,11 @@ cookie_secure = true
 cookie_httponly = true
 skip_provider_button = false
 EOF
+# Dedicated non-root user for oauth2-proxy that owns (and can read) its config
+useradd --system --no-create-home --shell /usr/sbin/nologin oauth2-proxy 2>/dev/null || true
+chown oauth2-proxy:oauth2-proxy /etc/oauth2-proxy.cfg
 chmod 600 /etc/oauth2-proxy.cfg
+chmod 644 "$APP_DIR/deploy/authenticated-emails.txt"
 
 cat > /etc/caddy/Caddyfile <<EOF
 ${DOMAIN} {
@@ -121,11 +125,11 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+User=oauth2-proxy
 ExecStart=/usr/local/bin/oauth2-proxy --config=/etc/oauth2-proxy.cfg
 Restart=on-failure
 RestartSec=3
-DynamicUser=yes
-ReadOnlyPaths=${APP_DIR}/deploy/authenticated-emails.txt /etc/oauth2-proxy.cfg
+NoNewPrivileges=true
 
 [Install]
 WantedBy=multi-user.target
