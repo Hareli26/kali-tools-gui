@@ -50,9 +50,11 @@ MAX_OUTPUT = 5 * 1024 * 1024  # cap stored output per job (bytes)
 STEP_TIMEOUT = int(os.environ.get("KALIGUI_STEP_TIMEOUT", "300"))  # sec per mission step
 MAX_KEEP = int(os.environ.get("KALIGUI_MAX_KEEP", "50"))  # in-memory run history cap
 LOG_FILE = os.path.join(HERE, "server.log")
+AUDIT_FILE = os.path.join(HERE, "audit.log")
 REPORTS_DIR = os.path.join(HERE, "reports")
 START_TIME = time.time()
 _LOG_LOCK = threading.Lock()
+_AUDIT_LOCK = threading.Lock()
 
 def log(msg):
     line = "%s  %s" % (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), msg)
@@ -65,6 +67,17 @@ def log(msg):
     try:
         sys.stderr.write(line + "\n")
         sys.stderr.flush()
+    except Exception:
+        pass
+
+def audit(user, action, detail=""):
+    """Security audit trail — who did what. One line per action."""
+    line = "%s\tuser=%s\taction=%s\t%s" % (
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user or "unknown", action, detail)
+    try:
+        with _AUDIT_LOCK:
+            with open(AUDIT_FILE, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
     except Exception:
         pass
 
@@ -263,11 +276,12 @@ MISSIONS_LOCK = threading.Lock()
 
 class Mission:
     """Executor + Verifier + Reporter orchestration over a plan of steps."""
-    def __init__(self, intent, target, steps, do_log=True):
+    def __init__(self, intent, target, steps, do_log=True, user="local"):
         self.id = uuid.uuid4().hex[:12]
         self.intent = intent
         self.target = target
         self.do_log = do_log
+        self.user = user
         self.steps = []
         for s in steps:
             self.steps.append({
@@ -343,7 +357,7 @@ class Mission:
             findings = sum(len((s.get("verdict") or {}).get("findings", [])) for s in self.steps)
             bluered.log_activity({
                 "id": self.id, "ts": time.time(), "when": when, "type": "mission",
-                "intent": self.intent, "target": self.target,
+                "intent": self.intent, "target": self.target, "user": self.user,
                 "steps": len(self.steps), "findings": findings, "status": self.status,
             })
             save_report(self.id, "mission", self.intent, self.target, self.report)
@@ -371,11 +385,12 @@ PURPLE_LOCK = threading.Lock()
 
 class PurpleMission:
     """🟣 Orchestrator: runs the Red mission, then Broker + Blue Team + learning."""
-    def __init__(self, intent, target, steps):
+    def __init__(self, intent, target, steps, user="local"):
         self.id = uuid.uuid4().hex[:12]
         self.intent = intent
         self.target = target
-        self.mission = Mission(intent, target, steps, do_log=False)
+        self.user = user
+        self.mission = Mission(intent, target, steps, do_log=False, user=user)
         self.phase = "red"          # red | blue | done
         self.status = "running"
         self.threats = []
@@ -415,7 +430,7 @@ class PurpleMission:
         top_sev = self.threats[0]["severity"] if self.threats else None
         bluered.log_activity({
             "id": self.id, "ts": time.time(), "when": when, "type": "purple",
-            "intent": self.intent, "target": self.target,
+            "intent": self.intent, "target": self.target, "user": self.user,
             "red_findings": red_findings, "threats": len(self.threats),
             "severity": top_sev,
             "threat_sigs": [t["signature"] for t in self.threats],
@@ -486,6 +501,13 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    # -- identity (set by the auth proxy in front, e.g. oauth2-proxy) --
+    def _user(self):
+        return (self.headers.get("X-Forwarded-Email")
+                or self.headers.get("X-Forwarded-User")
+                or self.headers.get("X-Auth-Request-Email")
+                or "local")
+
     # -- auth (optional shared token) --
     def _authorized(self):
         if not TOKEN:
@@ -522,6 +544,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_tools()
         if p == "/api/env":
             return self._api_env()
+        if p == "/api/whoami":
+            return self._send_json({"user": self._user()})
         if p == "/api/knowledge":
             return self._send_json(bluered.load_kb())
         if p == "/api/dashboard":
@@ -764,10 +788,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": "אין שלבים להרצה"}, 400)
         cat = load_catalog()
         steps = [enrich_step(s, cat) for s in steps]
-        mission = Mission(intent, target, steps)
+        user = self._user()
+        mission = Mission(intent, target, steps, user=user)
         with MISSIONS_LOCK:
             MISSIONS[mission.id] = mission
             _prune(MISSIONS)
+        audit(user, "mission", "%s | %s" % (intent, target))
         mission.start()
         return self._send_json({"mission_id": mission.id})
 
@@ -796,10 +822,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"error": "אין שלבים להרצה"}, 400)
         cat = load_catalog()
         steps = [enrich_step(s, cat) for s in steps]
-        pm = PurpleMission(intent, target, steps)
+        user = self._user()
+        pm = PurpleMission(intent, target, steps, user=user)
         with PURPLE_LOCK:
             PURPLE[pm.id] = pm
             _prune(PURPLE)
+        audit(user, "purple", "%s | %s" % (intent, target))
         pm.start()
         return self._send_json({"purple_id": pm.id})
 
@@ -844,6 +872,7 @@ class Handler(BaseHTTPRequestHandler):
         with JOBS_LOCK:
             JOBS[job.id] = job
             _prune(JOBS)
+        audit(self._user(), "run-tool", "%s | %s" % (tool["id"], job.snapshot()["command"]))
         job.start()
         return self._send_json({"job_id": job.id, "command": job.snapshot()["command"]})
 
@@ -881,6 +910,7 @@ class Handler(BaseHTTPRequestHandler):
         env2["DEBIAN_FRONTEND"] = "noninteractive"
         with JOBS_LOCK:
             JOBS[job.id] = job
+        audit(self._user(), "install", pkg)
         # temporarily swap env for this job via closure
         orig = globals()["RUN_ENV"]
         try:

@@ -1,0 +1,5 @@
+# Approved users - one Google account email per line.
+# To grant access: add an email here, then:  sudo systemctl restart oauth2-proxy
+# To revoke: remove the line and restart oauth2-proxy.
+# (This file is the "user approval" list.)
+hareli26@gmail.com

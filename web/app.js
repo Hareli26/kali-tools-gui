@@ -1209,8 +1209,16 @@ function init() {
   $("sudoPass").onkeydown = (e) => { if (e.key === "Enter") doInstall(); };
   initAI();
   loadCatalog();
+  loadWhoami();
   window.addEventListener("hashchange", applyHash);
   applyHash();
+}
+
+async function loadWhoami() {
+  try {
+    const d = await (await fetch("/api/whoami")).json();
+    if (d.user && d.user !== "local") $("userLine").textContent = "👤 " + d.user;
+  } catch (e) { /* ignore */ }
 }
 
 // Deep-linking: #dashboard, #ai, #tools, #brain-<agentId>

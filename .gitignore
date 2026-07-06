@@ -12,6 +12,7 @@ scan_result*.txt
 knowledge.json
 activity.json
 server.log
+audit.log
 reports/
 
 # OS
