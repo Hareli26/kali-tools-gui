@@ -1,0 +1,22 @@
+# Enforce LF for files that run on Linux (VPS/WSL), CRLF for Windows scripts.
+*        text=auto eol=lf
+*.sh     text eol=lf
+*.py     text eol=lf
+*.js     text eol=lf
+*.css    text eol=lf
+*.html   text eol=lf
+*.json   text eol=lf
+*.md     text eol=lf
+*.service text eol=lf
+Caddyfile text eol=lf
+deploy/authenticated-emails.txt text eol=lf
+
+# Windows-only scripts keep CRLF
+*.ps1    text eol=crlf
+*.bat    text eol=crlf
+
+# Binaries
+*.pdf    binary
+*.png    binary
+*.jpg    binary
+*.ico    binary
