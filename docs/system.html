@@ -173,6 +173,10 @@ argv += [positional target]</pre>
 אילו איומים חוזרים לאורך זמן.</div>
 <div class="agent"><span class="h">🟣 Orchestrator (מתזמר)</span><br>
 מנצח את כל הזרימה: מריץ את הצוות האדום, מפעיל את המתווך והכחול, מעדכן את הלמידה, ומפיק דוח Purple מלא.</div>
+<div class="agent"><span class="h">🔧 Remediation (סוכן מתקן)</span><br>
+ממפה כל חתימת איום לתיקון מעשי (למשל fail2ban, עדכוני אבטחה) ומיישם אותו על המערכת — <strong>רק לאחר
+אישור מפורש</strong>, עם גיבוי קונפיגים ורישום ביומן ביקורת. תיקונים מסוכנים (SSH/firewall) מסומנים
+כ"ידני" ואינם רצים אוטומטית, למניעת נעילה.</div>
 </div>
 
 <div class="section">
@@ -231,7 +235,9 @@ argv += [positional target]</pre>
   <li><b>האזנה מקומית:</b> ברירת מחדל <code>127.0.0.1</code> בלבד — התהליך (root) אינו חשוף לרשת.</li>
   <li><b>אימות אופציונלי:</b> טוקן משותף (<code>KALIGUI_TOKEN</code>) כהגנה נוספת.</li>
   <li><b>מניעת traversal:</b> הגשת קבצים סטטיים מוגבלת לתיקיית web בלבד.</li>
-  <li><b>שלב אישור:</b> שכבת ה‑AI מציעה תוכנית; ההרצה מתבצעת רק לאחר אישור המשתמש.</li>
+  <li><b>שלב אישור:</b> שכבת ה‑AI מציעה תוכנית; ההרצה (וכל תיקון) מתבצעת רק לאחר אישור המשתמש.</li>
+  <li><b>אימות בענן:</b> התחברות Google + רשימת מיילים מאושרים (oauth2‑proxy) לגישה מבחוץ.</li>
+  <li><b>ביקורת:</b> כל פעולה נרשמת ב‑<code>audit.log</code> עם זהות המשתמש שביצע אותה.</li>
 </ul>
 </div>
 
@@ -245,6 +251,20 @@ systemctl restart kali-gui     # הפעלה מחדש
 journalctl -u kali-gui -n 50   # לוגים</pre>
 <p>עמידות: טיפול גלובלי בשגיאות בכל בקשה, גיזום היסטוריית הרצות בזיכרון, לוגים לקובץ ול‑journald,
 ושמירת דוחות לדיסק (שורדים אתחול).</p>
+<h3>10.1 פריסה בענן מאובטחת (VPS)</h3>
+<p>לגישה מבחוץ, האפליקציה נשארת על 127.0.0.1 ומעליה שרשרת הגנה:</p>
+<div class="diagram">Internet ──HTTPS(443)──► Caddy ──► oauth2-proxy ──► app (127.0.0.1:8777)
+              TLS auto (Let's Encrypt)   Google login
+                                          + email allowlist</div>
+<p>ה‑<strong>oauth2‑proxy</strong> אוכף <strong>התחברות Google</strong> ומאמת מול רשימת מיילים מאושרים
+(האדמין מוסיף/מסיר משתמשים בקובץ). המשתמש המאומת מועבר לאפליקציה בכותרת <code>X‑Forwarded‑Email</code>.
+<strong>לוג ביקורת תלת‑שכבתי:</strong> Caddy (גישות) · oauth2‑proxy (התחברויות) · האפליקציה
+(<code>audit.log</code> — מי הריץ/תיקן מה). מתקין אוטומטי (<code>install-vps.sh</code>) מקים את הכל
+כולל firewall (ufw) ו‑fail2ban, וקיימת גם חלופת <code>docker‑compose</code>.</p>
+<h3>10.2 שרת MCP</h3>
+<p>רכיב <code>mcp/kali_gui_mcp.py</code> חושף את ה‑REST API ככלי <strong>MCP</strong> — כך ש‑Claude (או כל
+לקוח MCP) יכול להפעיל את המערכת בשיחה: להריץ כלים, לתכנן ולהריץ בדיקות ו‑Purple, לקרוא מודיעין, ולהחיל
+תיקונים (עם אישור). הוא client דק מעל ה‑API; הליבה נשארת ללא תלויות.</p>
 </div>
 
 <div class="section">
