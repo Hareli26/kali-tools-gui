@@ -216,6 +216,75 @@ def get_defense(signature):
     """Return the full defense rule for a signature id, or None."""
     return DEFENSE_BY_ID.get(signature)
 
+# --------------------------------------------------- 🔧 remediation (fixer) ---
+# Maps a threat signature to an automated fix APPLIED TO THE LOCAL HOST.
+# risk: safe (additive, no lockout) | caution (reversible, may affect access)
+#       | manual (no safe auto-fix — guidance only).
+# Only 'safe'/'caution' carry commands; everything backs up configs first and
+# requires explicit confirmation + audit before running.
+REMEDIATIONS = {
+    "ssh-exposed": {
+        "title": "התקנת fail2ban נגד brute-force על SSH",
+        "risk": "safe",
+        "backup": [],
+        "commands": [
+            "export DEBIAN_FRONTEND=noninteractive",
+            "apt-get update -qq",
+            "apt-get install -y fail2ban",
+            "systemctl enable --now fail2ban",
+            "systemctl status fail2ban --no-pager | head -5",
+        ],
+        "note": "הגנה תוספתית בלבד — חוסמת תוקפים, לא אותך. אינה נוגעת ב-sshd_config.",
+    },
+    "outdated-software": {
+        "title": "הפעלת עדכוני אבטחה אוטומטיים",
+        "risk": "safe",
+        "backup": [],
+        "commands": [
+            "export DEBIAN_FRONTEND=noninteractive",
+            "apt-get update -qq",
+            "apt-get install -y unattended-upgrades",
+            "dpkg-reconfigure -f noninteractive unattended-upgrades || true",
+            "systemctl enable --now unattended-upgrades || true",
+            "echo installed unattended-upgrades",
+        ],
+        "note": "מתקין ומפעיל עדכוני אבטחה אוטומטיים. בטוח והפיך.",
+    },
+    "snmp-exposed": {
+        "title": "עצירת שירות SNMP (אם רץ מקומית)",
+        "risk": "caution",
+        "backup": [],
+        "commands": [
+            "systemctl disable --now snmpd 2>/dev/null && echo 'snmpd stopped' || echo 'snmpd not present'",
+        ],
+        "note": "מכבה snmpd מקומי אם קיים. אם אתה משתמש ב-SNMP לניטור — דלג.",
+    },
+    "ftp-telnet": {
+        "title": "עצירת שירותי FTP/Telnet לא מוצפנים",
+        "risk": "caution",
+        "backup": [],
+        "commands": [
+            "systemctl disable --now vsftpd 2>/dev/null && echo 'vsftpd stopped' || echo 'no vsftpd'",
+            "systemctl disable --now telnet.socket inetd 2>/dev/null && echo 'telnet stopped' || echo 'no telnet'",
+        ],
+        "note": "מכבה vsftpd/telnet מקומיים אם קיימים.",
+    },
+    # web/tls/header fixes depend on the specific web server config; guidance only
+    "no-tls": {"title": "אכיפת HTTPS", "risk": "manual", "backup": [], "commands": [],
+               "note": "תלוי בשרת הווב. ב-Caddy הפניית 80→443 אוטומטית; ב-nginx/apache — ראה 'תצורה לדוגמה'."},
+    "missing-security-header": {"title": "הוספת כותרות אבטחה", "risk": "manual", "backup": [], "commands": [],
+               "note": "יש להוסיף לתצורת שרת הווב (ראה snippet ב'תצורה לדוגמה')."},
+    "weak-tls": {"title": "הקשחת TLS", "risk": "manual", "backup": [], "commands": [],
+               "note": "עדכן את תצורת ה-TLS של שרת הווב לפרוטוקולים 1.2+ בלבד."},
+    "injection": {"title": "הגנה מהזרקות", "risk": "manual", "backup": [], "commands": [],
+               "note": "דורש שינוי קוד (prepared statements) + WAF — לא ניתן לתיקון אוטומטי בטוח."},
+}
+
+
+def get_remediation(signature):
+    """Return the automated remediation plan for a signature, or None."""
+    return REMEDIATIONS.get(signature)
+
 def analyze_finding(text):
     low = text.lower()
     for rule in DEFENSE_KB:

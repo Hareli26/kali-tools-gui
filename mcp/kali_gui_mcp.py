@@ -150,6 +150,39 @@ def run_purple(intent: str, target: str) -> str:
 
 
 @mcp.tool()
+def get_fix(signature: str) -> str:
+    """Show the automated remediation plan for a threat signature (from a purple
+    report), including the exact commands and risk level — WITHOUT applying it.
+    Use this first, show it to the human, and only call apply_fix after they approve."""
+    fx = _api("GET", "/api/fix/" + signature)
+    if not fx.get("available"):
+        return f"No automated fix for '{signature}'. {fx.get('note','')}"
+    return (f"FIX: {fx['title']}\nrisk: {fx['risk']}\nnote: {fx.get('note','')}\n"
+            f"commands:\n  " + "\n  ".join(fx.get("commands", [])))
+
+
+@mcp.tool()
+def apply_fix(signature: str, confirm: bool = False) -> str:
+    """APPLY the automated remediation for a threat signature ON THE HOST. This
+    changes the system (installs/enables services), with automatic config backup.
+    REQUIRES confirm=True — only pass it after the human has explicitly approved
+    the plan shown by get_fix. Refuses without confirmation."""
+    if not confirm:
+        return "Refused: apply_fix requires confirm=True after the human approves the get_fix plan."
+    r = _api("POST", "/api/fix", {"signature": signature, "confirm": True})
+    if r.get("error"):
+        return "Error: " + r["error"]
+    jid = r["job_id"]
+    j = {}
+    for _ in range(120):
+        time.sleep(2)
+        j = _api("GET", "/api/job/" + jid)
+        if j["status"] not in ("running", "starting"):
+            break
+    return f"Applied '{r.get('title','')}' — status {j.get('status')}:\n\n{_clean(j.get('output',''))[:6000]}"
+
+
+@mcp.tool()
 def dashboard() -> str:
     """Live status: agents, tool coverage, learned-signature stats and recent activity."""
     d = _api("GET", "/api/dashboard")

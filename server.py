@@ -561,6 +561,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_reports()
         if p.startswith("/api/report/"):
             return self._api_report_get(p.rsplit("/", 1)[-1])
+        if p.startswith("/api/fix/"):
+            return self._api_fix_plan(p.rsplit("/", 1)[-1])
         if p.startswith("/api/threat/"):
             return self._api_threat(p.rsplit("/", 1)[-1])
         if p.startswith("/api/purple/"):
@@ -591,6 +593,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_run()
         if p == "/api/install":
             return self._api_install()
+        if p == "/api/fix":
+            return self._api_fix_apply()
         if p == "/api/plan":
             return self._api_plan()
         if p == "/api/mission":
@@ -766,6 +770,50 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(json.load(f))
         except Exception:
             return self._send_json({"error": "שגיאה בקריאת הדוח"}, 500)
+
+    def _api_fix_plan(self, sig):
+        from urllib.parse import unquote
+        sig = unquote(sig)
+        rem = bluered.get_remediation(sig)
+        rule = bluered.get_defense(sig)
+        if not rem:
+            return self._send_json({"signature": sig, "available": False,
+                                    "note": "אין תיקון אוטומטי לאיום זה."})
+        return self._send_json({
+            "signature": sig, "available": rem["risk"] != "manual" and bool(rem.get("commands")),
+            "name": (rule or {}).get("name", sig),
+            "title": rem["title"], "risk": rem["risk"], "note": rem.get("note", ""),
+            "commands": rem.get("commands", []), "backup": rem.get("backup", []),
+        })
+
+    def _api_fix_apply(self):
+        data = self._read_json()
+        sig = (data.get("signature") or "").strip()
+        confirm = data.get("confirm") is True
+        rem = bluered.get_remediation(sig)
+        if not rem or rem["risk"] == "manual" or not rem.get("commands"):
+            return self._send_json({"error": "אין תיקון אוטומטי בטוח לאיום זה"}, 400)
+        if not confirm:
+            # never run without explicit approval — return the plan to be confirmed
+            return self._send_json({"needs_confirm": True, "title": rem["title"],
+                                    "risk": rem["risk"], "commands": rem["commands"],
+                                    "note": rem.get("note", "")}, 200)
+        # backup affected files, then run the fixed remediation script (server-defined, no user input)
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        script_lines = ["set -e"]
+        for pth in rem.get("backup", []):
+            script_lines.append('[ -f "%s" ] && cp -a "%s" "%s.bak-%s" || true' % (pth, pth, pth, ts))
+        script_lines += list(rem["commands"])
+        script = "\n".join(script_lines)
+        user = self._user()
+        job = Job(["bash", "-c", script], label="תיקון: " + rem["title"])
+        with JOBS_LOCK:
+            JOBS[job.id] = job
+            _prune(JOBS)
+        audit(user, "fix-apply", "%s | %s" % (sig, rem["title"]))
+        log("FIX applied by %s: %s (%s)" % (user, sig, rem["risk"]))
+        job.start()
+        return self._send_json({"job_id": job.id, "title": rem["title"]})
 
     def _api_threat(self, sig):
         from urllib.parse import unquote

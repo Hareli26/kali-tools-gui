@@ -949,6 +949,51 @@ async function openThreat(sig) {
     html += `<p style="color:var(--text-dim);font-size:13px">אין רישום מפורט של הופעות (הידע נצבר לפני הוספת יומן הפעילות).</p>`;
   }
   body.innerHTML = html;
+
+  // 🔧 remediation (fixer agent) — offer an automated fix if one exists
+  try {
+    const fx = await (await fetch("/api/fix/" + encodeURIComponent(sig))).json();
+    if (fx.available) {
+      const box = el("div", "fix-box");
+      box.appendChild(el("h4", null, "🔧 תיקון אוטומטי (סוכן מתקן)"));
+      const riskLabel = { safe: "🟢 בטוח", caution: "🟠 זהירות" }[fx.risk] || fx.risk;
+      box.appendChild(el("div", "fix-meta", `${fx.title} · ${riskLabel}`));
+      if (fx.note) box.appendChild(el("div", "fix-note", fx.note));
+      const btn = el("button", "run-btn", "🔧 החל תיקון (דורש אישור)");
+      btn.onclick = () => applyFix(sig, fx);
+      box.appendChild(btn);
+      body.appendChild(box);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function applyFix(sig, fx) {
+  const cmds = (fx.commands || []).map(c => escapeHtml(c)).join("\n");
+  const ok = await askConfirm(
+    "אישור תיקון",
+    `להחיל את התיקון <b>${escapeHtml(fx.title)}</b> על השרת הזה?<br>` +
+    `רמת סיכון: ${fx.risk === "safe" ? "🟢 בטוח" : "🟠 זהירות"}<br>` +
+    `<pre style="text-align:left;direction:ltr;white-space:pre-wrap">${cmds}</pre>` +
+    `⚠️ הפעולה תרוץ על המערכת (עם גיבוי אוטומטי של קונפיגים).`,
+    "🔧 החל תיקון");
+  if (!ok) return;
+  const r = await fetch("/api/fix", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ signature: sig, confirm: true })
+  });
+  const d = await r.json();
+  if (!r.ok) { alert(d.error || "שגיאה"); return; }
+  const out = el("pre", "mstep-out");
+  out.textContent = "מריץ תיקון...";
+  $("threatBody").appendChild(out);
+  const jid = d.job_id;
+  const poll = async () => {
+    const j = await (await fetch("/api/job/" + jid)).json();
+    out.textContent = stripAnsi(j.output || "") || "מריץ...";
+    if (j.status === "running" || j.status === "starting") { setTimeout(poll, 1000); }
+    else { out.textContent += "\n\n" + (j.status === "done" ? "✅ התיקון הושלם" : "⚠️ הסתיים: " + j.status); }
+  };
+  poll();
 }
 
 /* ================= PURPLE TEAM (Red -> Broker -> Blue -> Orchestrator) ===== */

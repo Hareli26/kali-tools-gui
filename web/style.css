@@ -463,6 +463,12 @@ html, body {
 .tm-stat { background: var(--bg-3); border-radius: 8px; padding: 8px 14px; text-align: center; }
 .tm-stat b { display: block; font-size: 18px; }
 .tm-stat span { font-size: 10.5px; color: var(--text-dim); }
+.fix-box { margin-top: 14px; padding: 12px 14px; border: 1px solid rgba(63,185,80,.35);
+  background: rgba(63,185,80,.07); border-radius: 8px; }
+.fix-box h4 { margin: 0 0 6px; color: var(--accent-2); }
+.fix-meta { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.fix-note { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; line-height: 1.5; }
+.fix-box .run-btn { width: 100%; }
 
 .feed { display: flex; flex-direction: column; gap: 10px; max-height: 70vh; overflow-y: auto; }
 .feed-empty { color: var(--text-dim); font-size: 13px; padding: 20px; text-align: center; }
