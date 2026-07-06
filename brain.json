@@ -1,0 +1,132 @@
+{
+  "red": {
+    "id": "red", "name": "צוות אדום", "icon": "🔴", "color": "#ff4d5e",
+    "core": "מנוע תקיפה", "tagline": "תוקף כדי לגלות פרצות",
+    "caps": [
+      { "name": "סיור · Recon", "desc": "מיפוי משטח התקיפה", "children": [
+        { "name": "nmap", "desc": "סריקת פורטים ושירותים", "leaves": ["-sV גרסאות", "-sC סקריפטים", "-O זיהוי OS"] },
+        { "name": "subfinder", "desc": "גילוי תת-דומיינים", "leaves": ["מקורות פסיביים", "רקורסיה"] },
+        { "name": "whatweb", "desc": "טביעת אצבע טכנולוגית", "leaves": ["CMS", "שרת", "פריימוורק"] },
+        { "name": "masscan", "desc": "סריקה במהירות אדירה" }
+      ]},
+      { "name": "תקיפת Web", "desc": "חולשות אפליקציה", "children": [
+        { "name": "nikto", "desc": "חולשות שרת ווב", "leaves": ["כותרות", "קבצים חשופים"] },
+        { "name": "sqlmap", "desc": "הזרקות SQL", "leaves": ["--dbs", "--dump"] },
+        { "name": "nuclei", "desc": "תבניות CVE", "leaves": ["critical", "high"] },
+        { "name": "gobuster", "desc": "גילוי נתיבים נסתרים" }
+      ]},
+      { "name": "סיסמאות", "desc": "פיצוח וברוט-פורס", "children": [
+        { "name": "hydra", "desc": "ברוט-פורס שירותים" },
+        { "name": "john", "desc": "פיצוח האשים" },
+        { "name": "hashcat", "desc": "פיצוח מואץ GPU" },
+        { "name": "medusa", "desc": "ברוט-פורס מקבילי" }
+      ]},
+      { "name": "ניצול · Exploit", "desc": "מציאת והרצת אקספלויטים", "children": [
+        { "name": "searchsploit", "desc": "מאגר Exploit-DB" },
+        { "name": "msfvenom", "desc": "יצירת payloads" }
+      ]},
+      { "name": "רשת · Network", "desc": "מיפוי וגילוי מארחים", "children": [
+        { "name": "arp-scan", "desc": "גילוי ARP" },
+        { "name": "netdiscover", "desc": "גילוי מארחים" },
+        { "name": "hping3", "desc": "יצירת חבילות" }
+      ]}
+    ]
+  },
+  "broker": {
+    "id": "broker", "name": "מתווך", "icon": "🟢", "color": "#3fd07a",
+    "core": "מנוע תיווך", "tagline": "מגשר בין אדום לכחול",
+    "caps": [
+      { "name": "קורלציה", "desc": "קישור ממצאים", "children": [
+        { "name": "התאמת חתימות", "desc": "regex + keywords" },
+        { "name": "איחוד עדויות", "desc": "מספר כלים → איום אחד" }
+      ]},
+      { "name": "דה-דופליקציה", "desc": "הסרת כפילויות", "children": [
+        { "name": "לפי חתימה" },
+        { "name": "לפי מטרה" }
+      ]},
+      { "name": "דירוג חומרה", "desc": "תעדוף איומים", "children": [
+        { "name": "critical → low" },
+        { "name": "לפי מספר עדויות" }
+      ]},
+      { "name": "ניתוב לכחול", "desc": "העברת איומים להגנה", "children": [
+        { "name": "מיפוי לכלל הגנה" }
+      ]}
+    ]
+  },
+  "blue": {
+    "id": "blue", "name": "צוות כחול", "icon": "🔵", "color": "#3d8bff",
+    "core": "מנוע הגנה", "tagline": "חוסם, מנטרל ומנטר",
+    "caps": [
+      { "name": "מיפוי איומים", "desc": "בסיס ידע הגנתי", "children": [
+        { "name": "14 כללי הגנה", "desc": "DEFENSE_KB" },
+        { "name": "התאמה אוטומטית", "desc": "ממצא → הגנה" }
+      ]},
+      { "name": "הקשחה", "desc": "צמצום משטח התקיפה", "children": [
+        { "name": "כותרות אבטחה", "desc": "CSP · HSTS · X-Frame" },
+        { "name": "סגירת פורטים", "desc": "firewall default-deny" },
+        { "name": "עדכוני אבטחה", "desc": "unattended-upgrades" }
+      ]},
+      { "name": "זיהוי · Detection", "desc": "ניטור והתראות", "children": [
+        { "name": "ניטור לוגים", "desc": "auth.log · WAF" },
+        { "name": "התראות brute-force" },
+        { "name": "baseline של פורטים" }
+      ]},
+      { "name": "MITRE ATT&CK", "desc": "מיפוי טכניקות", "children": [
+        { "name": "T1190 · Exploit App" },
+        { "name": "T1110 · Brute Force" },
+        { "name": "T1046 · Service Discovery" }
+      ]},
+      { "name": "תצורה · Config", "desc": "snippets מוכנים", "children": [
+        { "name": "Apache / Nginx" },
+        { "name": "sshd_config" },
+        { "name": "ModSecurity CRS" }
+      ]}
+    ]
+  },
+  "learn": {
+    "id": "learn", "name": "סוכן למידה", "icon": "🧠", "color": "#b57be8",
+    "core": "מנוע למידה", "tagline": "צובר ידע בין הרצות",
+    "caps": [
+      { "name": "צבירת חתימות", "desc": "knowledge.json", "children": [
+        { "name": "חתימה ייחודית לכל ממצא" },
+        { "name": "first / last seen" }
+      ]},
+      { "name": "מעקב תדירות", "desc": "כמה פעמים נצפה", "children": [
+        { "name": "מונה הופעות" },
+        { "name": "האיומים הנפוצים" }
+      ]},
+      { "name": "ניתוח מגמות", "desc": "לאורך זמן", "children": [
+        { "name": "חדש בהרצה זו" },
+        { "name": "היסטוריית מטרות" }
+      ]},
+      { "name": "בסיס ידע", "desc": "זיכרון מתמשך", "children": [
+        { "name": "שורד אתחולים" },
+        { "name": "מזין את הדוחות" }
+      ]}
+    ]
+  },
+  "orch": {
+    "id": "orch", "name": "מתזמר", "icon": "🟣", "color": "#a855f7",
+    "core": "מנצח התזמורת", "tagline": "מנצח, מתזמן ומדווח",
+    "caps": [
+      { "name": "תכנון · Planner", "desc": "כוונה → תוכנית", "children": [
+        { "name": "זיהוי Playbook", "desc": "לפי מילות מפתח" },
+        { "name": "בניית שלבים", "desc": "כלים + פקודות" }
+      ]},
+      { "name": "תזמון ביצוע", "desc": "הרצת שלבים", "children": [
+        { "name": "רצף מבוקר" },
+        { "name": "timeout לכל שלב" },
+        { "name": "עצירה ידנית" }
+      ]},
+      { "name": "אימות · Verifier", "desc": "בדיקת תקינות", "children": [
+        { "name": "ניתוח פלט + קוד יציאה" },
+        { "name": "חילוץ ממצאים" }
+      ]},
+      { "name": "דיווח · Reporter", "desc": "הפקת דוחות", "children": [
+        { "name": "סיכום מנהלים" },
+        { "name": "דוח Markdown" },
+        { "name": "שמירה מתמשכת" }
+      ]}
+    ]
+  }
+}

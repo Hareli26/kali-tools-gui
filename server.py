@@ -526,6 +526,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(bluered.load_kb())
         if p == "/api/dashboard":
             return self._api_dashboard()
+        if p == "/api/brain":
+            return self._api_brain()
         if p == "/api/reports":
             return self._api_reports()
         if p.startswith("/api/report/"):
@@ -638,6 +640,9 @@ class Handler(BaseHTTPRequestHandler):
                 A("🟣", "מתזמר", "ניצוח, תזמון ודיווח", "idle", "ממתין"),
             ]
 
+        for a, aid in zip(agents_state, ["red", "broker", "blue", "learn", "orch"]):
+            a["id"] = aid
+
         # --- intelligence stats from the learning KB ---
         sev_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
         for s in sigs.values():
@@ -664,6 +669,29 @@ class Handler(BaseHTTPRequestHandler):
             "activity": activity,
             "tools": {"installed": installed, "total": len(cat["tools"])},
         })
+
+    def _api_brain(self):
+        """Agent capability graph (brain.json) enriched with live system data."""
+        try:
+            with open(os.path.join(HERE, "brain.json"), "r", encoding="utf-8") as f:
+                brain = json.load(f)
+        except Exception as e:
+            return self._send_json({"error": "brain.json missing: %s" % e}, 500)
+        cat = load_catalog()
+        installed = sum(1 for t in cat["tools"] if tool_installed(t["binary"]))
+        kb = bluered.load_kb()
+        live = {
+            "red":    {"כלים פעילים": installed, "קטגוריות": len(cat.get("categories", []))},
+            "broker": {"כללי מיפוי": len(bluered.DEFENSE_KB)},
+            "blue":   {"כללי הגנה": len(bluered.DEFENSE_KB),
+                       "טכניקות MITRE": len(set(r.get("mitre", "") for r in bluered.DEFENSE_KB if r.get("mitre")))},
+            "learn":  {"ממצאים ידועים": len(kb.get("signatures", {})), "הרצות": kb.get("runs", 0)},
+            "orch":   {"Playbooks": len(agents.PLAYBOOKS) + 1},
+        }
+        for k, v in live.items():
+            if k in brain:
+                brain[k]["live"] = v
+        return self._send_json(brain)
 
     def _api_reports(self):
         items = []

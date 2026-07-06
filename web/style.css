@@ -177,6 +177,40 @@ html, body {
 }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
 
+/* ---------- agent brain (futuristic) ---------- */
+.brain-overlay {
+  position: fixed; inset: 0; z-index: 100; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 45%, #0b1220 0%, #05070d 70%, #000 100%);
+  cursor: grab;
+}
+.brain-overlay.hidden { display: none; }
+.brain-overlay.dragging { cursor: grabbing; }
+#brainSvg { width: 100%; height: 100%; display: block; touch-action: none; }
+.brain-node-label { font-family: 'Segoe UI', sans-serif; fill: #e6edf3; text-anchor: middle;
+  dominant-baseline: middle; pointer-events: none; user-select: none; }
+.brain-node-sub { fill: #8b98a9; font-size: 9px; }
+.brain-core-glyph { text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+
+.brain-hud { position: absolute; top: 22px; inset-inline-start: 26px; max-width: 320px; pointer-events: none; }
+.brain-hud-title { font-size: 26px; font-weight: 800; display: flex; align-items: center; gap: 10px;
+  text-shadow: 0 0 18px currentColor; }
+.brain-hud-core { font-size: 14px; color: var(--text-dim); margin-top: 2px; letter-spacing: .5px; }
+.brain-hud-live { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.brain-hud-live .lv { font-size: 12.5px; color: #c9d3de; background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 5px 11px; backdrop-filter: blur(4px); }
+.brain-hud-live .lv b { color: #fff; font-size: 15px; }
+
+.brain-zoom { position: absolute; top: 22px; inset-inline-end: 70px; font-family: var(--mono);
+  font-size: 13px; color: var(--text-dim); background: rgba(255,255,255,.05); padding: 5px 11px;
+  border-radius: 8px; border: 1px solid rgba(255,255,255,.08); }
+.brain-hint { position: absolute; bottom: 20px; inset-inline-start: 50%; transform: translateX(50%);
+  font-size: 12.5px; color: var(--text-dim); background: rgba(0,0,0,.4); padding: 7px 16px;
+  border-radius: 20px; border: 1px solid rgba(255,255,255,.08); white-space: nowrap; }
+.brain-close { position: absolute; top: 20px; inset-inline-end: 22px; z-index: 2;
+  width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12); color: #e6edf3; font-size: 18px; cursor: pointer; }
+.brain-close:hover { background: rgba(255,255,255,.14); }
+
 /* ---------- footer credit ---------- */
 .app-footer {
   text-align: center; padding: 18px 22px 26px; margin-top: 20px;
@@ -358,6 +392,9 @@ html, body {
 .agent-status.done { background: rgba(47,129,247,.15); color: var(--accent); }
 .agent-detail { font-size: 12.5px; color: var(--text); margin-top: 10px; line-height: 1.5;
   background: var(--bg-3); padding: 8px 10px; border-radius: 6px; }
+.agent-card.clickable-agent { cursor: pointer; transition: .15s; }
+.agent-card.clickable-agent:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.agent-brain-hint { margin-top: 8px; font-size: 11px; color: var(--accent); opacity: .8; text-align: center; }
 
 .dash-two { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; margin-top: 8px; }
 .stats-row { display: flex; gap: 12px; flex-wrap: wrap; }

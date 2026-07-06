@@ -525,6 +525,218 @@ async function stopMission() {
   pollMission();
 }
 
+/* ===================== AGENT BRAIN — futuristic capability map ============= */
+const SVGNS = "http://www.w3.org/2000/svg";
+const svgEl = (t, attrs) => { const e = document.createElementNS(SVGNS, t); for (const k in (attrs||{})) e.setAttribute(k, attrs[k]); return e; };
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+let BRAIN_DATA = null;
+const BRAIN = { agent: null, k: 1, panX: 0, panY: 0, nodes: [], conns: [],
+  raf: null, target: null, dragging: false, lx: 0, ly: 0, root: null, coreGlow: null };
+
+async function openBrain(agentId) {
+  if (!BRAIN_DATA) {
+    try { BRAIN_DATA = await (await fetch("/api/brain")).json(); }
+    catch (e) { return; }
+  }
+  const agent = BRAIN_DATA[agentId];
+  if (!agent) return;
+  BRAIN.agent = agent;
+  BRAIN.k = 1; BRAIN.panX = 0; BRAIN.panY = 0; BRAIN.target = null;
+  $("brainOverlay").classList.remove("hidden");
+  $("brainIcon").textContent = agent.icon;
+  $("brainName").textContent = agent.name;
+  $("brainName").parentElement.style.color = agent.color;
+  $("brainCore").textContent = "◈ " + agent.core + " · " + agent.tagline;
+  const live = $("brainLive"); live.innerHTML = "";
+  Object.entries(agent.live || {}).forEach(([kk, vv]) =>
+    live.appendChild(Object.assign(document.createElement("div"), { className: "lv", innerHTML: `<b>${vv}</b> ${kk}` })));
+  buildBrainScene(agent);
+  if (BRAIN.raf) cancelAnimationFrame(BRAIN.raf);
+  BRAIN.raf = requestAnimationFrame(brainFrame);
+}
+
+function buildBrainScene(agent) {
+  const svg = $("brainSvg");
+  svg.innerHTML = "";
+  const defs = svgEl("defs");
+  const g = svgEl("radialGradient", { id: "coreGrad" });
+  g.appendChild(svgEl("stop", { offset: "0%", "stop-color": agent.color, "stop-opacity": "0.95" }));
+  g.appendChild(svgEl("stop", { offset: "60%", "stop-color": agent.color, "stop-opacity": "0.25" }));
+  g.appendChild(svgEl("stop", { offset: "100%", "stop-color": agent.color, "stop-opacity": "0" }));
+  defs.appendChild(g);
+  const f = svgEl("filter", { id: "glow", x: "-60%", y: "-60%", width: "220%", height: "220%" });
+  f.appendChild(svgEl("feGaussianBlur", { stdDeviation: "4", result: "b" }));
+  const m = svgEl("feMerge"); m.appendChild(svgEl("feMergeNode", { in: "b" })); m.appendChild(svgEl("feMergeNode", { in: "SourceGraphic" }));
+  f.appendChild(m); defs.appendChild(f);
+  svg.appendChild(defs);
+
+  const root = svgEl("g", { id: "brainRoot" });
+  svg.appendChild(root);
+  BRAIN.root = root;
+
+  // decorative concentric rings
+  const deco = svgEl("g", { opacity: "0.5" });
+  [140, 280, 440].forEach(r => deco.appendChild(svgEl("circle", { cx: 0, cy: 0, r, fill: "none",
+    stroke: hexA(agent.color, 0.10), "stroke-width": 1, "stroke-dasharray": "3 9" })));
+  root.appendChild(deco);
+
+  const connG = svgEl("g"); const partG = svgEl("g"); const nodeG = svgEl("g");
+  root.appendChild(connG); root.appendChild(partG); root.appendChild(nodeG);
+
+  const nodes = [], conns = [];
+  const R1 = 300, R2 = 168, R3 = 96;
+  const core = { x: 0, y: 0, depth: 0, r: 46, name: agent.core };
+  nodes.push(core);
+
+  const caps = agent.caps || [];
+  caps.forEach((cap, i) => {
+    const a = (-90 + i * 360 / caps.length) * Math.PI / 180;
+    const cx = Math.cos(a) * R1, cy = Math.sin(a) * R1;
+    const cnode = { x: cx, y: cy, depth: 1, r: 30, name: cap.name, desc: cap.desc };
+    nodes.push(cnode); conns.push({ from: core, to: cnode });
+    const kids = cap.children || [];
+    kids.forEach((kid, j) => {
+      const ka = a + ((j - (kids.length - 1) / 2) * 26) * Math.PI / 180;
+      const kx = cx + Math.cos(ka) * R2, ky = cy + Math.sin(ka) * R2;
+      const knode = { x: kx, y: ky, depth: 2, r: 19, name: kid.name, desc: kid.desc };
+      nodes.push(knode); conns.push({ from: cnode, to: knode });
+      (kid.leaves || []).forEach((lf, l) => {
+        const la = ka + ((l - ((kid.leaves.length) - 1) / 2) * 22) * Math.PI / 180;
+        const lx = kx + Math.cos(la) * R3, ly = ky + Math.sin(la) * R3;
+        const lnode = { x: lx, y: ly, depth: 3, r: 9, name: lf };
+        nodes.push(lnode); conns.push({ from: knode, to: lnode });
+      });
+    });
+  });
+
+  // build connection + particle elements
+  conns.forEach(c => {
+    c.line = svgEl("line", { x1: c.from.x, y1: c.from.y, x2: c.to.x, y2: c.to.y,
+      stroke: hexA(agent.color, 0.5), "stroke-width": c.to.depth === 1 ? 1.6 : 1 });
+    connG.appendChild(c.line);
+    c.p = svgEl("circle", { r: c.to.depth === 1 ? 3 : 2, fill: "#fff" });
+    c.pt = Math.random(); partG.appendChild(c.p);
+  });
+
+  // build node elements
+  nodes.forEach(n => {
+    n.g = svgEl("g");
+    if (n.depth === 0) {
+      n.glow = svgEl("circle", { cx: 0, cy: 0, r: 120, fill: "url(#coreGrad)" });
+      n.g.appendChild(n.glow); BRAIN.coreGlow = n.glow;
+      n.g.appendChild(svgEl("circle", { cx: 0, cy: 0, r: n.r, fill: hexA(agent.color, 0.22),
+        stroke: agent.color, "stroke-width": 2, filter: "url(#glow)" }));
+      const gl = svgEl("text", { x: 0, y: 0, "font-size": 34, class: "brain-core-glyph" }); gl.textContent = agent.icon;
+      n.g.appendChild(gl);
+      const lbl = svgEl("text", { x: 0, y: n.r + 20, "font-size": 15, class: "brain-node-label", "font-weight": 700 });
+      lbl.textContent = n.name; n.g.appendChild(lbl);
+    } else {
+      n.circle = svgEl("circle", { cx: 0, cy: 0, r: n.r, fill: hexA(agent.color, 0.16),
+        stroke: agent.color, "stroke-width": n.depth === 1 ? 1.8 : 1.2 });
+      n.g.appendChild(n.circle);
+      const fs = n.depth === 1 ? 13 : n.depth === 2 ? 11 : 9;
+      const lbl = svgEl("text", { x: 0, y: n.r + fs + 2, "font-size": fs, class: "brain-node-label" });
+      lbl.textContent = n.name; n.g.appendChild(lbl);
+      if (n.desc && n.depth <= 2) {
+        const d = svgEl("text", { x: 0, y: n.r + fs * 2 + 4, "font-size": fs - 2, class: "brain-node-label brain-node-sub" });
+        d.textContent = n.desc; n.g.appendChild(d);
+      }
+      if (n.depth <= 2) { n.g.style.cursor = "pointer"; n.g.addEventListener("click", (e) => { e.stopPropagation(); focusNode(n); }); }
+    }
+    n.g.setAttribute("transform", `translate(${n.x},${n.y})`);
+    nodeG.appendChild(n.g);
+  });
+
+  BRAIN.nodes = nodes; BRAIN.conns = conns;
+}
+
+function lodOpacity(depth, k) {
+  if (depth === 0) return 1;
+  if (depth === 1) return Math.max(0, Math.min(1, (k - 0.5) / 0.3));
+  if (depth === 2) return Math.max(0, Math.min(1, (k - 1.35) / 0.5));
+  return Math.max(0, Math.min(1, (k - 2.7) / 0.5));
+}
+
+function brainRender() {
+  const svg = $("brainSvg"); const w = svg.clientWidth, h = svg.clientHeight;
+  const cx = w / 2, cy = h / 2;
+  BRAIN.root.setAttribute("transform", `translate(${cx + BRAIN.panX},${cy + BRAIN.panY}) scale(${BRAIN.k})`);
+  BRAIN.nodes.forEach(n => {
+    const o = lodOpacity(n.depth, BRAIN.k);
+    n.g.setAttribute("opacity", o);
+    n.g.style.pointerEvents = o > 0.05 ? "auto" : "none";
+  });
+  BRAIN.conns.forEach(c => {
+    const o = Math.min(lodOpacity(c.from.depth, BRAIN.k), lodOpacity(c.to.depth, BRAIN.k));
+    c.line.setAttribute("opacity", o * 0.55);
+    c.p.setAttribute("opacity", o);
+  });
+  $("brainZoom").textContent = "×" + BRAIN.k.toFixed(1);
+}
+
+function brainFrame(ts) {
+  // focus lerp
+  if (BRAIN.target) {
+    const t = BRAIN.target, s = 0.12;
+    BRAIN.k += (t.k - BRAIN.k) * s;
+    BRAIN.panX += (t.panX - BRAIN.panX) * s;
+    BRAIN.panY += (t.panY - BRAIN.panY) * s;
+    if (Math.abs(t.k - BRAIN.k) < 0.01 && Math.abs(t.panX - BRAIN.panX) < 0.5) BRAIN.target = null;
+  }
+  // particles flow inner -> outer
+  const spd = 0.006;
+  BRAIN.conns.forEach(c => {
+    c.pt = (c.pt + spd) % 1;
+    const x = c.from.x + (c.to.x - c.from.x) * c.pt;
+    const y = c.from.y + (c.to.y - c.from.y) * c.pt;
+    c.p.setAttribute("cx", x); c.p.setAttribute("cy", y);
+  });
+  // core breathing
+  if (BRAIN.coreGlow) {
+    const r = 110 + Math.sin(ts / 700) * 22;
+    BRAIN.coreGlow.setAttribute("r", r);
+  }
+  brainRender();
+  BRAIN.raf = requestAnimationFrame(brainFrame);
+}
+
+function focusNode(n) {
+  const svg = $("brainSvg");
+  const targetK = n.depth === 1 ? 1.7 : n.depth === 2 ? 3.0 : BRAIN.k;
+  BRAIN.target = { k: targetK, panX: -n.x * targetK, panY: -n.y * targetK };
+}
+
+function brainZoomAt(mx, my, factor) {
+  const svg = $("brainSvg"); const cx = svg.clientWidth / 2, cy = svg.clientHeight / 2;
+  const wx = (mx - cx - BRAIN.panX) / BRAIN.k, wy = (my - cy - BRAIN.panY) / BRAIN.k;
+  BRAIN.k = Math.max(0.4, Math.min(6, BRAIN.k * factor));
+  BRAIN.panX = mx - cx - wx * BRAIN.k;
+  BRAIN.panY = my - cy - wy * BRAIN.k;
+  BRAIN.target = null;
+}
+
+function closeBrain() {
+  $("brainOverlay").classList.add("hidden");
+  if (BRAIN.raf) { cancelAnimationFrame(BRAIN.raf); BRAIN.raf = null; }
+}
+
+function initBrain() {
+  const svg = $("brainSvg"), ov = $("brainOverlay");
+  $("brainClose").onclick = closeBrain;
+  svg.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const r = svg.getBoundingClientRect();
+    brainZoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+  }, { passive: false });
+  svg.addEventListener("pointerdown", (e) => { BRAIN.dragging = true; BRAIN.lx = e.clientX; BRAIN.ly = e.clientY; ov.classList.add("dragging"); svg.setPointerCapture(e.pointerId); });
+  svg.addEventListener("pointermove", (e) => { if (!BRAIN.dragging) return; BRAIN.panX += e.clientX - BRAIN.lx; BRAIN.panY += e.clientY - BRAIN.ly; BRAIN.lx = e.clientX; BRAIN.ly = e.clientY; BRAIN.target = null; });
+  svg.addEventListener("pointerup", () => { BRAIN.dragging = false; ov.classList.remove("dragging"); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !ov.classList.contains("hidden")) closeBrain(); });
+}
+
 /* ============================ DASHBOARD (מרכז בקרה) ======================== */
 let DASH_TIMER = null;
 
@@ -569,6 +781,11 @@ function renderDashboard(d) {
     top.appendChild(el("span", "agent-status " + a.status, stLabel));
     card.appendChild(top);
     card.appendChild(el("div", "agent-detail", a.detail));
+    if (a.id) {
+      card.classList.add("clickable-agent");
+      card.appendChild(el("div", "agent-brain-hint", "🧠 לחץ לתצוגת מוח"));
+      card.onclick = () => openBrain(a.id);
+    }
     ag.appendChild(card);
   });
 
@@ -926,6 +1143,7 @@ function init() {
   $("copyBtn").onclick = () => navigator.clipboard.writeText($("output").textContent);
   $("downloadBtn").onclick = download;
   $("rerunBtn").onclick = () => { if (CURRENT_TOOL) { showScreen("form"); } };
+  initBrain();
   $("threatClose").onclick = () => $("threatModal").classList.add("hidden");
   $("threatModal").onclick = (e) => { if (e.target === $("threatModal")) $("threatModal").classList.add("hidden"); };
   $("installCancel").onclick = () => $("installModal").classList.add("hidden");
