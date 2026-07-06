@@ -1209,6 +1209,18 @@ function init() {
   $("sudoPass").onkeydown = (e) => { if (e.key === "Enter") doInstall(); };
   initAI();
   loadCatalog();
+  window.addEventListener("hashchange", applyHash);
+  applyHash();
+}
+
+// Deep-linking: #dashboard, #ai, #tools, #brain-<agentId>
+async function applyHash() {
+  const h = (location.hash || "").replace(/^#/, "");
+  if (!h) return;
+  if (h === "dashboard") { showScreen("dashboard"); }
+  else if (h === "ai") { showScreen("ai-prompt"); }
+  else if (h === "tools") { showScreen("picker"); }
+  else if (h.startsWith("brain-")) { await openBrain(h.slice(6)); }
 }
 
 document.addEventListener("DOMContentLoaded", init);

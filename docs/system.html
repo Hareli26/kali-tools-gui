@@ -40,6 +40,9 @@
   .agent .h { font-weight: 700; font-size: 11.5pt; }
   .section { page-break-inside: avoid; }
   .muted { color: #667; font-size: 9.5pt; }
+  figure { margin: 0 0 12pt; page-break-inside: avoid; }
+  .shot { width: 100%; border: 1px solid #cbb8e6; border-radius: 6px; }
+  .shotcap { font-size: 9pt; color: #667; text-align: center; margin-top: 4pt; }
 </style>
 </head>
 <body>
@@ -71,6 +74,7 @@
     <li>אבטחה</li>
     <li>פריסה ותפעול בייצור</li>
     <li>טכנולוגיות (Tech Stack)</li>
+    <li>צילומי מסך מהמערכת</li>
     <li>סיכום</li>
   </ol>
 </div>
@@ -253,8 +257,23 @@ journalctl -u kali-gui -n 50   # לוגים</pre>
 </table>
 </div>
 
+<div style="page-break-before: always"></div>
+<h2>12. צילומי מסך מהמערכת</h2>
+<figure>
+  <img class="shot" src="shots/shot_tools.png" alt="Tools screen">
+  <figcaption class="shotcap">מסך 1 — מצב "כלים": קטלוג 70 הכלים עם חיפוש, סינון לפי קטגוריה וזיהוי מותקן.</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/shot_dashboard.png" alt="Dashboard screen">
+  <figcaption class="shotcap">מסך 2 — מרכז הבקרה: מצב הסוכנים החי, מודיעין נצבר (חומרה, איומים נפוצים) ויומן פעילות.</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/shot_brain.png" alt="Agent brain visualization">
+  <figcaption class="shotcap">מסך 3 — תצוגת "מוח סוכן" (הצוות האדום): ליבה זוהרת, יכולות במסלולים, סינפסות ונתונים חיים.</figcaption>
+</figure>
+
 <div class="section">
-<h2>12. סיכום</h2>
+<h2>13. סיכום</h2>
 <p>המערכת מדגימה ארכיטקטורה מודולרית וברורה: מנוע כלים בטוח, שכבת סוכנים מבוססת‑ידע דטרמיניסטית,
 גישת Purple Team שמחברת בין תקיפה להגנה, ולמידה מצטברת. כל רכיב שקוף וניתן להרחבה — הוספת כלי, Playbook
 או כלל הגנה נעשית בעריכת נתונים בלבד. התוצאה: כלי חינוכי ומעשי המנגיש בדיקות אבטחה ומחבר אותן לפעולה הגנתית.</p>
