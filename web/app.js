@@ -344,6 +344,7 @@ let PLAN = null;
 let MISSION_ID = null;
 let MISSION_TIMER = null;
 let REPORT_MD = "";
+let REPORT_META = null;   // {intent, target, type} of the currently shown report
 
 const AI_EXAMPLES = [
   "בדיקת DNS מקיפה", "בדיקת חדירות לאתר", "סריקת פורטים ושירותים",
@@ -469,6 +470,7 @@ async function pollMission() {
       $("missionStopBtn").classList.add("hidden");
       if (m.report) {
         REPORT_MD = m.report;
+        REPORT_META = { intent: m.intent, target: m.target, type: "mission" };
         $("viewReportBtn").classList.remove("hidden");
       }
     }
@@ -875,6 +877,8 @@ async function openSavedReport(id) {
     const d = await res.json();
     if (!res.ok || !d.report) return;
     REPORT_MD = d.report;
+    const meta = d.meta || {};
+    REPORT_META = { intent: meta.intent, target: meta.target, type: meta.kind || "mission" };
     showReport();
   } catch (e) { /* ignore */ }
 }
@@ -957,20 +961,45 @@ async function startPurple() {
   finally { $("purpleBtn").disabled = false; }
 }
 
-// Re-run an activity-feed entry: re-plan its intent/target, then run it again.
-async function rerunActivity(a) {
+// ---- reusable confirmation dialog (returns a Promise<bool>) ----
+function askConfirm(title, msg, okLabel) {
+  return new Promise(resolve => {
+    $("confirmTitle").textContent = title;
+    $("confirmMsg").innerHTML = msg;
+    $("confirmOk").textContent = okLabel || "הרץ";
+    const modal = $("confirmModal");
+    modal.classList.remove("hidden");
+    const done = (v) => { modal.classList.add("hidden"); $("confirmOk").onclick = null; $("confirmCancel").onclick = null; resolve(v); };
+    $("confirmOk").onclick = () => done(true);
+    $("confirmCancel").onclick = () => done(false);
+    modal.onclick = (e) => { if (e.target === modal) done(false); };
+  });
+}
+
+// Re-run an intent/target as mission or purple, with a confirmation first.
+async function rerunRun(intent, target, type) {
+  const kind = type === "purple" ? "משימת Purple (אדום+כחול)" : "משימה";
+  const ok = await askConfirm(
+    "הרצה חוזרת",
+    `להריץ שוב ${kind}?<br><br>` +
+    `<span class="pill">🎯 ${escapeHtml(target)}</span> <span class="pill">${escapeHtml(intent)}</span><br><br>` +
+    `⚠️ פעולה זו מריצה <b>כלים אמיתיים</b> על המטרה ועשויה להימשך מספר דקות.`,
+    "▶ הרץ שוב");
+  if (!ok) return;
   try {
     const res = await fetch("/api/plan", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intent: a.intent, target: a.target })
+      body: JSON.stringify({ intent, target })
     });
     const plan = await res.json();
     if (!res.ok || !plan.steps || !plan.steps.length) { alert(plan.error || "לא ניתן לתכנן מחדש"); return; }
     PLAN = plan;
-    if (a.type === "purple") await runPurple(a.intent, a.target, plan.steps);
-    else await runMission(a.intent, a.target, plan.steps);
+    if (type === "purple") await runPurple(intent, target, plan.steps);
+    else await runMission(intent, target, plan.steps);
   } catch (e) { alert("שגיאה: " + e); }
 }
+
+function rerunActivity(a) { return rerunRun(a.intent, a.target, a.type); }
 
 async function pollPurple() {
   clearTimeout(PURPLE_TIMER);
@@ -992,7 +1021,7 @@ async function pollPurple() {
       PURPLE_TIMER = setTimeout(pollPurple, 1000);
     } else {
       $("purpleStopBtn").classList.add("hidden");
-      if (p.report) { REPORT_MD = p.report; $("purpleReportBtn").classList.remove("hidden"); }
+      if (p.report) { REPORT_MD = p.report; REPORT_META = { intent: p.intent, target: p.target, type: "purple" }; $("purpleReportBtn").classList.remove("hidden"); }
     }
   } catch (e) {
     PURPLE_TIMER = setTimeout(pollPurple, 1500);
@@ -1159,6 +1188,7 @@ function initAI() {
   $("purpleReportBtn").onclick = showReport;
   $("reportCopyBtn").onclick = () => navigator.clipboard.writeText(REPORT_MD);
   $("reportDownloadBtn").onclick = downloadReport;
+  $("reportRerunBtn").onclick = () => { if (REPORT_META && REPORT_META.target) rerunRun(REPORT_META.intent, REPORT_META.target, REPORT_META.type); };
   $("newMissionBtn").onclick = () => { showScreen("ai-prompt"); };
 }
 

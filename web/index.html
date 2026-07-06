@@ -190,6 +190,7 @@
     <div class="results-head">
       <h1>📄 דוח</h1>
       <div class="results-actions">
+        <button id="reportRerunBtn" class="run-btn">🔁 הרץ שוב</button>
         <button id="reportCopyBtn" class="ghost-btn">📋 העתק</button>
         <button id="reportDownloadBtn" class="ghost-btn">⬇ הורד</button>
         <button id="newMissionBtn" class="ghost-btn">🤖 משימה חדשה</button>
@@ -197,6 +198,18 @@
     </div>
     <article id="reportBody" class="report-body"></article>
   </main>
+
+  <!-- ===================== CONFIRM MODAL ===================== -->
+  <div id="confirmModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 id="confirmTitle">אישור</h2>
+      <p id="confirmMsg"></p>
+      <div class="modal-actions">
+        <button id="confirmCancel" class="ghost-btn">ביטול</button>
+        <button id="confirmOk" class="run-btn">הרץ</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ===================== THREAT DETAIL MODAL ===================== -->
   <div id="threatModal" class="modal-overlay hidden">
