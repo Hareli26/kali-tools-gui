@@ -105,6 +105,28 @@
       ]}
     ]
   },
+  "fix": {
+    "id": "fix", "name": "סוכן מתקן", "icon": "🔧", "color": "#3fd07a",
+    "core": "מנוע תיקון", "tagline": "מיישם הגנות עם אישור",
+    "caps": [
+      { "name": "תיקונים בטוחים", "desc": "תוספתיים, ללא סיכון נעילה", "children": [
+        { "name": "fail2ban", "desc": "הגנה מ-brute-force" },
+        { "name": "unattended-upgrades", "desc": "עדכוני אבטחה אוטומטיים" }
+      ]},
+      { "name": "תיקוני זהירות", "desc": "הפיכים, עם גיבוי", "children": [
+        { "name": "עצירת snmpd" },
+        { "name": "עצירת FTP/Telnet" }
+      ]},
+      { "name": "בטיחות", "desc": "עקרון ראשון", "children": [
+        { "name": "אישור חובה", "desc": "confirm לפני כל תיקון" },
+        { "name": "גיבוי קונפיגים", "desc": "לפני כל שינוי" },
+        { "name": "ידני-בלבד למסוכנים", "desc": "SSH/firewall לא רצים אוטומטית" }
+      ]},
+      { "name": "ביקורת", "desc": "audit.log", "children": [
+        { "name": "מי אישר איזה תיקון" }
+      ]}
+    ]
+  },
   "orch": {
     "id": "orch", "name": "מתזמר", "icon": "🟣", "color": "#a855f7",
     "core": "מנצח התזמורת", "tagline": "מנצח, מתזמן ומדווח",

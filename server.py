@@ -673,7 +673,17 @@ class Handler(BaseHTTPRequestHandler):
                 A("🟣", "מתזמר", "ניצוח, תזמון ודיווח", "idle", "ממתין"),
             ]
 
-        for a, aid in zip(agents_state, ["red", "broker", "blue", "learn", "orch"]):
+        # 🔧 Remediation agent — always present; detail = how many known threats are auto-fixable
+        fixable = 0
+        for sid in sigs:
+            rem = bluered.get_remediation(sid)
+            if rem and rem.get("commands") and rem.get("risk") != "manual":
+                fixable += 1
+        fix_detail = ("%d איומים ניתנים לתיקון אוטומטי" % fixable) if fixable else "מוכן — ממתין לאיומים לתיקון"
+        agents_state.append(A("🔧", "סוכן מתקן", "יישום הגנות עם אישור",
+                              "active" if fixable else "idle", fix_detail))
+
+        for a, aid in zip(agents_state, ["red", "broker", "blue", "learn", "orch", "fix"]):
             a["id"] = aid
 
         # --- intelligence stats from the learning KB ---
@@ -720,6 +730,8 @@ class Handler(BaseHTTPRequestHandler):
                        "טכניקות MITRE": len(set(r.get("mitre", "") for r in bluered.DEFENSE_KB if r.get("mitre")))},
             "learn":  {"ממצאים ידועים": len(kb.get("signatures", {})), "הרצות": kb.get("runs", 0)},
             "orch":   {"Playbooks": len(agents.PLAYBOOKS) + 1},
+            "fix":    {"תיקונים במאגר": sum(1 for r in bluered.REMEDIATIONS.values() if r.get("commands")),
+                       "ידני-בלבד": sum(1 for r in bluered.REMEDIATIONS.values() if r.get("risk") == "manual")},
         }
         for k, v in live.items():
             if k in brain:
