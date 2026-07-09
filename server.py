@@ -1144,12 +1144,18 @@ class Handler(BaseHTTPRequestHandler):
         if not pkg or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.+" for c in pkg):
             return self._send_json({"error": "שם חבילה לא חוקי"}, 400)
         is_root = hasattr(os, "geteuid") and os.geteuid() == 0
-        if is_root:
-            argv = ["apt-get", "install", "-y", pkg]
-            job = Job(argv, label="התקנה: %s" % pkg)
-        else:
-            argv = ["sudo", "-S", "-p", "", "apt-get", "install", "-y", pkg]
-            job = Job(argv, label="התקנה: %s" % pkg)
+        # pkg is validated to a safe charset above, so interpolation here is safe.
+        # Judge success by whether THE TARGET package ends up installed — not by
+        # apt's overall exit code, which an unrelated package upgrade failing
+        # (e.g. a broken base-files dependency) would otherwise poison.
+        apt = "apt-get install -y -- %s" % pkg
+        if not is_root:
+            apt = "sudo -S -p '' " + apt
+        script = ("%s; dpkg-query -W -f='${Status}' -- %s 2>/dev/null "
+                  "| grep -q 'install ok installed'") % (apt, pkg)
+        argv = ["bash", "-c", script]
+        job = Job(argv, label="התקנה: %s" % pkg)
+        if not is_root:
             job.stdin_data = ((password or "") + "\n").encode()
         env2 = dict(RUN_ENV)
         env2["DEBIAN_FRONTEND"] = "noninteractive"
