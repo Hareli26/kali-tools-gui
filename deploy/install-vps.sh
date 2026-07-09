@@ -39,6 +39,13 @@ if [ "$REPO_ROOT" != "$APP_DIR" ]; then
 fi
 mkdir -p "$APP_DIR/reports"
 
+echo "==> [3b] Setting up MCP server venv (optional)..."
+apt-get install -y python3-venv >/dev/null 2>&1 || true
+if python3 -m venv "$APP_DIR/.venv" 2>/dev/null; then
+  "$APP_DIR/.venv/bin/pip" install -q --disable-pip-version-check -r "$APP_DIR/mcp/requirements.txt" 2>/dev/null \
+    && echo "   MCP venv ready: $APP_DIR/.venv" || echo "   (MCP deps skipped - no internet?)"
+fi
+
 echo "==> [4/9] Installing Caddy (auto-HTTPS reverse proxy)..."
 if ! command -v caddy >/dev/null 2>&1; then
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg

@@ -95,7 +95,7 @@ def _prune(store):
             del store[k]
 
 def save_report(run_id, kind, intent, target, report):
-    """Persist a report to the DB so it survives restarts."""
+    """Persist a report to the DB so it survives restarts, then auto-sync Obsidian."""
     if not report:
         return
     try:
@@ -103,6 +103,16 @@ def save_report(run_id, kind, intent, target, report):
         db.save_report(run_id, kind, intent, target, report, ts=time.time(), whenstr=when)
     except Exception as e:
         log("save_report failed: %s" % e)
+    _auto_obsidian()
+
+def _auto_obsidian():
+    """Keep the Obsidian vault up to date after every run (opt-out via env)."""
+    if os.environ.get("KALIGUI_AUTO_OBSIDIAN", "1") != "1":
+        return
+    try:
+        obsidian.export(VAULT_DIR, db.all_reports_full(500), bluered.load_kb(), bluered.get_remediation)
+    except Exception as e:
+        log("auto-obsidian failed: %s" % e)
 
 # ---------------------------------------------------------------- catalog ----
 def load_catalog():

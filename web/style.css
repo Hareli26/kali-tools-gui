@@ -494,3 +494,110 @@ html, body {
   .purple-cols { grid-template-columns: 1fr; }
   .dash-two { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   🌌 FUTURISTIC THEME — animated, alive, neon-glass
+   ============================================================ */
+html, body {
+  background:
+    radial-gradient(90% 60% at 15% 0%, rgba(47,129,247,.16), transparent 55%),
+    radial-gradient(80% 60% at 90% 5%, rgba(168,85,247,.14), transparent 55%),
+    radial-gradient(90% 70% at 50% 100%, rgba(63,208,122,.12), transparent 60%),
+    #05070e;
+  background-attachment: fixed;
+}
+
+/* moving aurora nebula behind everything */
+body::before {
+  content: ""; position: fixed; inset: -25%; z-index: -2; pointer-events: none;
+  background:
+    radial-gradient(40% 48% at 16% 20%, rgba(47,129,247,.42), transparent 60%),
+    radial-gradient(42% 46% at 84% 24%, rgba(168,85,247,.38), transparent 60%),
+    radial-gradient(55% 52% at 50% 100%, rgba(63,208,122,.30), transparent 62%),
+    radial-gradient(34% 34% at 68% 62%, rgba(248,81,73,.16), transparent 60%),
+    radial-gradient(30% 30% at 30% 78%, rgba(47,199,247,.20), transparent 60%);
+  filter: blur(40px); opacity: 1;
+  animation: aurora 20s ease-in-out infinite alternate;
+}
+@keyframes aurora {
+  0%   { transform: translate(0,0) scale(1) rotate(0deg); }
+  50%  { transform: translate(2.5%,-2%) scale(1.12) rotate(4deg); }
+  100% { transform: translate(-2.5%,2%) scale(1.06) rotate(-3deg); }
+}
+/* faint animated cyber grid */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(47,129,247,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(47,129,247,.045) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(circle at 50% -10%, #000, transparent 78%);
+  mask-image: radial-gradient(circle at 50% -10%, #000, transparent 78%);
+  animation: gridflow 26s linear infinite;
+}
+@keyframes gridflow { from { background-position: 0 0; } to { background-position: 0 46px; } }
+
+/* glass top bar */
+.topbar {
+  background: linear-gradient(90deg, rgba(8,12,20,.82), rgba(14,20,34,.72)) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3);
+  border-bottom: 1px solid rgba(47,129,247,.28);
+  box-shadow: 0 2px 30px rgba(0,0,0,.5), 0 1px 0 rgba(47,129,247,.15) inset;
+}
+.brand-title { text-shadow: 0 0 18px rgba(47,129,247,.5); }
+.logo { filter: drop-shadow(0 0 10px rgba(63,208,122,.55)); animation: breathe 4s ease-in-out infinite; }
+@keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+/* neon headings */
+h1, .dash-hero h1, .ai-hero h1 { text-shadow: 0 0 26px rgba(47,129,247,.35); }
+h2, .col-title, .dash-section { text-shadow: 0 0 16px rgba(47,129,247,.18); }
+
+/* frosted glass on the main surfaces */
+.tool-card, .agent-card, .stat-card, .feed-card, .mstep, .preview-pane,
+.threat, .learn-panel, .top-threat, .report-body, .modal, .plan-step,
+.brain-hud-live .lv, .cat-chip {
+  background: linear-gradient(160deg, rgba(24,30,44,.62), rgba(14,18,28,.52)) !important;
+  -webkit-backdrop-filter: blur(9px) saturate(1.15); backdrop-filter: blur(9px) saturate(1.15);
+  border: 1px solid rgba(255,255,255,.07);
+}
+
+/* alive cards: hover lift + glow */
+.tool-card, .agent-card, .feed-card, .stat-card, .top-threat, .mstep { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.tool-card:hover, .agent-card.clickable-agent:hover, .feed-card.clickable:hover, .top-threat:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(47,129,247,.45), 0 0 30px rgba(47,129,247,.25);
+  border-color: rgba(47,129,247,.5) !important;
+}
+
+/* glowing stat numbers */
+.stat-card b, .learn-panel .stat b, .tm-stat b { text-shadow: 0 0 20px currentColor; }
+
+/* active mode tab glow */
+.mode-tab.active { box-shadow: 0 0 20px rgba(47,129,247,.55); }
+
+/* live pill: animated dot + halo */
+.live-pill.on { box-shadow: 0 0 16px rgba(63,185,80,.5); }
+
+/* agent cards get a shimmering top edge when active */
+.agent-card::after {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(47,129,247,.8), transparent);
+  background-size: 200% 100%; opacity: 0; transition: opacity .3s;
+}
+.agent-card.active::after { opacity: 1; animation: sweep 2.2s linear infinite; }
+@keyframes sweep { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* run/primary buttons: neon */
+.run-btn, .purple-btn {
+  box-shadow: 0 0 22px rgba(63,185,80,.28); position: relative; overflow: hidden;
+}
+.purple-btn { box-shadow: 0 0 24px rgba(168,85,247,.35); }
+.run-btn:hover, .purple-btn:hover { box-shadow: 0 0 34px rgba(63,185,80,.5); }
+
+/* severity bars glow */
+.sev-row .fill { box-shadow: 0 0 12px currentColor; }
+
+/* respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after, .logo, .agent-card.active::after { animation: none !important; }
+}
