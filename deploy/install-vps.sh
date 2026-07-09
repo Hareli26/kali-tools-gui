@@ -127,6 +127,8 @@ ExecStart=/usr/bin/python3 ${APP_DIR}/server.py
 Environment=KALIGUI_HOST=127.0.0.1
 Environment=KALIGUI_PORT=8777
 Environment=KALIGUI_TOKEN=${KALIGUI_TOKEN}
+Environment=KALIGUI_ADMIN_EMAIL=${ADMIN_EMAIL}
+Environment=KALIGUI_ALLOWLIST=${APP_DIR}/deploy/authenticated-emails.txt
 Restart=on-failure
 RestartSec=3
 

@@ -16,6 +16,7 @@ WITHOUT a shell (argv list) to avoid command injection.
 
 import json
 import os
+import re
 import shlex
 import shutil
 import signal
@@ -58,6 +59,13 @@ LOG_FILE = os.path.join(DATA_DIR, "server.log")
 AUDIT_FILE = os.path.join(DATA_DIR, "audit.log")
 REPORTS_DIR = os.path.join(DATA_DIR, "reports")
 VAULT_DIR = os.environ.get("KALIGUI_VAULT_DIR") or os.path.join(DATA_DIR, "vault")
+# User management: the admin (only they can manage the allowlist) and the Google
+# email allowlist file that oauth2-proxy reads (it live-reloads on change).
+ADMIN_EMAIL = (os.environ.get("KALIGUI_ADMIN_EMAIL") or os.environ.get("ADMIN_EMAIL") or "").strip().lower()
+ALLOWLIST_FILE = (os.environ.get("KALIGUI_ALLOWLIST")
+                  or os.path.join(HERE, "deploy", "authenticated-emails.txt"))
+_ALLOWLIST_LOCK = threading.Lock()
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 START_TIME = time.time()
 _LOG_LOCK = threading.Lock()
 _AUDIT_LOCK = threading.Lock()
@@ -82,6 +90,37 @@ def audit(user, action, detail=""):
         db.add_audit(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user or "unknown", action, detail)
     except Exception:
         pass
+
+def allowlist_read():
+    """Return the ordered list of allowed Google emails (oauth2-proxy allowlist)."""
+    try:
+        with open(ALLOWLIST_FILE, "r", encoding="utf-8") as f:
+            seen, out = set(), []
+            for line in f:
+                e = line.strip().lower()
+                if e and not e.startswith("#") and e not in seen:
+                    seen.add(e)
+                    out.append(e)
+            return out
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        log("allowlist read failed: %s" % e)
+        return []
+
+def allowlist_write(emails):
+    """Atomically rewrite the allowlist. oauth2-proxy live-reloads the file, so
+    changes take effect within seconds without a restart."""
+    with _ALLOWLIST_LOCK:
+        os.makedirs(os.path.dirname(ALLOWLIST_FILE) or ".", exist_ok=True)
+        tmp = ALLOWLIST_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write("\n".join(emails) + ("\n" if emails else ""))
+        os.replace(tmp, ALLOWLIST_FILE)
+        try:
+            os.chmod(ALLOWLIST_FILE, 0o644)
+        except Exception:
+            pass
 
 def _prune(store):
     """Evict oldest *finished* runs so memory stays bounded (keeps last MAX_KEEP)."""
@@ -517,6 +556,14 @@ class Handler(BaseHTTPRequestHandler):
                 or self.headers.get("X-Auth-Request-Email")
                 or "local")
 
+    def _is_admin(self):
+        """Only the configured admin may manage users. Locally (no auth proxy and
+        no admin configured) the single local operator is treated as admin."""
+        u = (self._user() or "").strip().lower()
+        if ADMIN_EMAIL:
+            return u == ADMIN_EMAIL
+        return u == "local"
+
     # -- auth (optional shared token) --
     def _authorized(self):
         if not TOKEN:
@@ -556,7 +603,10 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/dbstats":
             return self._send_json(db.stats())
         if p == "/api/whoami":
-            return self._send_json({"user": self._user()})
+            return self._send_json({"user": self._user(), "is_admin": self._is_admin(),
+                                    "admin": ADMIN_EMAIL, "auth": bool(ADMIN_EMAIL)})
+        if p == "/api/users":
+            return self._api_users_list()
         if p == "/api/audit":
             return self._api_audit()
         if p == "/api/knowledge":
@@ -607,6 +657,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_fix_apply()
         if p == "/api/obsidian/export":
             return self._api_obsidian_export()
+        if p == "/api/users/add":
+            return self._api_users_add()
+        if p == "/api/users/remove":
+            return self._api_users_remove()
         if p == "/api/plan":
             return self._api_plan()
         if p == "/api/mission":
@@ -773,6 +827,41 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             log("obsidian export failed: %s" % e)
             return self._send_json({"error": str(e)}, 500)
+
+    # -- user management (admin-only; edits the oauth2-proxy allowlist) --
+    def _users_payload(self, **extra):
+        return self._send_json({"emails": allowlist_read(), "admin": ADMIN_EMAIL,
+                                "self": self._user(), "auth": bool(ADMIN_EMAIL), **extra})
+
+    def _api_users_list(self):
+        if not self._is_admin():
+            return self._send_json({"error": "forbidden — admin only"}, 403)
+        return self._users_payload()
+
+    def _api_users_add(self):
+        if not self._is_admin():
+            return self._send_json({"error": "forbidden — admin only"}, 403)
+        email = (self._read_json().get("email") or "").strip().lower()
+        if not _EMAIL_RE.match(email):
+            return self._send_json({"error": "כתובת אימייל לא תקינה"}, 400)
+        emails = allowlist_read()
+        if email in emails:
+            return self._users_payload(note="כבר מורשה")
+        emails.append(email)
+        allowlist_write(emails)
+        audit(self._user(), "user-add", email)
+        return self._users_payload(note="נוסף")
+
+    def _api_users_remove(self):
+        if not self._is_admin():
+            return self._send_json({"error": "forbidden — admin only"}, 403)
+        email = (self._read_json().get("email") or "").strip().lower()
+        if ADMIN_EMAIL and email == ADMIN_EMAIL:
+            return self._send_json({"error": "לא ניתן להסיר את האדמין (מניעת נעילה עצמית)"}, 400)
+        emails = [e for e in allowlist_read() if e != email]
+        allowlist_write(emails)
+        audit(self._user(), "user-remove", email)
+        return self._users_payload(note="הוסר")
 
     def _api_vault_graph(self):
         """Graph of the Obsidian vault (reports + threats + MOC) for the in-app

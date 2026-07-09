@@ -24,15 +24,18 @@ function showScreen(name) {
   $("screen-" + name).classList.add("active");
   const isDash = name === "dashboard";
   const isVault = name === "vault";
+  const isUsers = name === "users";
   const isAI = name.startsWith("ai-") || name === "purple";
-  const isTools = !isDash && !isAI && !isVault;
-  const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash"), mv = $("modeVault");
+  const isTools = !isDash && !isAI && !isVault && !isUsers;
+  const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash"), mv = $("modeVault"), mu = $("modeUsers");
   if (mt) mt.classList.toggle("active", isTools);
   if (ma) ma.classList.toggle("active", isAI);
   if (md) md.classList.toggle("active", isDash);
   if (mv) mv.classList.toggle("active", isVault);
+  if (mu) mu.classList.toggle("active", isUsers);
   if (isDash) loadDashboard();
   if (isVault) loadVault();
+  if (isUsers) loadUsers();
   window.scrollTo(0, 0);
 }
 
@@ -1285,6 +1288,8 @@ function init() {
     } catch (e) { alert("שגיאת רשת: " + e); }
     finally { btn.disabled = false; btn.textContent = "📓 ייצא ל‑Obsidian"; }
   };
+  $("userAddBtn").onclick = addUser;
+  $("userEmail").onkeydown = (e) => { if (e.key === "Enter") addUser(); };
   $("vaultReloadBtn").onclick = () => loadVault();
   $("vaultSearch").oninput = (e) => vaultSearch(e.target.value);
   $("vaultPanelClose").onclick = () => {
@@ -1314,11 +1319,90 @@ function init() {
   applyHash();
 }
 
+let IS_ADMIN = false;
 async function loadWhoami() {
   try {
     const d = await (await fetch("/api/whoami")).json();
     if (d.user && d.user !== "local") $("userLine").textContent = "👤 " + d.user;
+    IS_ADMIN = !!d.is_admin;
+    $("modeUsers").classList.toggle("hidden", !IS_ADMIN);
   } catch (e) { /* ignore */ }
+}
+
+/* ============================================================ USER MANAGEMENT
+   Admin-only screen to manage the Google-login allowlist (oauth2-proxy). */
+async function loadUsers() {
+  const list = $("usersList");
+  list.innerHTML = '<div class="audit-empty">טוען...</div>';
+  try {
+    const d = await (await fetch("/api/users")).json();
+    if (d.error) { list.innerHTML = `<div class="audit-empty">${d.error}</div>`; return; }
+    renderUsers(d);
+  } catch (e) { list.innerHTML = '<div class="audit-empty">שגיאה בטעינה.</div>'; }
+}
+
+function renderUsers(d) {
+  const emails = d.emails || [];
+  $("usersCount").textContent = emails.length;
+  $("usersSelf").textContent = d.self && d.self !== "local" ? "👤 " + d.self : "";
+  const list = $("usersList");
+  list.innerHTML = "";
+  if (!emails.length) {
+    list.innerHTML = '<div class="audit-empty">אין עדיין משתמשים מורשים.</div>';
+    return;
+  }
+  emails.forEach(email => {
+    const row = el("div", "user-row");
+    const isAdmin = d.admin && email === d.admin;
+    const left = el("div", "user-info");
+    left.innerHTML = `<span class="user-mail">${email}</span>` +
+      (isAdmin ? '<span class="user-badge admin">אדמין</span>' : '<span class="user-badge">מורשה</span>');
+    row.appendChild(left);
+    if (!isAdmin) {
+      const rm = el("button", "ghost-btn danger-btn", "🗑️ הסר");
+      rm.onclick = () => removeUser(email);
+      row.appendChild(rm);
+    } else {
+      row.appendChild(el("span", "user-locked", "🔒 אתה"));
+    }
+    list.appendChild(row);
+  });
+}
+
+function usersMsg(text, ok) {
+  const m = $("usersMsg");
+  m.textContent = text;
+  m.className = "users-msg " + (ok ? "ok" : "err");
+  setTimeout(() => { m.textContent = ""; m.className = "users-msg"; }, 4000);
+}
+
+async function addUser() {
+  const inp = $("userEmail");
+  const email = (inp.value || "").trim().toLowerCase();
+  if (!email) return;
+  try {
+    const d = await (await fetch("/api/users/add", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    })).json();
+    if (d.error) { usersMsg(d.error, false); return; }
+    inp.value = "";
+    usersMsg(`✅ ${email} — ${d.note || "נוסף"}. ייכנס לתוקף תוך שניות.`, true);
+    renderUsers(d);
+  } catch (e) { usersMsg("שגיאת רשת: " + e, false); }
+}
+
+async function removeUser(email) {
+  if (!confirm(`להסיר את ${email} מרשימת המורשים?\nהוא לא יוכל להיכנס יותר.`)) return;
+  try {
+    const d = await (await fetch("/api/users/remove", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    })).json();
+    if (d.error) { usersMsg(d.error, false); return; }
+    usersMsg(`🗑️ ${email} הוסר.`, true);
+    renderUsers(d);
+  } catch (e) { usersMsg("שגיאת רשת: " + e, false); }
 }
 
 // Deep-linking: #dashboard, #ai, #tools, #vault, #brain-<agentId>
@@ -1329,6 +1413,7 @@ async function applyHash() {
   else if (h === "ai") { showScreen("ai-prompt"); }
   else if (h === "tools") { showScreen("picker"); }
   else if (h === "vault" || h === "obsidian") { showScreen("vault"); }
+  else if (h === "users") { showScreen("users"); }
   else if (h.startsWith("brain-")) { await openBrain(h.slice(6)); }
 }
 

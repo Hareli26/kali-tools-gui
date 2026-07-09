@@ -21,6 +21,7 @@
         <button id="modeAI" class="mode-tab" data-goto="ai-prompt">🤖 עוזר AI</button>
         <button id="modeDash" class="mode-tab" data-goto="dashboard">📊 בקרה</button>
         <button id="modeVault" class="mode-tab" data-goto="vault">📓 Obsidian</button>
+        <button id="modeUsers" class="mode-tab hidden" data-goto="users">👥 משתמשים</button>
       </nav>
       <span id="userLine" class="stat-line"></span>
       <span id="statLine" class="stat-line"></span>
@@ -110,6 +111,33 @@
         <h2 class="dash-section">📰 יומן פעילות</h2>
         <div id="dashFeed" class="feed"></div>
       </section>
+    </div>
+  </main>
+
+  <!-- ===================== USER MANAGEMENT (admin) ===================== -->
+  <main id="screen-users" class="screen">
+    <div class="vault-hero">
+      <div>
+        <h1>👥 ניהול משתמשים</h1>
+        <p class="dash-sub">רק כתובות Google שתגדיר כאן יוכלו להיכנס למערכת. השינויים נכנסים לתוקף תוך שניות.</p>
+      </div>
+      <div class="dash-hero-actions">
+        <span id="usersSelf" class="stat-line"></span>
+      </div>
+    </div>
+
+    <div class="users-add">
+      <input type="email" id="userEmail" class="vault-search" placeholder="name@gmail.com" autocomplete="off">
+      <button id="userAddBtn" class="run-btn">➕ הוסף משתמש מורשה</button>
+    </div>
+    <div id="usersMsg" class="users-msg"></div>
+
+    <h2 class="dash-section">✅ משתמשים מורשים (<span id="usersCount">0</span>)</h2>
+    <div id="usersList" class="users-list"></div>
+
+    <div class="users-note">
+      🔐 הכניסה מאובטחת בהתחברות Google (oauth2‑proxy). מי שאינו ברשימה יידחה עוד לפני הכניסה למערכת.
+      כל הוספה/הסרה נרשמת ב<strong>יומן הביקורת</strong>.
     </div>
   </main>
 
