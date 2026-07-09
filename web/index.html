@@ -28,6 +28,18 @@
     </div>
   </header>
 
+  <!-- ===== GLOBAL RUNNING BAR (live agent status across all screens) ===== -->
+  <div id="runBar" class="run-bar hidden">
+    <span class="run-bar-spin">🛰️</span>
+    <div class="run-bar-text">
+      <span id="runBarTitle">המשימה רצה</span>
+      <span id="runBarSub" class="run-bar-sub"></span>
+    </div>
+    <div class="run-bar-prog"><i id="runBarFill"></i></div>
+    <span id="runBarCount" class="run-bar-count"></span>
+    <button id="runBarGo" class="run-bar-go">צפה →</button>
+  </div>
+
   <!-- ===================== SCREEN 1: PICKER ===================== -->
   <main id="screen-picker" class="screen active">
     <div class="picker-controls">

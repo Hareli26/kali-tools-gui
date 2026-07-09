@@ -443,6 +443,7 @@ async function runMission(intent, target, steps) {
   $("missionStopBtn").classList.remove("hidden");
   showScreen("ai-mission");
   pollMission();
+  trackActive();
   return true;
 }
 
@@ -533,6 +534,80 @@ async function stopMission() {
   if (!MISSION_ID) return;
   await fetch("/api/mission/" + MISSION_ID + "/stop", { method: "POST" });
   pollMission();
+}
+
+/* ==================================================== GLOBAL RUNNING BAR =====
+   A run continues on the server no matter where you navigate. This bar polls
+   /api/active and stays visible across every screen, showing live what the
+   agent is doing, with a one-click jump back to the full view. Also re-attaches
+   after a page reload. */
+let ACTIVE_TIMER = null;
+let RUN_BAR_SEEN = null;   // {kind, id} of the run currently shown as "running"
+
+async function trackActive() {
+  clearTimeout(ACTIVE_TIMER);
+  let idle = true;
+  try {
+    const a = await (await fetch("/api/active")).json();
+    const run = a.purple || a.mission;
+    const kind = a.purple ? "purple" : "mission";
+    if (run) {
+      idle = false;
+      RUN_BAR_SEEN = { kind, id: run.id };
+      // remember ids so "jump back" + detail pollers work even after a reload
+      if (kind === "purple") PURPLE_ID = run.id; else MISSION_ID = run.id;
+      showRunBar(kind, run);
+    } else if (RUN_BAR_SEEN) {
+      showRunBarDone(RUN_BAR_SEEN.kind);   // just finished this session
+      RUN_BAR_SEEN = null;
+    }
+  } catch (e) { /* keep trying */ }
+  // fast while a run is live, slow heartbeat when idle (catches runs from MCP/other tabs)
+  ACTIVE_TIMER = setTimeout(trackActive, idle ? 4000 : 1200);
+}
+
+function onRunScreen(kind) {
+  const id = kind === "purple" ? "screen-purple" : "screen-ai-mission";
+  const s = $(id);
+  return s && s.classList.contains("active");
+}
+
+function showRunBar(kind, run) {
+  const bar = $("runBar");
+  // if already looking at the full view, no need for the bar
+  if (onRunScreen(kind)) { bar.classList.add("hidden"); return; }
+  const isPurple = kind === "purple";
+  $("runBar").className = "run-bar" + (isPurple ? " purple" : "");
+  const phaseTxt = isPurple
+    ? (run.phase === "blue" ? "🔵 צוות כחול מנתח" : run.phase === "done" ? "מסכם" : "🔴 צוות אדום תוקף")
+    : "⚙️ המשימה רצה";
+  $("runBarTitle").textContent = phaseTxt;
+  const tool = run.tool ? `כרגע: ${run.tool}` : "מתכונן...";
+  $("runBarSub").textContent = `${tool} · ${escapeHtml(run.intent || "")} → ${escapeHtml(run.target || "")}`;
+  const total = run.total || 0, done = run.done || 0;
+  $("runBarFill").style.width = total ? Math.round((done / total) * 100) + "%" : "8%";
+  $("runBarCount").textContent = total ? `${done}/${total}` : "";
+  bar.classList.remove("hidden");
+}
+
+function showRunBarDone(kind) {
+  const bar = $("runBar");
+  if (onRunScreen(kind)) { bar.classList.add("hidden"); return; }
+  bar.className = "run-bar done";
+  $("runBarTitle").textContent = "✅ הבדיקה הושלמה";
+  $("runBarSub").textContent = "לחץ לצפייה בדוח המלא";
+  $("runBarFill").style.width = "100%";
+  $("runBarCount").textContent = "";
+  bar.classList.remove("hidden");
+  setTimeout(() => { if (bar.classList.contains("done")) bar.classList.add("hidden"); }, 15000);
+}
+
+function runBarJump() {
+  const seen = RUN_BAR_SEEN;
+  const kind = seen ? seen.kind : ($("runBar").classList.contains("purple") ? "purple" : "mission");
+  $("runBar").classList.add("hidden");
+  if (kind === "purple") { showScreen("purple"); if (PURPLE_ID) pollPurple(); }
+  else { showScreen("ai-mission"); if (MISSION_ID) pollMission(); }
 }
 
 /* ============================ AUDIT LOG ==================================== */
@@ -1022,6 +1097,7 @@ async function runPurple(intent, target, steps) {
   $("purpleLearn").innerHTML = "";
   showScreen("purple");
   pollPurple();
+  trackActive();
   return true;
 }
 
@@ -1273,6 +1349,7 @@ function init() {
   $("search").oninput = (e) => { searchTerm = e.target.value; renderGrid(); };
   document.querySelectorAll("[data-goto]").forEach(b => b.onclick = () => showScreen(b.dataset.goto));
   $("runBtn").onclick = runTool;
+  $("runBarGo").onclick = runBarJump;
   $("stopBtn").onclick = stopJob;
   $("copyBtn").onclick = () => navigator.clipboard.writeText($("output").textContent);
   $("downloadBtn").onclick = download;
@@ -1315,6 +1392,7 @@ function init() {
   initAI();
   loadCatalog();
   loadWhoami();
+  trackActive();   // global running-bar: re-attaches to any run already in progress
   window.addEventListener("hashchange", applyHash);
   applyHash();
 }

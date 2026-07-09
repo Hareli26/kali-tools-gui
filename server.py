@@ -613,6 +613,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(bluered.load_kb())
         if p == "/api/dashboard":
             return self._api_dashboard()
+        if p == "/api/active":
+            return self._api_active()
         if p == "/api/brain":
             return self._api_brain()
         if p == "/api/vault/graph":
@@ -862,6 +864,40 @@ class Handler(BaseHTTPRequestHandler):
         allowlist_write(emails)
         audit(self._user(), "user-remove", email)
         return self._users_payload(note="הוסר")
+
+    def _api_active(self):
+        """Any run currently in progress, with live progress — powers the global
+        'running' status bar so the user always sees what the agent is doing and
+        can jump back to it (runs continue server-side regardless of navigation)."""
+        def mission_info(m):
+            snap = m.snapshot()
+            steps = snap["steps"]
+            cur = snap["current"]
+            tool = steps[cur]["tool_name"] if 0 <= cur < len(steps) else ""
+            done = sum(1 for s in steps if s["status"] in ("done", "skipped", "error"))
+            return {"status": snap["status"], "intent": snap["intent"], "target": snap["target"],
+                    "current": cur, "total": len(steps), "tool": tool, "done": done}
+
+        with MISSIONS_LOCK:
+            missions = list(MISSIONS.values())
+        with PURPLE_LOCK:
+            purples = list(PURPLE.values())
+        rm = next((m for m in reversed(missions) if m.status == "running"), None)
+        rp = next((p for p in reversed(purples) if p.status == "running"), None)
+
+        out = {"mission": None, "purple": None}
+        if rm:
+            info = mission_info(rm)
+            info["id"] = rm.id
+            out["mission"] = info
+        if rp:
+            info = mission_info(rp.mission)
+            info["id"] = rp.id
+            info["phase"] = rp.phase
+            info["intent"] = rp.intent
+            info["target"] = rp.target
+            out["purple"] = info
+        return self._send_json(out)
 
     def _api_vault_graph(self):
         """Graph of the Obsidian vault (reports + threats + MOC) for the in-app

@@ -130,6 +130,12 @@
   <tr><td><code>POST /api/purple</code></td><td>הרצת Purple (Red→Broker→Blue→Orchestrator)</td></tr>
   <tr><td><code>GET /api/dashboard</code></td><td>מצב סוכנים חי + מודיעין + יומן</td></tr>
   <tr><td><code>GET /api/brain</code></td><td>גרף יכולות הסוכן + נתונים חיים</td></tr>
+  <tr><td><code>GET /api/active</code></td><td>המשימה הפעילה + התקדמות חיה (מפעיל את סרגל הריצה הגלובלי)</td></tr>
+  <tr><td><code>GET /api/vault/graph</code></td><td>גרף כספת Obsidian (דוחות·איומים·MOC) לתצוגת ה‑Graph View</td></tr>
+  <tr><td><code>POST /api/obsidian/export</code></td><td>ייצוא הכספת (Markdown + frontmatter + wikilinks)</td></tr>
+  <tr><td><code>GET /api/fix/&lt;sig&gt;</code> · <code>POST /api/fix</code></td><td>תוכנית תיקון · יישום (דורש <code>confirm</code>)</td></tr>
+  <tr><td><code>GET /api/users</code> · <code>POST /api/users/add|remove</code></td><td>ניהול allowlist — <strong>אדמין בלבד</strong> (403 אחרת)</td></tr>
+  <tr><td><code>GET /api/whoami</code></td><td>זהות המשתמש + האם אדמין</td></tr>
   <tr><td><code>GET /api/health</code></td><td>בריאות השירות (גרסה, uptime)</td></tr>
 </table>
 </div>
@@ -219,8 +225,16 @@ argv += [positional target]</pre>
 
 <div class="section">
 <h2>8. שכבת ה‑Frontend ותצוגת המוח</h2>
-<p>אפליקציית עמוד יחיד (SPA) ב‑vanilla JS ללא שלב build. שלושה מצבים: כלים, עוזר AI, ומרכז בקרה.
-הדשבורד מציג את מצב הסוכנים החי (נגזר מהרצות פעילות), מודיעין נצבר ויומן פעילות.</p>
+<p>אפליקציית עמוד יחיד (SPA) ב‑vanilla JS ללא שלב build. המצבים: כלים, עוזר AI, מרכז בקרה, תצוגת Obsidian,
+וניהול משתמשים (אדמין). הדשבורד מציג את מצב הסוכנים החי (נגזר מהרצות פעילות), מודיעין נצבר ויומן פעילות.</p>
+<h3>8.0 סרגל ריצה גלובלי + תצוגת Obsidian + ניהול משתמשים</h3>
+<p><strong>סרגל ריצה גלובלי:</strong> רכיב קבוע הסוקר את <code>/api/active</code> ומופיע בכל מסך כל עוד משימה
+פעילה — מציג את הכלי הנוכחי, ההתקדמות (שלב X/Y) והפאזה, עם חזרה בלחיצה. מכיוון שהמשימות רצות כ‑threads
+בשרת, הן אינן נעצרות בניווט, והסרגל אף מתחבר מחדש לאחר רענון דף.
+<strong>תצוגת Obsidian:</strong> גרף force‑directed מבוסס‑SVG הנבנה מ‑<code>/api/vault/graph</code> (צמתי דוחות/איומים/MOC,
+קשתות wikilink) עם גרירה, זום/הזזה, חיפוש ופתיחת פתק.
+<strong>ניהול משתמשים:</strong> מסך אדמין (מוצג לפי <code>/api/whoami</code>) לעריכת ה‑allowlist דרך
+<code>/api/users*</code> — הכתיבה לקובץ אטומית ו‑oauth2‑proxy טוען אותו חיה.</p>
 <h3>8.1 תצוגת "מוח סוכן"</h3>
 <p>לחיצה על סוכן פותחת ויזואליזציה עתידנית מבוססת SVG: ליבה זוהרת במרכז, יכולות במסלולים סביבה,
 סינפסות עם חלקיקי אנרגיה, וליבה "נושמת". המנגנון המרכזי הוא <strong>Semantic Zoom (Level-of-Detail)</strong>:
@@ -237,7 +251,8 @@ argv += [positional target]</pre>
   <li><b>מניעת traversal:</b> הגשת קבצים סטטיים מוגבלת לתיקיית web בלבד.</li>
   <li><b>שלב אישור:</b> שכבת ה‑AI מציעה תוכנית; ההרצה (וכל תיקון) מתבצעת רק לאחר אישור המשתמש.</li>
   <li><b>אימות בענן:</b> התחברות Google + רשימת מיילים מאושרים (oauth2‑proxy) לגישה מבחוץ.</li>
-  <li><b>ביקורת:</b> כל פעולה נרשמת ב‑<code>audit.log</code> עם זהות המשתמש שביצע אותה.</li>
+  <li><b>ניהול משתמשים מוגן:</b> נקודות <code>/api/users*</code> פתוחות <strong>לאדמין בלבד</strong> (403 אחרת); אימות תקינות אימייל ומניעת נעילה עצמית (אי אפשר להסיר את האדמין).</li>
+  <li><b>ביקורת:</b> כל פעולה (הרצה·תיקון·התקנה·הוספת/הסרת משתמש) נרשמת עם זהות המשתמש שביצע אותה.</li>
 </ul>
 </div>
 
@@ -274,7 +289,7 @@ journalctl -u kali-gui -n 50   # לוגים</pre>
   <tr><td>Backend</td><td>Python 3 — ספרייה סטנדרטית בלבד</td><td>אפס תלויות; עובד על Kali מינימלי</td></tr>
   <tr><td>Frontend</td><td>HTML/CSS/Vanilla JS (ללא build)</td><td>פשטות, אפס כלי בנייה, RTL</td></tr>
   <tr><td>ויזואליזציה</td><td>SVG + requestAnimationFrame</td><td>גרפיקה וקטורית אינטראקטיבית + אנימציה</td></tr>
-  <tr><td>אחסון</td><td>קבצי JSON מקומיים</td><td>שקיפות, פשטות, ניתן לביקורת</td></tr>
+  <tr><td>אחסון</td><td>SQLite (<code>db.py</code>) + ייצוא Obsidian</td><td>עמידות, שאילתות, הגירה אוטומטית מ‑JSON</td></tr>
   <tr><td>סביבת ריצה</td><td>Kali Linux תחת WSL2</td><td>גישה מלאה לכלי הפנטסט</td></tr>
   <tr><td>שירות</td><td>systemd + Windows Task Scheduler</td><td>זמינות תמידית</td></tr>
 </table>
@@ -293,6 +308,18 @@ journalctl -u kali-gui -n 50   # לוגים</pre>
 <figure>
   <img class="shot" src="shots/shot_brain.png" alt="Agent brain visualization">
   <figcaption class="shotcap">מסך 3 — תצוגת "מוח סוכן" (הצוות האדום): ליבה זוהרת, יכולות במסלולים, סינפסות ונתונים חיים.</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/vault_graph.png" alt="Obsidian graph view">
+  <figcaption class="shotcap">מסך 4 — תצוגת גרף Obsidian מובנית: מפת קשרים בין דוחות (כחול) לאיומים (צבועים לפי חומרה) סביב צומת מרכזי.</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/users_screen.png" alt="User management">
+  <figcaption class="shotcap">מסך 5 — ניהול משתמשים (אדמין): הוספה/הסרה של חשבונות Google מורשים, עם מניעת נעילה עצמית ורישום ביומן.</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/run_bar.png" alt="Global running bar">
+  <figcaption class="shotcap">מסך 6 — סרגל הריצה הגלובלי: חיווי חי של המשימה הפעילה (הכלי הנוכחי, התקדמות) הנראה בכל מסך עם חזרה בלחיצה.</figcaption>
 </figure>
 
 <div class="section">
