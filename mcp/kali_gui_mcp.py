@@ -183,6 +183,17 @@ def apply_fix(signature: str, confirm: bool = False) -> str:
 
 
 @mcp.tool()
+def export_obsidian() -> str:
+    """Export all stored reports + the learning knowledge base to an Obsidian vault
+    (Markdown notes with frontmatter, threat notes, and a Map-of-Content index).
+    Returns the vault path on the server."""
+    r = _api("POST", "/api/obsidian/export")
+    if r.get("error"):
+        return "Error: " + r["error"]
+    return f"Exported to Obsidian vault: {r.get('vault')} ({r.get('reports')} reports, {r.get('threats')} threats)"
+
+
+@mcp.tool()
 def dashboard() -> str:
     """Live status: agents, tool coverage, learned-signature stats and recent activity."""
     d = _api("GET", "/api/dashboard")

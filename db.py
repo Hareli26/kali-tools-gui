@@ -162,6 +162,15 @@ def list_reports(limit=200):
              "target": r["target"], "ts": r["ts"], "when": r["whenstr"]} for r in rows]
 
 
+def all_reports_full(limit=500):
+    """Full reports (meta + body) for export (e.g. to Obsidian)."""
+    with _LOCK, _conn() as c:
+        rows = c.execute("SELECT * FROM reports ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
+    return [{"meta": {"id": r["id"], "kind": r["kind"], "intent": r["intent"],
+                      "target": r["target"], "ts": r["ts"], "when": r["whenstr"]},
+             "report": r["report"]} for r in rows]
+
+
 def stats():
     with _LOCK, _conn() as c:
         return {

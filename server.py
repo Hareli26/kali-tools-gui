@@ -29,9 +29,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import db       # noqa: E402  (SQLite data store)
-import agents   # noqa: E402  (agent engine: planner / verifier / reporter)
-import bluered  # noqa: E402  (purple-team: broker / blue team / learning)
+import db        # noqa: E402  (SQLite data store)
+import agents    # noqa: E402  (agent engine: planner / verifier / reporter)
+import bluered   # noqa: E402  (purple-team: broker / blue team / learning)
+import obsidian  # noqa: E402  (Obsidian vault export)
 WEB_DIR = os.path.join(HERE, "web")
 TOOLS_FILE = os.path.join(HERE, "tools.json")
 
@@ -56,6 +57,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 LOG_FILE = os.path.join(DATA_DIR, "server.log")
 AUDIT_FILE = os.path.join(DATA_DIR, "audit.log")
 REPORTS_DIR = os.path.join(DATA_DIR, "reports")
+VAULT_DIR = os.environ.get("KALIGUI_VAULT_DIR") or os.path.join(DATA_DIR, "vault")
 START_TIME = time.time()
 _LOG_LOCK = threading.Lock()
 _AUDIT_LOCK = threading.Lock()
@@ -591,6 +593,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_install()
         if p == "/api/fix":
             return self._api_fix_apply()
+        if p == "/api/obsidian/export":
+            return self._api_obsidian_export()
         if p == "/api/plan":
             return self._api_plan()
         if p == "/api/mission":
@@ -746,6 +750,17 @@ class Handler(BaseHTTPRequestHandler):
         if not d:
             return self._send_json({"error": "דוח לא נמצא"}, 404)
         return self._send_json(d)
+
+    def _api_obsidian_export(self):
+        try:
+            reports = db.all_reports_full(500)
+            kb = bluered.load_kb()
+            res = obsidian.export(VAULT_DIR, reports, kb, bluered.get_remediation)
+            audit(self._user(), "obsidian-export", "%d reports, %d threats" % (res["reports"], res["threats"]))
+            return self._send_json({"ok": True, **res})
+        except Exception as e:
+            log("obsidian export failed: %s" % e)
+            return self._send_json({"error": str(e)}, 500)
 
     def _api_fix_plan(self, sig):
         from urllib.parse import unquote

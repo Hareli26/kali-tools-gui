@@ -1273,6 +1273,15 @@ function init() {
   $("rerunBtn").onclick = () => { if (CURRENT_TOOL) { showScreen("form"); } };
   initBrain();
   $("auditBtn").onclick = openAudit;
+  $("obsidianBtn").onclick = async () => {
+    const btn = $("obsidianBtn"); btn.disabled = true; btn.textContent = "📓 מייצא...";
+    try {
+      const d = await (await fetch("/api/obsidian/export", { method: "POST" })).json();
+      if (d.ok) alert(`✅ יוצא לכספת Obsidian:\n${d.reports} דוחות · ${d.threats} איומים\n\nמיקום: ${d.vault}`);
+      else alert("שגיאה: " + (d.error || "לא ידוע"));
+    } catch (e) { alert("שגיאת רשת: " + e); }
+    finally { btn.disabled = false; btn.textContent = "📓 ייצא ל‑Obsidian"; }
+  };
   $("auditClose").onclick = () => $("auditModal").classList.add("hidden");
   $("auditModal").onclick = (e) => { if (e.target === $("auditModal")) $("auditModal").classList.add("hidden"); };
   $("threatClose").onclick = () => $("threatModal").classList.add("hidden");
