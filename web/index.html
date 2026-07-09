@@ -20,6 +20,7 @@
         <button id="modeTools" class="mode-tab active" data-goto="picker">🧰 כלים</button>
         <button id="modeAI" class="mode-tab" data-goto="ai-prompt">🤖 עוזר AI</button>
         <button id="modeDash" class="mode-tab" data-goto="dashboard">📊 בקרה</button>
+        <button id="modeVault" class="mode-tab" data-goto="vault">📓 Obsidian</button>
       </nav>
       <span id="userLine" class="stat-line"></span>
       <span id="statLine" class="stat-line"></span>
@@ -109,6 +110,40 @@
         <h2 class="dash-section">📰 יומן פעילות</h2>
         <div id="dashFeed" class="feed"></div>
       </section>
+    </div>
+  </main>
+
+  <!-- ===================== OBSIDIAN VAULT GRAPH ===================== -->
+  <main id="screen-vault" class="screen">
+    <div class="vault-hero">
+      <div>
+        <h1>📓 כספת Obsidian — תצוגת גרף</h1>
+        <p class="dash-sub">מפת קשרים חיה בין הדוחות לאיומים — כמו Graph View של Obsidian, בתוך המערכת</p>
+      </div>
+      <div class="dash-hero-actions">
+        <input type="text" id="vaultSearch" class="vault-search" placeholder="🔎 חיפוש צומת...">
+        <button id="vaultExportBtn" class="ghost-btn">📓 ייצא כספת</button>
+        <button id="vaultReloadBtn" class="ghost-btn">🔄 רענן</button>
+      </div>
+    </div>
+
+    <div class="vault-legend">
+      <span class="vl-item"><i class="vl-dot moc"></i> מרכז</span>
+      <span class="vl-item"><i class="vl-dot report"></i> דוחות (<span id="vlReports">0</span>)</span>
+      <span class="vl-item"><i class="vl-dot threat"></i> איומים (<span id="vlThreats">0</span>)</span>
+      <span class="vl-hint">🖱️ גרור צומת · גלגל להתקרב · לחץ צומת לפתיחת הפתק</span>
+    </div>
+
+    <div class="vault-stage">
+      <svg id="vaultSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <aside id="vaultPanel" class="vault-panel hidden">
+        <button id="vaultPanelClose" class="modal-x">✕</button>
+        <div id="vaultPanelTag" class="vault-panel-tag"></div>
+        <article id="vaultPanelBody" class="report-body"></article>
+      </aside>
+      <div id="vaultEmpty" class="vault-empty hidden">
+        אין עדיין נתונים בכספת. הרץ בדיקה או Purple Team, והגרף ייבנה אוטומטית. 🕸️
+      </div>
     </div>
   </main>
 

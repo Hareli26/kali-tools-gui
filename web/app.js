@@ -23,13 +23,16 @@ function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   $("screen-" + name).classList.add("active");
   const isDash = name === "dashboard";
+  const isVault = name === "vault";
   const isAI = name.startsWith("ai-") || name === "purple";
-  const isTools = !isDash && !isAI;
-  const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash");
+  const isTools = !isDash && !isAI && !isVault;
+  const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash"), mv = $("modeVault");
   if (mt) mt.classList.toggle("active", isTools);
   if (ma) ma.classList.toggle("active", isAI);
   if (md) md.classList.toggle("active", isDash);
+  if (mv) mv.classList.toggle("active", isVault);
   if (isDash) loadDashboard();
+  if (isVault) loadVault();
   window.scrollTo(0, 0);
 }
 
@@ -1282,6 +1285,21 @@ function init() {
     } catch (e) { alert("שגיאת רשת: " + e); }
     finally { btn.disabled = false; btn.textContent = "📓 ייצא ל‑Obsidian"; }
   };
+  $("vaultReloadBtn").onclick = () => loadVault();
+  $("vaultSearch").oninput = (e) => vaultSearch(e.target.value);
+  $("vaultPanelClose").onclick = () => {
+    $("vaultPanel").classList.add("hidden");
+    VAULT.nodes.forEach(x => x._g.classList.remove("v-active", "v-linked"));
+  };
+  $("vaultExportBtn").onclick = async () => {
+    const btn = $("vaultExportBtn"); btn.disabled = true; btn.textContent = "📓 מייצא...";
+    try {
+      const d = await (await fetch("/api/obsidian/export", { method: "POST" })).json();
+      if (d.ok) alert(`✅ יוצא לכספת Obsidian:\n${d.reports} דוחות · ${d.threats} איומים\n\nמיקום: ${d.vault}`);
+      else alert("שגיאה: " + (d.error || "לא ידוע"));
+    } catch (e) { alert("שגיאת רשת: " + e); }
+    finally { btn.disabled = false; btn.textContent = "📓 ייצא כספת"; }
+  };
   $("auditClose").onclick = () => $("auditModal").classList.add("hidden");
   $("auditModal").onclick = (e) => { if (e.target === $("auditModal")) $("auditModal").classList.add("hidden"); };
   $("threatClose").onclick = () => $("threatModal").classList.add("hidden");
@@ -1303,14 +1321,213 @@ async function loadWhoami() {
   } catch (e) { /* ignore */ }
 }
 
-// Deep-linking: #dashboard, #ai, #tools, #brain-<agentId>
+// Deep-linking: #dashboard, #ai, #tools, #vault, #brain-<agentId>
 async function applyHash() {
   const h = (location.hash || "").replace(/^#/, "");
   if (!h) return;
   if (h === "dashboard") { showScreen("dashboard"); }
   else if (h === "ai") { showScreen("ai-prompt"); }
   else if (h === "tools") { showScreen("picker"); }
+  else if (h === "vault" || h === "obsidian") { showScreen("vault"); }
   else if (h.startsWith("brain-")) { await openBrain(h.slice(6)); }
+}
+
+/* ================================================================ OBSIDIAN
+   In-app graphical "Graph View" of the Obsidian vault: a force-directed graph
+   of reports <-> threats <-> MOC, drawn as SVG. No external libraries. */
+const VNS = "http://www.w3.org/2000/svg";
+const VW = 1000, VH = 700;
+let VAULT = { nodes: [], edges: [] };
+let vaultView = { scale: 1, tx: 0, ty: 0 };
+
+function vEl(tag, attrs) {
+  const e = document.createElementNS(VNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+async function loadVault() {
+  const svg = $("vaultSvg");
+  const empty = $("vaultEmpty");
+  $("vaultPanel").classList.add("hidden");
+  svg.innerHTML = "";
+  try {
+    const g = await (await fetch("/api/vault/graph")).json();
+    $("vlReports").textContent = g.counts ? g.counts.reports : 0;
+    $("vlThreats").textContent = g.counts ? g.counts.threats : 0;
+    const reportsOrThreats = (g.nodes || []).some(n => n.type !== "moc");
+    if (!reportsOrThreats) { empty.classList.remove("hidden"); return; }
+    empty.classList.add("hidden");
+    vaultLayout(g.nodes, g.links || []);
+    vaultRender(g.nodes, g.links || []);
+  } catch (e) {
+    empty.textContent = "שגיאה בטעינת הגרף: " + e;
+    empty.classList.remove("hidden");
+  }
+}
+
+function vaultRadius(n) {
+  if (n.type === "moc") return 30;
+  if (n.type === "threat") return Math.min(22, 9 + (n.count || 1) * 2);
+  return 11;
+}
+
+function vaultLayout(nodes, links) {
+  const idx = {}; nodes.forEach(n => idx[n.id] = n);
+  nodes.forEach((n, i) => {
+    if (n.type === "moc") { n.x = VW / 2; n.y = VH / 2; }
+    else {
+      const a = i * 2.399, r = n.type === "threat" ? 170 : 300;
+      n.x = VW / 2 + Math.cos(a) * r; n.y = VH / 2 + Math.sin(a) * r;
+    }
+    n.vx = 0; n.vy = 0;
+  });
+  const L = links.map(l => ({ s: idx[l.source], t: idx[l.target] })).filter(l => l.s && l.t);
+  const iters = nodes.length > 220 ? 160 : 300;
+  for (let it = 0; it < iters; it++) {
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        let dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy || 0.01, d = Math.sqrt(d2);
+        const rep = 5000 / d2, fx = dx / d * rep, fy = dy / d * rep;
+        a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+      }
+    }
+    L.forEach(l => {
+      let dx = l.t.x - l.s.x, dy = l.t.y - l.s.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const k = (d - 115) * 0.02, fx = dx / d * k, fy = dy / d * k;
+      l.s.vx += fx; l.s.vy += fy; l.t.vx -= fx; l.t.vy -= fy;
+    });
+    nodes.forEach(n => {
+      if (n.type === "moc") { n.x = VW / 2; n.y = VH / 2; n.vx = n.vy = 0; return; }
+      n.vx += (VW / 2 - n.x) * 0.002; n.vy += (VH / 2 - n.y) * 0.002;
+      n.vx *= 0.85; n.vy *= 0.85;
+      n.x += Math.max(-30, Math.min(30, n.vx)); n.y += Math.max(-30, Math.min(30, n.vy));
+      n.x = Math.max(34, Math.min(VW - 34, n.x)); n.y = Math.max(34, Math.min(VH - 34, n.y));
+    });
+  }
+}
+
+function vaultRender(nodes, links) {
+  const svg = $("vaultSvg");
+  svg.setAttribute("viewBox", `0 0 ${VW} ${VH}`);
+  svg.innerHTML = "";
+  vaultView = { scale: 1, tx: 0, ty: 0 };
+  const root = vEl("g", { id: "vaultRoot" });
+  const eLayer = vEl("g", {}), nLayer = vEl("g", {});
+  root.appendChild(eLayer); root.appendChild(nLayer);
+  svg.appendChild(root);
+
+  const idx = {}; nodes.forEach(n => idx[n.id] = n);
+  const edges = links.map(l => ({ s: idx[l.source], t: idx[l.target] })).filter(l => l.s && l.t);
+  edges.forEach(ed => {
+    ed.line = vEl("line", { class: "v-edge", x1: ed.s.x, y1: ed.s.y, x2: ed.t.x, y2: ed.t.y });
+    eLayer.appendChild(ed.line);
+  });
+  nodes.forEach(n => {
+    const g = vEl("g", { class: "v-node v-" + n.type, "data-id": n.id });
+    n._c = vEl("circle", { r: vaultRadius(n), cx: n.x, cy: n.y,
+                           class: "v-circle" + (n.type === "threat" && n.severity ? " sev-" + n.severity : "") });
+    const short = n.label.length > 22 ? n.label.slice(0, 21) + "…" : n.label;
+    n._t = vEl("text", { x: n.x, y: n.y + vaultRadius(n) + 13, class: "v-label", "text-anchor": "middle" });
+    n._t.textContent = n.type === "moc" ? "מרכז הבקרה" : short;
+    g.appendChild(n._c); g.appendChild(n._t);
+    nLayer.appendChild(g);
+    n._g = g;
+  });
+  VAULT = { nodes, edges };
+  vaultWire();
+}
+
+function vaultUpdatePositions() {
+  VAULT.edges.forEach(ed => {
+    ed.line.setAttribute("x1", ed.s.x); ed.line.setAttribute("y1", ed.s.y);
+    ed.line.setAttribute("x2", ed.t.x); ed.line.setAttribute("y2", ed.t.y);
+  });
+  VAULT.nodes.forEach(n => {
+    n._c.setAttribute("cx", n.x); n._c.setAttribute("cy", n.y);
+    n._t.setAttribute("x", n.x); n._t.setAttribute("y", n.y + vaultRadius(n) + 13);
+  });
+}
+
+function vaultApplyView() {
+  const root = $("vaultRoot");
+  if (root) root.setAttribute("transform",
+    `translate(${vaultView.tx} ${vaultView.ty}) scale(${vaultView.scale})`);
+}
+
+function vaultToUser(evt) {
+  const svg = $("vaultSvg"), root = $("vaultRoot");
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  return pt.matrixTransform(root.getScreenCTM().inverse());
+}
+
+function vaultWire() {
+  const svg = $("vaultSvg");
+  let drag = null, moved = 0, panning = null;
+
+  svg.onpointerdown = (e) => {
+    const g = e.target.closest(".v-node");
+    if (g) {
+      const n = VAULT.nodes.find(x => x._g === g);
+      drag = n; moved = 0;
+      svg.setPointerCapture(e.pointerId);
+    } else {
+      panning = { x: e.clientX, y: e.clientY, tx: vaultView.tx, ty: vaultView.ty };
+      svg.setPointerCapture(e.pointerId);
+    }
+  };
+  svg.onpointermove = (e) => {
+    if (drag) {
+      const p = vaultToUser(e);
+      moved += Math.abs(p.x - drag.x) + Math.abs(p.y - drag.y);
+      drag.x = p.x; drag.y = p.y;
+      vaultUpdatePositions();
+    } else if (panning) {
+      vaultView.tx = panning.tx + (e.clientX - panning.x);
+      vaultView.ty = panning.ty + (e.clientY - panning.y);
+      vaultApplyView();
+    }
+  };
+  svg.onpointerup = (e) => {
+    if (drag && moved < 5) vaultOpenNote(drag);
+    drag = null; panning = null;
+    try { svg.releasePointerCapture(e.pointerId); } catch (_) {}
+  };
+  svg.onwheel = (e) => {
+    e.preventDefault();
+    const before = vaultToUser(e);
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    vaultView.scale = Math.max(0.3, Math.min(4, vaultView.scale * factor));
+    vaultApplyView();
+    const after = vaultToUser(e);
+    vaultView.tx += (after.x - before.x) * vaultView.scale;
+    vaultView.ty += (after.y - before.y) * vaultView.scale;
+    vaultApplyView();
+  };
+}
+
+function vaultOpenNote(n) {
+  const panel = $("vaultPanel");
+  const tag = n.type === "moc" ? "🛡️ מרכז" : n.type === "threat" ? "🎯 איום" : "📄 דוח";
+  $("vaultPanelTag").textContent = tag;
+  $("vaultPanelBody").innerHTML = mdToHtml(n.body || "*(אין תוכן)*");
+  panel.classList.remove("hidden");
+  VAULT.nodes.forEach(x => x._g.classList.toggle("v-active", x === n));
+  const linked = new Set();
+  VAULT.edges.forEach(ed => {
+    if (ed.s === n) linked.add(ed.t); if (ed.t === n) linked.add(ed.s);
+  });
+  VAULT.nodes.forEach(x => x._g.classList.toggle("v-linked", linked.has(x)));
+}
+
+function vaultSearch(term) {
+  term = (term || "").trim().toLowerCase();
+  VAULT.nodes.forEach(n => {
+    const hit = !term || n.type === "moc" || (n.label || "").toLowerCase().includes(term);
+    n._g.classList.toggle("v-dim", !hit);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", init);

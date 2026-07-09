@@ -565,6 +565,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_dashboard()
         if p == "/api/brain":
             return self._api_brain()
+        if p == "/api/vault/graph":
+            return self._api_vault_graph()
         if p == "/api/reports":
             return self._api_reports()
         if p.startswith("/api/report/"):
@@ -771,6 +773,52 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             log("obsidian export failed: %s" % e)
             return self._send_json({"error": str(e)}, 500)
+
+    def _api_vault_graph(self):
+        """Graph of the Obsidian vault (reports + threats + MOC) for the in-app
+        graphical view — mirrors the wikilinks that obsidian.export() writes."""
+        reports = db.all_reports_full(500)
+        kb = bluered.load_kb()
+        sigs = kb.get("signatures", {})
+        name_to_sig = {v.get("name", sig): sig for sig, v in sigs.items()}
+
+        nodes = [{"id": "moc", "label": "🛡️ מרכז הבקרה", "type": "moc",
+                  "body": "# 🛡️ Security Dashboard (MOC)\n\nמפת תוכן: **%d** דוחות · **%d** סוגי איומים."
+                          % (len(reports), len(sigs))}]
+        links = []
+
+        for sig, v in sigs.items():
+            nid = "t:" + sig
+            rem = bluered.get_remediation(sig) or {}
+            body = ["# %s" % v.get("name", sig), "",
+                    "- **חומרה:** %s" % v.get("severity", ""),
+                    "- **נצפה:** %d פעמים" % v.get("count", 0),
+                    "- **ראשון:** %s" % v.get("first_seen", ""),
+                    "- **אחרון:** %s" % v.get("last_seen", "")]
+            if rem.get("title"):
+                body.append("- **תיקון אפשרי:** %s (%s)" % (rem["title"], rem.get("risk", "")))
+            nodes.append({"id": nid, "label": v.get("name", sig), "type": "threat",
+                          "severity": v.get("severity", ""), "count": v.get("count", 0),
+                          "body": "\n".join(body)})
+            links.append({"source": "moc", "target": nid})
+
+        for i, r in enumerate(reports):
+            m = r.get("meta", {})
+            body = r.get("report", "") or ""
+            rid = "r:" + (m.get("id") or ("idx%d" % i))
+            date = (m.get("when", "") or "").split(" ")[0]
+            nodes.append({"id": rid,
+                          "label": ("%s · %s" % (date, m.get("target", ""))).strip(" ·"),
+                          "type": "report", "kind": m.get("kind", "report"),
+                          "target": m.get("target", ""), "when": m.get("when", ""),
+                          "body": body})
+            links.append({"source": "moc", "target": rid})
+            for name, sig in name_to_sig.items():
+                if name and name in body:
+                    links.append({"source": rid, "target": "t:" + sig})
+
+        return self._send_json({"nodes": nodes, "links": links,
+                                "counts": {"reports": len(reports), "threats": len(sigs)}})
 
     def _api_fix_plan(self, sig):
         from urllib.parse import unquote
