@@ -18,43 +18,20 @@ hardening and detection guidance — never offensive instructions.
 import json
 import os
 import re
+import sys
 import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.environ.get("KALIGUI_DATA_DIR") or HERE
-KB_FILE = os.path.join(DATA_DIR, "knowledge.json")
-ACTIVITY_FILE = os.path.join(DATA_DIR, "activity.json")
-_KB_LOCK = threading.Lock()
-_ACT_LOCK = threading.Lock()
+sys.path.insert(0, HERE)
+import db  # noqa: E402  (SQLite data store)
 
 # ------------------------------------------------------ 📰 activity feed -----
 def log_activity(entry):
-    """Append one activity entry (for the dashboard magazine feed). Keeps last 200."""
-    with _ACT_LOCK:
-        data = []
-        if os.path.isfile(ACTIVITY_FILE):
-            try:
-                with open(ACTIVITY_FILE, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            except Exception:
-                data = []
-        data.append(entry)
-        data = data[-200:]
-        try:
-            with open(ACTIVITY_FILE, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+    """Record one activity entry (for the dashboard magazine feed) in the DB."""
+    db.add_activity(entry)
 
 def load_activity():
-    with _ACT_LOCK:
-        if os.path.isfile(ACTIVITY_FILE):
-            try:
-                with open(ACTIVITY_FILE, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                pass
-        return []
+    return db.list_activity()
 
 # ---------------------------------------------------------- defense knowledge
 # Ordered specific -> generic. First matching rule wins.
@@ -323,50 +300,11 @@ def broker(red_findings):
 
 # --------------------------------------------------------- 🧠 learning KB ----
 def load_kb():
-    with _KB_LOCK:
-        if os.path.isfile(KB_FILE):
-            try:
-                with open(KB_FILE, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                pass
-        return {"runs": 0, "signatures": {}}
+    return db.load_kb()
 
 def update_kb(threats, when):
-    """Accumulate signatures across runs; returns a learning summary."""
-    with _KB_LOCK:
-        kb = {"runs": 0, "signatures": {}}
-        if os.path.isfile(KB_FILE):
-            try:
-                with open(KB_FILE, "r", encoding="utf-8") as f:
-                    kb = json.load(f)
-            except Exception:
-                pass
-        kb["runs"] = kb.get("runs", 0) + 1
-        sigs = kb.setdefault("signatures", {})
-        new_this_run = []
-        for t in threats:
-            sig = t["signature"]
-            rec = sigs.get(sig)
-            if not rec:
-                rec = {"name": t["name"], "severity": t["severity"], "count": 0,
-                       "first_seen": when, "last_seen": when}
-                sigs[sig] = rec
-                new_this_run.append(t["name"])
-            rec["count"] += 1
-            rec["last_seen"] = when
-        try:
-            with open(KB_FILE, "w", encoding="utf-8") as f:
-                json.dump(kb, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-        top = sorted(sigs.items(), key=lambda kv: -kv[1]["count"])[:5]
-        return {
-            "runs": kb["runs"],
-            "total_signatures": len(sigs),
-            "new_this_run": new_this_run,
-            "top": [{"name": v["name"], "count": v["count"], "severity": v["severity"]} for _, v in top],
-        }
+    """Accumulate signatures across runs (in the DB); returns a learning summary."""
+    return db.update_kb(threats, when)
 
 # ------------------------------------------------------- 🟣 orchestrator -----
 _SEV_ICON = {"critical": "🟥", "high": "🟧", "medium": "🟨", "low": "🟩"}

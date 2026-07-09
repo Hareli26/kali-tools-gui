@@ -29,6 +29,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import db       # noqa: E402  (SQLite data store)
 import agents   # noqa: E402  (agent engine: planner / verifier / reporter)
 import bluered  # noqa: E402  (purple-team: broker / blue team / learning)
 WEB_DIR = os.path.join(HERE, "web")
@@ -74,13 +75,9 @@ def log(msg):
         pass
 
 def audit(user, action, detail=""):
-    """Security audit trail — who did what. One line per action."""
-    line = "%s\tuser=%s\taction=%s\t%s" % (
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user or "unknown", action, detail)
+    """Security audit trail — who did what (stored in the DB)."""
     try:
-        with _AUDIT_LOCK:
-            with open(AUDIT_FILE, "a", encoding="utf-8") as f:
-                f.write(line + "\n")
+        db.add_audit(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user or "unknown", action, detail)
     except Exception:
         pass
 
@@ -96,15 +93,12 @@ def _prune(store):
             del store[k]
 
 def save_report(run_id, kind, intent, target, report):
-    """Persist a report to disk so it survives restarts."""
+    """Persist a report to the DB so it survives restarts."""
     if not report:
         return
     try:
-        os.makedirs(REPORTS_DIR, exist_ok=True)
-        meta = {"id": run_id, "kind": kind, "intent": intent, "target": target,
-                "ts": time.time(), "when": datetime.now().strftime("%Y-%m-%d %H:%M")}
-        with open(os.path.join(REPORTS_DIR, run_id + ".json"), "w", encoding="utf-8") as f:
-            json.dump({"meta": meta, "report": report}, f, ensure_ascii=False, indent=2)
+        when = datetime.now().strftime("%Y-%m-%d %H:%M")
+        db.save_report(run_id, kind, intent, target, report, ts=time.time(), whenstr=when)
     except Exception as e:
         log("save_report failed: %s" % e)
 
@@ -547,6 +541,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_tools()
         if p == "/api/env":
             return self._api_env()
+        if p == "/api/dbstats":
+            return self._send_json(db.stats())
         if p == "/api/whoami":
             return self._send_json({"user": self._user()})
         if p == "/api/audit":
@@ -739,49 +735,17 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json(brain)
 
     def _api_audit(self):
-        entries = []
-        try:
-            with open(AUDIT_FILE, "r", encoding="utf-8") as f:
-                lines = f.readlines()[-500:]
-            for ln in reversed(lines):
-                parts = ln.rstrip("\n").split("\t")
-                if len(parts) >= 3:
-                    entries.append({
-                        "ts": parts[0],
-                        "user": parts[1].replace("user=", "", 1),
-                        "action": parts[2].replace("action=", "", 1),
-                        "detail": parts[3] if len(parts) > 3 else "",
-                    })
-        except FileNotFoundError:
-            pass
-        return self._send_json({"entries": entries})
+        return self._send_json({"entries": db.list_audit(500)})
 
     def _api_reports(self):
-        items = []
-        try:
-            for fn in os.listdir(REPORTS_DIR):
-                if not fn.endswith(".json"):
-                    continue
-                try:
-                    with open(os.path.join(REPORTS_DIR, fn), "r", encoding="utf-8") as f:
-                        items.append(json.load(f).get("meta", {}))
-                except Exception:
-                    continue
-        except FileNotFoundError:
-            pass
-        items.sort(key=lambda m: m.get("ts", 0), reverse=True)
-        return self._send_json({"reports": items[:100]})
+        return self._send_json({"reports": db.list_reports(200)})
 
     def _api_report_get(self, rid):
-        rid = os.path.basename(rid)  # prevent traversal
-        path = os.path.join(REPORTS_DIR, rid + ".json")
-        if not os.path.isfile(path):
+        rid = os.path.basename(rid)
+        d = db.get_report(rid)
+        if not d:
             return self._send_json({"error": "דוח לא נמצא"}, 404)
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return self._send_json(json.load(f))
-        except Exception:
-            return self._send_json({"error": "שגיאה בקריאת הדוח"}, 500)
+        return self._send_json(d)
 
     def _api_fix_plan(self, sig):
         from urllib.parse import unquote
@@ -1010,7 +974,8 @@ class Server(ThreadingHTTPServer):
 def main():
     if not os.path.isdir(WEB_DIR):
         raise SystemExit("web/ directory missing next to server.py")
-    os.makedirs(REPORTS_DIR, exist_ok=True)
+    db.init()  # create tables + one-time import from any existing JSON
+    log("DB ready: %s" % db.stats())
     is_root = hasattr(os, "geteuid") and os.geteuid() == 0
     log("Kali Tools GUI v%s starting on %s:%d (root=%s, auth=%s)"
         % (VERSION, HOST, PORT, is_root, bool(TOKEN)))

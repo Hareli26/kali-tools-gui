@@ -16,6 +16,10 @@ activity.json
 server.log
 audit.log
 reports/
+kaligui.db
+kaligui.db-wal
+kaligui.db-shm
+vault/
 
 # OS
 .DS_Store
