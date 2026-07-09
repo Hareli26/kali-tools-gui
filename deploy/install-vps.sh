@@ -20,6 +20,16 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck disable=SC1090
 source "$SCRIPT_DIR/deploy.env"
 
+# Guard: refuse to run with the placeholder example values (prevents clobbering
+# a working config and pointing Caddy at the wrong domain).
+if [ "$DOMAIN" = "kali.example.com" ] || [ -z "$DOMAIN" ] \
+   || case "$GOOGLE_CLIENT_ID" in xxx*|"") true;; *) false;; esac \
+   || case "$GOOGLE_CLIENT_SECRET" in GOCSPX-xxx*|"") true;; *) false;; esac; then
+  echo "ERROR: deploy/deploy.env still has placeholder values."
+  echo "Edit it with your real DOMAIN + GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET, then re-run."
+  exit 1
+fi
+
 echo "==> [1/9] Installing base packages..."
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
