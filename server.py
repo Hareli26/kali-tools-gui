@@ -39,6 +39,11 @@ TOOLS_FILE = os.path.join(HERE, "tools.json")
 
 # Deterministic, safe search path for both detection and execution.
 SAFE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# Include per-user bin dirs where pipx / pip --user install CLIs (e.g. shodan),
+# so such tools are both detected as installed and runnable.
+for _extra_bin in (os.path.expanduser("~/.local/bin"), "/root/.local/bin"):
+    if _extra_bin and _extra_bin not in SAFE_PATH.split(":"):
+        SAFE_PATH += ":" + _extra_bin
 RUN_ENV = dict(os.environ)
 RUN_ENV["PATH"] = SAFE_PATH + ":" + RUN_ENV.get("PATH", "")
 
