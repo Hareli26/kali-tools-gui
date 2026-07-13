@@ -39,8 +39,12 @@ apt-get install -y --no-install-recommends \
 echo "==> [2/9] Installing a curated set of security tools (best-effort)..."
 TOOLS="nmap nikto hydra sqlmap dnsenum dnsrecon whatweb wafw00f dnsutils whois \
 nbtscan smbclient john hashcat sslscan wapiti masscan gobuster ffuf exiftool \
-binwalk foremost netcat-traditional traceroute iputils-ping wget dirb medusa ncrack crunch"
+binwalk foremost netcat-traditional traceroute iputils-ping wget dirb medusa ncrack crunch \
+netdiscover wpscan steghide exploitdb libimage-exiftool-perl"
 for t in $TOOLS; do apt-get install -y "$t" >/dev/null 2>&1 || echo "   (skipped: $t)"; done
+# Shodan CLI has no apt package — install via pipx (needs 'shodan init <API_KEY>' + a key to use).
+apt-get install -y pipx >/dev/null 2>&1 && pipx install shodan >/dev/null 2>&1 \
+  && pipx ensurepath >/dev/null 2>&1 || echo "   (skipped: shodan CLI — install later with: pipx install shodan)"
 
 echo "==> [3/9] Deploying app to $APP_DIR ..."
 mkdir -p "$APP_DIR"

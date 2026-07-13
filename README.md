@@ -28,8 +28,9 @@ Kali WSL בהתקנת ברירת מחדל היא **מינימלית** — רוב
   1. `index.html` #screen-picker — בחירת כלי (חיפוש + קטגוריות + כרטיסים).
   2. #screen-form — טופס דינמי לפי הגדרת הכלי + תצוגת פקודה חיה.
   3. #screen-results — פלט חי, סטטוס, עצירה, העתקה, הורדה, הרצה חוזרת.
-- **קטלוג** — `tools.json`: 70 כלים ב‑11 קטגוריות (Recon, DNS, Network, Web, SMB,
+- **קטלוג** — `tools.json`: 72 כלים ב‑11 קטגוריות (Recon, DNS, Network, Web, SMB,
   Passwords, SSL/TLS, Exploitation, Forensics, Wireless, Utilities). קל להרחבה (ראה למטה).
+  כולל: Nmap, Netcat, Netdiscover, Gobuster, WPScan, SearchSploit, ExifTool, Steghide, Shodan ועוד.
   הפלט מנוקה מקודי ANSI אוטומטית.
 - **שכבת סוכנים** — `agents.py`: מנוע playbooks מבוסס-חוקים (אפס תלויות). ארבעה סוכנים:
   - **Planner** — כוונה בשפה חופשית + מטרה → תוכנית שלבים (בחירת כלים + פקודות מוכנות + הצעות).

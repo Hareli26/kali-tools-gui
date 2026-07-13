@@ -14,6 +14,31 @@
   ],
   "tools": [
     {
+      "id": "netcat", "name": "Netcat", "binary": "nc", "package": "netcat-traditional", "category": "netscan",
+      "desc": "\"סכין שוויצרי\" לרשת: סריקת פורטים, חטיפת באנרים, האזנה וחיבור TCP/UDP גולמי.",
+      "options": [
+        { "id": "zscan", "flag": "-z", "label": "סריקת פורטים (-z, ללא שליחת נתונים)", "type": "bool" },
+        { "id": "verbose", "flag": "-v", "label": "פלט מפורט (-v)", "type": "bool" },
+        { "id": "nodns", "flag": "-n", "label": "ללא DNS (-n, מהיר יותר)", "type": "bool" },
+        { "id": "udp", "flag": "-u", "label": "UDP במקום TCP (-u)", "type": "bool" },
+        { "id": "wait", "flag": "-w", "label": "Timeout בשניות (-w)", "type": "number", "placeholder": "3" },
+        { "id": "listen", "flag": "-l", "label": "מצב האזנה (-l)", "type": "bool" },
+        { "id": "host", "flag": "", "label": "מארח (Host)", "type": "text", "placeholder": "192.168.1.10", "help": "היעד. במצב האזנה ניתן להשאיר ריק." },
+        { "id": "port", "flag": "", "label": "פורט / טווח", "type": "text", "primary": true, "required": true, "placeholder": "80  או  20-1024" }
+      ],
+      "examples": [ "nc -zv 192.168.1.10 20-1024", "nc -nv 10.0.0.5 80" ]
+    },
+    {
+      "id": "shodan", "name": "Shodan", "binary": "shodan", "package": "shodan", "category": "recon",
+      "desc": "מנוע חיפוש למכשירים מחוברים לאינטרנט (CLI). דורש הרצת 'shodan init <API_KEY>' פעם אחת + מפתח API.",
+      "options": [
+        { "id": "cmd", "flag": "", "label": "פעולה", "type": "select", "required": true,
+          "choices": [ {"v":"host","t":"host — מידע על IP"}, {"v":"search","t":"search — חיפוש שאילתה"}, {"v":"count","t":"count — ספירת תוצאות"}, {"v":"domain","t":"domain — מידע על דומיין"}, {"v":"myip","t":"myip — ה-IP הציבורי שלי"} ] },
+        { "id": "query", "flag": "", "label": "IP / שאילתה / דומיין", "type": "text", "primary": true, "placeholder": "8.8.8.8  או  apache country:IL" }
+      ],
+      "examples": [ "shodan host 8.8.8.8", "shodan domain example.com", "shodan search apache" ]
+    },
+    {
       "id": "nmap", "name": "Nmap", "binary": "nmap", "package": "nmap", "category": "netscan",
       "desc": "סורק פורטים ורשת — הכלי המרכזי למיפוי מארחים, פורטים, שירותים וגרסאות.",
       "options": [
