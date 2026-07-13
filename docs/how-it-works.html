@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4; margin: 20mm 18mm 22mm 18mm;
+    @bottom-center { content: "כיצד המערכת עובדת · Kali Tools GUI"; font-size: 8pt; color: #999; }
+    @bottom-left { content: "עמ' " counter(page) " מתוך " counter(pages); font-size: 8pt; color: #999; }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Noto Sans Hebrew','DejaVu Sans',Arial,sans-serif; color: #1a2230; line-height: 1.7; font-size: 10.5pt; }
+  h1 { color: #14396b; font-size: 18pt; margin: 0 0 4pt; }
+  h2 { color: #14396b; font-size: 14pt; margin: 18pt 0 6pt; border-bottom: 2px solid #2f6fd0; padding-bottom: 4pt; }
+  h3 { color: #223; font-size: 11.5pt; margin: 12pt 0 4pt; }
+  p, li { font-size: 10.5pt; }
+  ul, ol { padding-inline-start: 20px; margin: 4pt 0; }
+  li { margin: 2pt 0; }
+  code { font-family: 'DejaVu Sans Mono',monospace; background: #eef2f8; padding: 1px 5px; border-radius: 3px;
+    font-size: 9.3pt; direction: ltr; unicode-bidi: embed; }
+  pre { background: #0e1726; color: #d6e2f2; font-family: 'DejaVu Sans Mono',monospace; font-size: 8.8pt;
+    border-radius: 8px; padding: 12px 14px; direction: ltr; text-align: left; white-space: pre-wrap; line-height: 1.4; }
+  pre code { background: none; color: inherit; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 9.8pt; }
+  th, td { border: 1px solid #c9d5e6; padding: 5px 8px; text-align: right; vertical-align: top; }
+  th { background: #e8f0fb; color: #14396b; font-weight: 700; }
+  .mono-cell { font-family: 'DejaVu Sans Mono',monospace; direction: ltr; unicode-bidi: embed; color: #2f6fd0; font-size: 9pt; }
+  .cover { text-align: center; page-break-after: always; padding-top: 40mm; }
+  .cover .kicker { color: #2f6fd0; letter-spacing: 3px; font-size: 12pt; }
+  .cover h1 { font-size: 30pt; color: #14396b; margin: 10pt 0; border: none; }
+  .cover .sub { font-size: 14pt; color: #445; margin-bottom: 6mm; }
+  .cover .logo { font-size: 60pt; }
+  .cover .box { display: inline-block; text-align: right; margin-top: 30mm; border: 1px solid #c9d5e6;
+    border-radius: 8px; padding: 14px 26px; font-size: 11pt; background: #f7fafd; }
+  .cover .box b { color: #14396b; }
+  .toc { page-break-after: always; }
+  .toc ol { font-size: 11.5pt; line-height: 2.05; }
+  .lead { background: #f2f7fd; border-right: 4px solid #2f6fd0; padding: 10px 14px; border-radius: 4px; margin: 8pt 0; }
+  .tag { display: inline-block; background: #14396b; color: #fff; font-size: 8.5pt; padding: 2px 9px; border-radius: 10px; margin: 1px; }
+  .diagram { background: #0e1726; color: #d6e2f2; font-family: 'DejaVu Sans Mono',monospace; font-size: 8.6pt;
+    border-radius: 8px; padding: 12px 14px; direction: ltr; text-align: left; white-space: pre; overflow-x: auto; line-height: 1.35; }
+  .section { page-break-inside: avoid; }
+  .muted { color: #667; font-size: 9.5pt; }
+  .note { background: #fff7e6; border-right: 4px solid #d29922; padding: 8px 12px; border-radius: 4px; margin: 8pt 0; font-size: 9.8pt; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="logo">🐉</div>
+  <div class="kicker">TECHNICAL EXPLAINER</div>
+  <h1>Kali Tools GUI</h1>
+  <div class="sub">כיצד המערכת עובדת — שרת MCP · שכבת הסוכנים · בסיס הנתונים</div>
+  <div>
+    <span class="tag">מסמך הסבר טכני</span>
+    <span class="tag">MCP + Agents + DB</span>
+    <span class="tag">אבטחת מידע</span>
+  </div>
+  <div class="box">
+    <div>מגיש: <b>הראלי דודאי</b></div>
+    <div>ת.ז.: 027225721</div>
+    <div>דוא"ל: hareli26@gmail.com</div>
+    <div>מוסד: <b>מכללת HackerU</b></div>
+    <div>קורס: אדריכלות AI</div>
+    <div>מנחה: שחף</div>
+    <div>תאריך: יולי 2026</div>
+  </div>
+</div>
+
+<div class="toc">
+  <h1>תוכן עניינים</h1>
+  <ol>
+    <li>סקירה כללית — כיצד החלקים מתחברים</li>
+    <li>שרת ה‑MCP — התקנה, תפקיד והכלים שנחשפים</li>
+    <li>שכבת הסוכנים — מה כל סוכן עושה ואיך הוא פועל</li>
+    <li>בסיס הנתונים — מבנה, טבלאות וזרימת נתונים</li>
+    <li>זרימה מקצה לקצה (End‑to‑End)</li>
+  </ol>
+</div>
+
+<!-- ==================== 1 ==================== -->
+<div class="section">
+<h2>1. סקירה כללית — כיצד החלקים מתחברים</h2>
+<p><strong>Kali Tools GUI</strong> היא מערכת גרפית (Web) המאחדת את כלי ה‑Kali Linux מאחורי ממשק אחד, עם שכבת
+סוכני AI מסוג Purple‑Team. השרת כתוב ב‑Python בספרייה הסטנדרטית בלבד (<em>אפס תלויות</em>) ורץ כ‑root כדי
+שכל הכלים יעבדו. המסמך הזה מסביר לעומק שלושה רכיבים: <strong>שרת ה‑MCP</strong>, <strong>שכבת הסוכנים</strong>,
+ו<strong>בסיס הנתונים</strong>.</p>
+
+<div class="diagram">┌──────────────────────────────────────────────────────────────────┐
+│  דפדפן (SPA)          לקוח MCP (Claude Desktop / Claude Code)     │
+│      │  HTTP                      │  stdio                        │
+│      ▼                            ▼                               │
+│  ┌───────────────────────────────────────────────────────────┐   │
+│  │  server.py  (Python stdlib, root)  —  REST API :8777       │   │
+│  │                                                            │   │
+│  │   agents.py     Planner · Verifier · Reporter              │   │
+│  │   bluered.py    Broker · Blue Team · Learning · Fixer      │   │
+│  │   db.py         SQLite  (kaligui.db)                        │   │
+│  │   obsidian.py   ייצוא כספת Markdown                        │   │
+│  │        │  subprocess (argv, ללא shell)                     │   │
+│  │        ▼                                                   │   │
+│  │   כלי Kali אמיתיים  (nmap, nikto, sqlmap, ... 72 כלים)     │   │
+│  └───────────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────────┘</div>
+<p class="muted">שני "לקוחות" מדברים עם אותו שרת: הדפדפן (בני אדם) ולקוח MCP (מודל AI). שניהם משתמשים
+באותו REST API — ה‑MCP הוא רק גשר דק שמאפשר ל‑Claude להפעיל את המערכת בשיחה.</p>
+</div>
+
+<!-- ==================== 2. MCP ==================== -->
+<div class="section">
+<h2>2. שרת ה‑MCP — התקנה, תפקיד והכלים שנחשפים</h2>
+
+<h3>2.1 מה זה MCP ולמה הוא כאן</h3>
+<p><strong>MCP (Model Context Protocol)</strong> הוא פרוטוקול פתוח שמאפשר למודל שפה (כמו Claude) להפעיל
+"כלים" חיצוניים בשיחה. במערכת שלנו, שרת ה‑MCP חושף את יכולות ה‑Kali Tools GUI כ‑<em>כלים ש‑Claude יכול לקרוא
+להם</em> — כך אפשר לומר בשפה טבעית "הרץ nmap על 192.168.1.10" או "תכנן בדיקת חדירות ל‑example.com", וה‑AI
+מפעיל את המערכת בפועל.</p>
+
+<h3>2.2 ארכיטקטורה — לקוח דק מעל ה‑REST API</h3>
+<p>שרת ה‑MCP (<code>mcp/kali_gui_mcp.py</code>) בנוי עם <strong>FastMCP</strong> והוא <strong>לקוח דק</strong>:
+הוא <em>אינו</em> מריץ כלים בעצמו, אלא מתרגם כל קריאת‑כלי לבקשת HTTP אל השרת הראשי (<code>http://127.0.0.1:8777</code>).
+כך כל הלוגיקה, האבטחה והביקורת נשארות במקום אחד, וה‑MCP רק "מגשר".</p>
+<div class="diagram">Claude  ──(MCP/stdio)──►  kali_gui_mcp.py  ──(HTTP)──►  server.py :8777  ──►  כלי Kali</div>
+
+<h3>2.3 התקנה</h3>
+<p>ההתקנה אוטומטית כחלק ממתקין השרת (<code>deploy/install-vps.sh</code>, שלב <code>[3b]</code>), שיוצר סביבת
+Python וירטואלית ומתקין את התלות היחידה (<code>mcp&gt;=1.2.0</code>):</p>
+<pre><code>python3 -m venv /opt/kali-gui/.venv
+/opt/kali-gui/.venv/bin/pip install -r /opt/kali-gui/mcp/requirements.txt</code></pre>
+<p>לאחר מכן מחברים את השרת ללקוח MCP. ב‑<strong>Claude Code (CLI)</strong>:</p>
+<pre><code>claude mcp add kali-tools-gui \
+  --env KALIGUI_URL=http://127.0.0.1:8777 \
+  -- /opt/kali-gui/.venv/bin/python /opt/kali-gui/mcp/kali_gui_mcp.py</code></pre>
+<p>ב‑<strong>Claude Desktop</strong> — הוספה ל‑<code>claude_desktop_config.json</code> תחת <code>mcpServers</code>
+עם ה‑<code>command</code>, ה‑<code>args</code> וה‑<code>env</code> המקבילים.</p>
+
+<h3>2.4 הכלים שה‑MCP חושף</h3>
+<p>שרת ה‑MCP חושף 11 כלים המכסים את כל יכולות המערכת:</p>
+<table>
+  <tr><th>כלי MCP</th><th>מה הוא עושה</th></tr>
+  <tr><td class="mono-cell">list_tools(category?)</td><td>רשימת הכלים בקטלוג — שם, בינארי, קטגוריה וסטטוס התקנה</td></tr>
+  <tr><td class="mono-cell">tool_options(tool_id)</td><td>השדות/אפשרויות של כלי מסוים (כדי לדעת מה להעביר ל‑run_tool)</td></tr>
+  <tr><td class="mono-cell">run_tool(tool_id, values)</td><td>הרצת כלי בודד עם ערכים, והחזרת הפלט</td></tr>
+  <tr><td class="mono-cell">plan(intent, target)</td><td>תכנון בדיקה מכוונה בשפה חופשית — מחזיר שלבים, בלי להריץ</td></tr>
+  <tr><td class="mono-cell">run_mission(intent, target)</td><td>תכנון + הרצת משימה מלאה (Executor+Verifier+Reporter) → דוח Markdown</td></tr>
+  <tr><td class="mono-cell">run_purple(intent, target)</td><td>הרצת Purple‑Team מלאה → איומים, הגנות ודוח</td></tr>
+  <tr><td class="mono-cell">get_fix(signature)</td><td>הצגת תוכנית התיקון לאיום (הפקודות + רמת הסיכון) — בלי להחיל</td></tr>
+  <tr><td class="mono-cell">apply_fix(signature, confirm)</td><td>החלת התיקון על המארח — <strong>מסרב ללא confirm=True</strong> (אישור אנושי)</td></tr>
+  <tr><td class="mono-cell">export_obsidian()</td><td>ייצוא כל הדוחות והידע לכספת Obsidian (Markdown)</td></tr>
+  <tr><td class="mono-cell">dashboard()</td><td>מצב חי: כלים מותקנים, מודיעין נצבר, פעילות אחרונה</td></tr>
+  <tr><td class="mono-cell">knowledge()</td><td>בסיס הידע הנצבר — חתימות ממצאים שנראו לאורך הרצות</td></tr>
+</table>
+<div class="note"><strong>אבטחה:</strong> הכלי <code>apply_fix</code> — שמשנה את מערכת ההפעלה — מסרב לפעול אלא אם
+הועבר <code>confirm=True</code> במפורש. כך גם דרך ה‑AI נדרש אישור אנושי לפני כל שינוי מערכת.</div>
+
+<h3>2.5 גישה לשרת מרוחק (VPS)</h3>
+<p>האפליקציה על ה‑VPS מאזינה ל‑<code>127.0.0.1</code> בלבד (מאחורי התחברות Google). כדי לאפשר ל‑MCP המקומי
+לגשת אליה בבטחה, פותחים מנהרת SSH ומשאירים את ה‑MCP מקומי:</p>
+<pre><code>ssh -L 8777:127.0.0.1:8777 root@&lt;VPS_IP&gt;
+# ואז KALIGUI_URL=http://127.0.0.1:8777 עובר דרך המנהרה</code></pre>
+<p class="muted">כך ה‑MCP ניגש ישירות לאפליקציה דרך המנהרה המוצפנת, בלי לעקוף את שכבת ההזדהות.</p>
+
+<h3>2.6 דוגמת שימוש (בתוך Claude)</h3>
+<ul>
+  <li>"השתמש ב‑kali‑tools‑gui: הרץ nmap על 192.168.1.10"</li>
+  <li>"תכנן בדיקת חדירות ל‑example.com והצג לי את השלבים"</li>
+  <li>"הרץ Purple‑Team על scanme.nmap.org ותן לי את הדוח"</li>
+</ul>
+</div>
+
+<!-- ==================== 3. Agents ==================== -->
+<div class="section">
+<h2>3. שכבת הסוכנים — מה כל סוכן עושה ואיך הוא פועל</h2>
+
+<h3>3.1 עיקרון: מנוע מבוסס‑חוקים (Playbooks), אפס תלויות</h3>
+<p>הסוכנים אינם "קופסה שחורה" — הם <strong>מבוססי‑חוקים</strong> (<code>agents.py</code>): אוסף
+<strong>Playbooks</strong> שקל לביקורת ולעריכה. כל Playbook מכיל מילות‑מפתח (עברית+אנגלית) ופונקציית
+<code>build</code> שבונה רשימת שלבים. יש 14 playbooks (DNS, תת‑דומיינים, סריקת פורטים, בדיקת חדירות,
+SMB/Windows, Active Directory, API, מיפוי רשת, SSL/TLS, SQL Injection, WordPress, OSINT, חיפוש אקספלויטים,
+פורנזיקה/סטגנוגרפיה) ו‑Playbook כללי כברירת מחדל. <em>אופציונלית</em>, אם מוגדר מודל Ollama מקומי, הדוח
+משתדרג לניסוח מבוסס‑LLM — אך המערכת עובדת מצוין גם בלעדיו.</p>
+
+<h3>3.2 ארבעת סוכני הליבה וזרימת המשימה</h3>
+<div class="diagram">כוונה + מטרה
+   │
+   ▼
+[ Planner ]  כוונה בשפה חופשית → התאמת Playbook → רשימת שלבים
+   │         (כל שלב: כלי + פקודה מוכנה + "למה" + הצעת פירוש)
+   ▼   ← אישור המשתמש
+[ Executor ] מריץ כל שלב ברצף כ‑Job (subprocess, argv ללא shell, timeout לכל שלב)
+   │
+   ▼
+[ Verifier ] מנתח פלט + קוד יציאה → verdict + חילוץ ממצאים (regex)
+   │         verdict ∈ { תקין · ממצאים · אזהרה · נכשל }
+   ▼
+[ Reporter ] מרכיב דוח Markdown: תקציר, ממצאים עיקריים, פירוט שלבים</div>
+<table>
+  <tr><th>סוכן</th><th>קלט</th><th>פעולה</th><th>פלט</th></tr>
+  <tr><td><b>Planner</b><br><span class="muted">agents.py</span></td><td>כוונה + מטרה</td>
+      <td>מתאים Playbook לפי מילות מפתח ובונה שלבים ממוקדים</td><td>תוכנית שלבים (כלי + פקודה + נימוק)</td></tr>
+  <tr><td><b>Executor</b><br><span class="muted">server.py</span></td><td>שלבי התוכנית</td>
+      <td>מריץ כל שלב כ‑Job — subprocess כמערך <code>argv</code> ללא shell (הגנה מהזרקה), עם מגבלת זמן</td>
+      <td>פלט חי + קוד יציאה לכל שלב</td></tr>
+  <tr><td><b>Verifier</b><br><span class="muted">agents.py</span></td><td>פלט + קוד יציאה</td>
+      <td>מנתח את התוצאה, נותן verdict, ומחלץ ממצאים באמצעות ביטויים רגולריים</td>
+      <td>verdict + רשימת ממצאים</td></tr>
+  <tr><td><b>Reporter</b><br><span class="muted">agents.py</span></td><td>כל השלבים המאומתים</td>
+      <td>מסכם לכדי דוח קריא; אופציונלית משדרג עם LLM מקומי</td><td>דוח Markdown מלא</td></tr>
+</table>
+
+<h3>3.3 שכבת ה‑Purple Team</h3>
+<p>מעל סוכני הליבה יושבת שכבת Purple‑Team (<code>bluered.py</code>) המחברת בין תקיפה להגנה:</p>
+<ul>
+  <li><strong>🔴 צוות אדום</strong> — מנוע המשימה (למעלה) מריץ את הכלים ההתקפיים ומפיק ממצאים.</li>
+  <li><strong>🟢 מתווך (Broker)</strong> — לוקח כל ממצא אדום וממפה אותו לכלל הגנה מתוך <code>DEFENSE_KB</code>,
+      מאחד כפילויות ומדרג לפי חומרה.</li>
+  <li><strong>🔵 צוות כחול</strong> — לכל איום מפיק: פעולות הגנה, המלצת זיהוי/ניטור, שיוך
+      <strong>MITRE ATT&amp;CK</strong> ותצורה לדוגמה.</li>
+  <li><strong>🧠 למידה מתמשכת</strong> — כל הרצה מעדכנת את בסיס הידע (<code>signatures</code>): כמה פעמים נראה
+      כל ממצא, מתי לראשונה ומתי לאחרונה.</li>
+  <li><strong>🟣 מתזמר (Orchestrator)</strong> — מריץ את הזרימה כולה: אדום → Broker → כחול → למידה → דוח Purple.</li>
+</ul>
+
+<h3>3.4 סוכן מתקן (Remediation / Fixer)</h3>
+<p>הסוכן המתקן מיישם בפועל את הגנות הצוות הכחול (למשל התקנת <code>fail2ban</code>, עדכוני אבטחה), אך תמיד
+תחת בקרות בטיחות: <strong>אישור אנושי חובה</strong>, גיבוי אוטומטי של קונפיגים לפני שינוי, ורישום ביומן הביקורת.
+תיקונים מסוכנים (כיבוי סיסמת SSH, שינויי firewall) מוגדרים כ<strong>הנחיה בלבד</strong> ואינם רצים אוטומטית — כדי
+למנוע נעילה עצמית של השרת.</p>
+
+<div class="note"><strong>עיקרון מנחה:</strong> הסוכנים בונים פקודות אמיתיות ומריצים כלים אמיתיים, אך כל
+פעולה התקפית עוברת שלב אישור, וכל שינוי מערכת (תיקון) דורש אישור מפורש ונרשם בביקורת.</div>
+</div>
+
+<!-- ==================== 4. DB ==================== -->
+<div class="section">
+<h2>4. בסיס הנתונים — מבנה, טבלאות וזרימת נתונים</h2>
+
+<h3>4.1 טכנולוגיה ועקרונות</h3>
+<p>בסיס הנתונים (<code>db.py</code>) הוא <strong>SQLite</strong> יחיד (<code>kaligui.db</code>) המשתמש במודול
+<code>sqlite3</code> של הספרייה הסטנדרטית — <em>אפס תלויות חיצוניות</em>. הוא מחליף את קבצי ה‑JSON השטוחים
+הישנים, ובהפעלה הראשונה <strong>מייבא אוטומטית</strong> נתונים קיימים (knowledge.json / activity.json /
+audit.log / reports/) כדי ששום מידע לא יאבד. הגישה מוגנת בנעילה (<code>RLock</code>) לבטיחות ריבוי‑תהליכונים.</p>
+
+<h3>4.2 הטבלאות</h3>
+<table>
+  <tr><th>טבלה</th><th>תפקיד</th><th>עמודות עיקריות</th></tr>
+  <tr><td class="mono-cell">signatures</td><td>בסיס הידע הנלמד — שורה לכל חתימת ממצא</td>
+      <td class="mono-cell">sig (PK), name, severity, count, first_seen, last_seen</td></tr>
+  <tr><td class="mono-cell">meta</td><td>מפתח/ערך גלובלי (למשל מונה ההרצות)</td>
+      <td class="mono-cell">k (PK), v</td></tr>
+  <tr><td class="mono-cell">activity</td><td>יומן פעילות — היסטוריית משימות ו‑Purple</td>
+      <td class="mono-cell">id, ts, whenstr, type, intent, target, user, status, data(JSON)</td></tr>
+  <tr><td class="mono-cell">audit</td><td>יומן ביקורת אבטחה — מי עשה מה</td>
+      <td class="mono-cell">id (PK), ts, user, action, detail</td></tr>
+  <tr><td class="mono-cell">reports</td><td>דוחות Markdown שמורים</td>
+      <td class="mono-cell">id (PK), kind, intent, target, ts, whenstr, report</td></tr>
+</table>
+
+<h3>4.3 מי כותב ומי קורא</h3>
+<table>
+  <tr><th>פעולה במערכת</th><th>פונקציה ב‑db.py</th><th>טבלה</th></tr>
+  <tr><td>סיום Purple‑Team → למידה</td><td class="mono-cell">update_kb()</td><td>signatures + meta</td></tr>
+  <tr><td>כל הרצה נרשמת ליומן</td><td class="mono-cell">add_activity()</td><td>activity</td></tr>
+  <tr><td>כל פעולה רגישה (הרצה/תיקון/משתמש)</td><td class="mono-cell">add_audit()</td><td>audit</td></tr>
+  <tr><td>שמירת דוח בסיום משימה</td><td class="mono-cell">save_report()</td><td>reports</td></tr>
+  <tr><td>דשבורד / מסך ידע</td><td class="mono-cell">load_kb() · stats() · list_activity()</td><td>קריאה</td></tr>
+  <tr><td>ייצוא Obsidian</td><td class="mono-cell">all_reports_full()</td><td>קריאה</td></tr>
+</table>
+<p class="muted">הטבלאות <code>activity</code> נשמרת עד 500 רשומות אחרונות (גיזום אוטומטי), וה‑<code>audit</code>
+נצברת במלואה לצורכי ביקורת.</p>
+
+<h3>4.4 גישה, גיבוי ותחזוקה</h3>
+<p>הקובץ נמצא ב‑<code>/opt/kali-gui/kaligui.db</code>. אפשר לבדוק אותו ישירות:</p>
+<pre><code>sqlite3 /opt/kali-gui/kaligui.db ".tables"
+sqlite3 /opt/kali-gui/kaligui.db "SELECT name,severity,count FROM signatures ORDER BY count DESC;"</code></pre>
+<p>גיבוי הוא פשוט העתקת הקובץ (למשל בתוך ה‑tar של נתוני האפליקציה). נקודת קצה
+<code>GET /api/dbstats</code> מחזירה ספירת רשומות לכל טבלה לבדיקה מהירה.</p>
+</div>
+
+<!-- ==================== 5. E2E ==================== -->
+<div class="section">
+<h2>5. זרימה מקצה לקצה (End‑to‑End)</h2>
+<p>דוגמה: המשתמש (או Claude דרך MCP) מבקש "בדיקת חדירות ל‑example.com".</p>
+<div class="diagram">1. בקשה  ─►  Planner מזהה Playbook "בדיקת חדירות" ובונה שלבים
+2. אישור ─►  Executor מריץ כל שלב (nmap → whatweb → nikto → nuclei ...)
+3. לכל שלב: Verifier נותן verdict + מחלץ ממצאים
+4. Broker ממפה ממצאים → הגנות (DEFENSE_KB + MITRE),  Blue Team מפרט
+5. update_kb() מעדכן signatures,  add_activity() רושם ליומן
+6. Reporter מפיק דוח,  save_report() שומר ב-DB
+7. obsidian.export() מסנכרן לכספת,  audit() רושם מי הריץ
+8. הדוח מוצג בדפדפן / מוחזר ל-Claude דרך ה-MCP</div>
+<p class="muted">כל שמונת השלבים משתמשים באותו REST API — בין אם ההפעלה הגיעה מהדפדפן ובין אם מ‑Claude דרך
+ה‑MCP. כך המערכת אחידה, ניתנת לביקורת, ובעלת מקור אמת אחד.</p>
+<div class="lead">בקצרה: <strong>ה‑MCP</strong> מאפשר ל‑AI להפעיל את המערכת בשיחה; <strong>הסוכנים</strong> הופכים
+כוונה בשפה חופשית לבדיקה אמיתית, מאמתים ומדווחים, וממפים כל ממצא להגנה; <strong>בסיס הנתונים</strong> שומר
+את הידע הנלמד, ההיסטוריה, הדוחות והביקורת — הכל ב‑SQLite אחד ללא תלויות.</div>
+</div>
+
+</body>
+</html>
