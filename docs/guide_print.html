@@ -44,7 +44,7 @@
   <h1>Kali Tools GUI</h1>
   <div class="sub">ממשק גרפי ושכבת סוכני AI לכלי Kali Linux</div>
   <div>
-    <span class="badge">70 כלים</span>
+    <span class="badge">72 כלים</span>
     <span class="badge">11 קטגוריות</span>
     <span class="badge">4 סוכני AI</span>
     <span class="badge">WSL2 · Windows</span>
@@ -135,7 +135,8 @@ printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' | sudo tee /etc/resolv.conf</p
 <h3>שלב א — בחירת כלי</h3>
 <p>חפש בתיבת החיפוש או סנן לפי קטגוריה. כרטיס ירוק = מותקן, אפור = לא מותקן (לחיצה מציעה התקנה).</p>
 <h3>שלב ב — טופס והרצה</h3>
-<p>מלא את השדות; <strong>הפקודה המלאה מתעדכנת בזמן אמת</strong>. שדות חובה מסומנים ב‑<code>*</code>. לחץ ▶ הרץ.</p>
+<p>בראש המסך מופיע כרטיס <strong>"ℹ️ על הכלי — מה זה ומה אפשר לעשות"</strong> המסביר את הכלי ושימושיו.
+מלא את השדות; <strong>הפקודה המלאה מתעדכנת בזמן אמת</strong>. שדות חובה מסומנים ב‑<code>*</code>. לחץ ▶ הרץ.</p>
 <h3>שלב ג — תוצאות</h3>
 <p>מסך נפרד עם פלט חי, סטטוס וכפתורי עצור / העתק / הורד / הרץ שוב.</p>
 </div>
@@ -152,7 +153,7 @@ printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' | sudo tee /etc/resolv.conf</p
 <p>מנתח פלט + קוד יציאה ונותן verdict: ✅ תקין · 🔎 ממצאים · ⚠️ אזהרה · ❌ נכשל, כולל חילוץ ממצאים.</p>
 <h3>Reporter (מדווח)</h3>
 <p>מפיק דוח מלא: סיכום מנהלים, ממצאים עיקריים ופירוט שלבים — ניתן להעתקה/הורדה.</p>
-<p><strong>Playbooks זמינים:</strong> DNS · תת‑דומיינים · סריקת פורטים · בדיקת חדירות · SMB/Windows · Active Directory · API · מיפוי רשת · SSL/TLS · SQL Injection · WordPress · OSINT.</p>
+<p><strong>Playbooks זמינים:</strong> DNS · תת‑דומיינים · סריקת פורטים · בדיקת חדירות · SMB/Windows · Active Directory · API · מיפוי רשת · SSL/TLS · SQL Injection · WordPress · OSINT · חיפוש אקספלויטים (Exploit‑DB) · פורנזיקה/סטגנוגרפיה.</p>
 </div>
 
 <!-- 5b -->
@@ -185,7 +186,7 @@ printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' | sudo tee /etc/resolv.conf</p
     │  HTTP (localhost:8777)
     ▼
 server.py  (Python stdlib, root, בתוך Kali WSL)
-    ├── tools.json   קטלוג 70 כלים
+    ├── tools.json   קטלוג 72 כלים
     ├── agents.py    Planner / Verifier / Reporter
     └── subprocess ─► כלי Kali אמיתיים (argv, ללא shell)</pre>
 <p>עקרון אבטחה מרכזי: הפקודות נבנות בצד השרת כמערך <code>argv</code> ללא shell — הגנה מהזרקת פקודות.</p>
