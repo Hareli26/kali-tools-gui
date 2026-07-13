@@ -16,6 +16,7 @@
     {
       "id": "netcat", "name": "Netcat", "binary": "nc", "package": "netcat-traditional", "category": "netscan",
       "desc": "\"סכין שוויצרי\" לרשת: סריקת פורטים, חטיפת באנרים, האזנה וחיבור TCP/UDP גולמי.",
+      "about": "כלי רשת גולמי לחיבור/האזנה על TCP/UDP. אפשר לבדוק אם פורט פתוח, לחטוף באנר של שירות (גרסה), להעביר קבצים, לפתוח reverse shell בבדיקות חדירה, או להאזין כשרת פשוט. \"סכין שוויצרי\" של הרשת.",
       "options": [
         { "id": "zscan", "flag": "-z", "label": "סריקת פורטים (-z, ללא שליחת נתונים)", "type": "bool" },
         { "id": "verbose", "flag": "-v", "label": "פלט מפורט (-v)", "type": "bool" },
@@ -31,6 +32,7 @@
     {
       "id": "shodan", "name": "Shodan", "binary": "shodan", "package": "shodan", "category": "recon",
       "desc": "מנוע חיפוש למכשירים מחוברים לאינטרנט (CLI). דורש הרצת 'shodan init <API_KEY>' פעם אחת + מפתח API.",
+      "about": "מנוע חיפוש שסורק את כל האינטרנט ומתעד מכשירים חשופים (שרתים, מצלמות, ראוטרים, ICS). אפשר לבדוק אילו פורטים/שירותים חשופים ל-IP (host), לחפש מכשירים לפי מדינה/מוצר/גרסה (search), ולזהות חשיפות ו-CVEs — הכל פסיבי, בלי לגעת ביעד. דורש מפתח API.",
       "options": [
         { "id": "cmd", "flag": "", "label": "פעולה", "type": "select", "required": true,
           "choices": [ {"v":"host","t":"host — מידע על IP"}, {"v":"search","t":"search — חיפוש שאילתה"}, {"v":"count","t":"count — ספירת תוצאות"}, {"v":"domain","t":"domain — מידע על דומיין"}, {"v":"myip","t":"myip — ה-IP הציבורי שלי"} ] },
@@ -41,6 +43,7 @@
     {
       "id": "nmap", "name": "Nmap", "binary": "nmap", "package": "nmap", "category": "netscan",
       "desc": "סורק פורטים ורשת — הכלי המרכזי למיפוי מארחים, פורטים, שירותים וגרסאות.",
+      "about": "סורק הרשת המרכזי בפנטסט. ממפה אילו מארחים חיים, אילו פורטים פתוחים, אילו שירותים וגרסאות רצים, מערכת ההפעלה, ומריץ סקריפטים (NSE) לזיהוי חולשות. הבסיס כמעט לכל בדיקה.",
       "options": [
         { "id": "scan", "flag": "", "label": "סוג סריקה", "type": "select", "help": "טכניקת הסריקה",
           "choices": [ {"v":"","t":"ברירת מחדל"}, {"v":"-sS","t":"-sS SYN (מהיר, דורש root)"}, {"v":"-sT","t":"-sT TCP connect"}, {"v":"-sU","t":"-sU UDP"}, {"v":"-sn","t":"-sn Ping sweep (ללא פורטים)"}, {"v":"-sA","t":"-sA ACK"} ] },
@@ -62,6 +65,7 @@
     {
       "id": "masscan", "name": "Masscan", "binary": "masscan", "package": "masscan", "category": "netscan",
       "desc": "סורק פורטים במהירות אדירה — כל האינטרנט בדקות. דורש root.",
+      "about": "סורק פורטים אסינכרוני מהיר במיוחד — יכול לסרוק טווחי IP ענקיים תוך דקות. שימושי למיפוי ראשוני של רשתות גדולות לפני סריקה מעמיקה עם nmap. דורש root.",
       "options": [
         { "id": "ports", "flag": "-p", "label": "פורטים", "type": "text", "required": true, "placeholder": "0-65535 או 80,443", "primary": false },
         { "id": "rate", "flag": "--rate", "label": "קצב (חבילות לשנייה)", "type": "number", "placeholder": "1000", "default": "1000" },
@@ -73,6 +77,7 @@
     {
       "id": "netdiscover", "name": "Netdiscover", "binary": "netdiscover", "package": "netdiscover", "category": "netscan",
       "desc": "גילוי מארחים חיים ברשת מקומית באמצעות ARP.",
+      "about": "מגלה מכשירים חיים ברשת המקומית דרך ARP — פסיבי (מאזין בלבד) או אקטיבי. שימושי כשאתה מחובר לרשת ורוצה לראות מי עוד נמצא בה, כולל כתובות MAC.",
       "options": [
         { "id": "range", "flag": "-r", "label": "טווח", "type": "text", "primary": true, "placeholder": "192.168.1.0/24" },
         { "id": "iface", "flag": "-i", "label": "ממשק רשת", "type": "text", "placeholder": "eth0" },
@@ -83,6 +88,7 @@
     {
       "id": "arp-scan", "name": "arp-scan", "binary": "arp-scan", "package": "arp-scan", "category": "netscan",
       "desc": "סורק ARP מהיר לגילוי מכשירים ברשת המקומית + זיהוי יצרן.",
+      "about": "שולח בקשות ARP לרשת המקומית ומקבל תשובות ממכשירים חיים, כולל זיהוי יצרן החומרה (OUI). דרך מהירה ואמינה למפות מי מחובר ל-LAN.",
       "options": [
         { "id": "localnet", "flag": "--localnet", "label": "כל הרשת המקומית (--localnet)", "type": "bool" },
         { "id": "iface", "flag": "-I", "label": "ממשק", "type": "text", "placeholder": "eth0" },
@@ -93,6 +99,7 @@
     {
       "id": "nbtscan", "name": "nbtscan", "binary": "nbtscan", "package": "nbtscan", "category": "smb",
       "desc": "סריקת NetBIOS לגילוי שמות מחשבים ושיתופים ברשת.",
+      "about": "סורק NetBIOS על טווח IP ומחזיר שמות מחשבים, קבוצות עבודה ומשתמשים ברשתות Windows. שימושי לאנומרציה ראשונית של סביבת Windows.",
       "options": [
         { "id": "verbose", "flag": "-v", "label": "מפורט (-v)", "type": "bool" },
         { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.0/24" }
@@ -102,6 +109,7 @@
     {
       "id": "whois", "name": "whois", "binary": "whois", "package": "whois", "category": "recon",
       "desc": "שאילתת רישום דומיין / IP — בעלות, תאריכים, שרתי שמות.",
+      "about": "שולף את רישום הבעלות של דומיין או IP — בעלים, תאריכי רישום/תפוגה, שרתי שמות ופרטי קשר. שלב ראשון ב-OSINT להבנת מי עומד מאחורי מטרה.",
       "options": [
         { "id": "target", "flag": "", "label": "דומיין / IP", "type": "text", "primary": true, "required": true, "placeholder": "example.com" }
       ],
@@ -110,6 +118,7 @@
     {
       "id": "whatweb", "name": "WhatWeb", "binary": "whatweb", "package": "whatweb", "category": "web",
       "desc": "טביעת אצבע של אתרים — טכנולוגיות, CMS, שרתים, גרסאות.",
+      "about": "מזהה אילו טכנולוגיות מריץ אתר — שרת ווב, שפה, CMS (WordPress/Joomla), ספריות JS, גרסאות ופלאגינים. עוזר להבין את משטח התקיפה של אתר.",
       "options": [
         { "id": "aggr", "flag": "-a", "label": "רמת אגרסיביות", "type": "select",
           "choices": [ {"v":"","t":"ברירת מחדל"}, {"v":"1","t":"1 Stealthy"}, {"v":"3","t":"3 Aggressive"}, {"v":"4","t":"4 Heavy"} ] },
@@ -121,6 +130,7 @@
     {
       "id": "wafw00f", "name": "wafw00f", "binary": "wafw00f", "package": "wafw00f", "category": "web",
       "desc": "מזהה האם וכיצד אתר מוגן ע\"י Web Application Firewall.",
+      "about": "מזהה אם אתר מוגן ע\"י Web Application Firewall ואיזה (Cloudflare, ModSecurity וכו'). חשוב לדעת לפני סריקות תקיפה — WAF עלול לחסום/לזהות אותן.",
       "options": [
         { "id": "findall", "flag": "-a", "label": "בדוק את כל ה-WAFs (-a)", "type": "bool" },
         { "id": "target", "flag": "", "label": "URL", "type": "text", "primary": true, "required": true, "placeholder": "https://example.com" }
@@ -130,6 +140,7 @@
     {
       "id": "dig", "name": "dig", "binary": "dig", "package": "dnsutils", "category": "dns",
       "desc": "שאילתות DNS מפורטות — רשומות A, MX, TXT, NS ועוד.",
+      "about": "כלי שאילתות DNS מדויק. אפשר לשלוף רשומות A/AAAA (כתובות), MX (דואר), NS (שרתי שמות), TXT (SPF/אימותים), CNAME ועוד, ולנסות zone transfer. בסיס לחקר DNS.",
       "options": [
         { "id": "type", "flag": "", "label": "סוג רשומה", "type": "select",
           "choices": [ {"v":"","t":"A (ברירת מחדל)"}, {"v":"ANY","t":"ANY"}, {"v":"MX","t":"MX"}, {"v":"NS","t":"NS"}, {"v":"TXT","t":"TXT"}, {"v":"AAAA","t":"AAAA"}, {"v":"SOA","t":"SOA"}, {"v":"CNAME","t":"CNAME"} ] },
@@ -141,6 +152,7 @@
     {
       "id": "dnsenum", "name": "dnsenum", "binary": "dnsenum", "package": "dnsenum", "category": "dns",
       "desc": "אנומרציית DNS — תת-דומיינים, MX, העברת אזור (zone transfer), brute-force.",
+      "about": "אנומרציית DNS מקיפה — מושך את כל סוגי הרשומות, מנסה zone transfer (חשיפה חמורה אם מצליח), ומגלה תת-דומיינים ב-brute-force. שלב מפתח במיפוי דומיין.",
       "options": [
         { "id": "noreverse", "flag": "--noreverse", "label": "ללא reverse lookup", "type": "bool" },
         { "id": "threads", "flag": "--threads", "label": "Threads", "type": "number", "placeholder": "5" },
@@ -151,6 +163,7 @@
     {
       "id": "dnsrecon", "name": "dnsrecon", "binary": "dnsrecon", "package": "dnsrecon", "category": "dns",
       "desc": "כלי איסוף DNS מתקדם — enumeration, zone transfer, brute force.",
+      "about": "כלי DNS מתקדם לאיסוף ואנומרציה — רשומות, zone transfer, brute-force של תת-דומיינים, ו-reverse DNS. מקיף וגמיש.",
       "options": [
         { "id": "domain", "flag": "-d", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" },
         { "id": "type", "flag": "-t", "label": "סוג בדיקה", "type": "select",
@@ -161,6 +174,7 @@
     {
       "id": "fierce", "name": "fierce", "binary": "fierce", "package": "fierce", "category": "dns",
       "desc": "סורק DNS למציאת תת-דומיינים ומרחבי IP לא רציפים.",
+      "about": "סורק DNS שמחפש תת-דומיינים ומרחבי IP הקשורים לדומיין, כולל לא רציפים. עוזר למפות את התשתית הרחבה של ארגון.",
       "options": [
         { "id": "domain", "flag": "--domain", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" }
       ],
@@ -169,6 +183,7 @@
     {
       "id": "theharvester", "name": "theHarvester", "binary": "theHarvester", "package": "theharvester", "category": "recon",
       "desc": "OSINT — איסוף אימיילים, תת-דומיינים, שמות ומארחים ממקורות ציבוריים.",
+      "about": "כלי OSINT שאוסף ממקורות ציבוריים (מנועי חיפוש, Shodan, אישורי TLS) אימיילים, שמות עובדים, תת-דומיינים ומארחים של ארגון — בלי לגעת ביעד. מצוין לשלב האיסוף.",
       "options": [
         { "id": "domain", "flag": "-d", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" },
         { "id": "limit", "flag": "-l", "label": "מגבלת תוצאות", "type": "number", "placeholder": "500" },
@@ -180,6 +195,7 @@
     {
       "id": "nikto", "name": "Nikto", "binary": "nikto", "package": "nikto", "category": "web",
       "desc": "סורק חולשות בשרתי ווב — קבצים מסוכנים, גרסאות ישנות, בעיות תצורה.",
+      "about": "סורק חולשות ותצורות שגויות בשרתי ווב — קבצים/תיקיות מסוכנים, גרסאות תוכנה ישנות, כותרות חסרות, וברירות מחדל לא בטוחות. סריקה רחבה ומהירה של אתר.",
       "options": [
         { "id": "host", "flag": "-h", "label": "מטרה (host/URL)", "type": "text", "required": true, "placeholder": "https://example.com" },
         { "id": "port", "flag": "-p", "label": "פורט", "type": "number", "placeholder": "443" },
@@ -192,6 +208,7 @@
     {
       "id": "gobuster", "name": "Gobuster", "binary": "gobuster", "package": "gobuster", "category": "web",
       "desc": "Brute-force של תיקיות/קבצים, תת-דומיינים ו-vhosts.",
+      "about": "מגלה ב-brute-force תיקיות וקבצים נסתרים, תת-דומיינים או vhosts לפי רשימת מילים. חושף נתיבים לא מקושרים (admin, backup, .git). מהיר (Go).",
       "options": [
         { "id": "mode", "flag": "", "label": "מצב", "type": "select", "required": true,
           "choices": [ {"v":"dir","t":"dir (תיקיות/קבצים)"}, {"v":"dns","t":"dns (תת-דומיינים)"}, {"v":"vhost","t":"vhost"} ] },
@@ -206,6 +223,7 @@
     {
       "id": "dirb", "name": "Dirb", "binary": "dirb", "package": "dirb", "category": "web",
       "desc": "סורק תוכן ווב קלאסי — מגלה תיקיות וקבצים נסתרים.",
+      "about": "סורק תוכן ווב קלאסי שמנסה שמות תיקיות/קבצים נפוצים כדי לגלות משאבים נסתרים. פשוט ואמין למיפוי מבנה אתר.",
       "options": [
         { "id": "url", "flag": "", "label": "URL", "type": "text", "primary": true, "required": true, "placeholder": "https://example.com" },
         { "id": "wordlist", "flag": "", "label": "Wordlist", "type": "text", "placeholder": "/usr/share/wordlists/dirb/common.txt" }
@@ -215,6 +233,7 @@
     {
       "id": "ffuf", "name": "ffuf", "binary": "ffuf", "package": "ffuf", "category": "web",
       "desc": "Fuzzer ווב מהיר — תיקיות, פרמטרים, vhosts. FUZZ מסמן את נקודת ההזרקה.",
+      "about": "Fuzzer ווב מהיר מאוד. המילה FUZZ מסמנת היכן להזריק ערכים מרשימה — לגילוי תיקיות, פרמטרים נסתרים, vhosts או ערכי טפסים. גמיש וחזק.",
       "options": [
         { "id": "url", "flag": "-u", "label": "URL (עם FUZZ)", "type": "text", "required": true, "placeholder": "https://example.com/FUZZ" },
         { "id": "wordlist", "flag": "-w", "label": "Wordlist", "type": "text", "required": true, "default": "/usr/share/wordlists/dirb/common.txt" },
@@ -227,6 +246,7 @@
     {
       "id": "feroxbuster", "name": "feroxbuster", "binary": "feroxbuster", "package": "feroxbuster", "category": "web",
       "desc": "סורק תוכן רקורסיבי ומהיר (Rust) לגילוי נתיבים.",
+      "about": "סורק תוכן רקורסיבי ומהיר (Rust) — מגלה נתיבים וממשיך לחפור אוטומטית בתוך תיקיות שנמצאו. יעיל למיפוי עומק של אפליקציה.",
       "options": [
         { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com" },
         { "id": "wordlist", "flag": "-w", "label": "Wordlist", "type": "text", "default": "/usr/share/wordlists/dirb/common.txt" },
@@ -238,6 +258,7 @@
     {
       "id": "wpscan", "name": "WPScan", "binary": "wpscan", "package": "wpscan", "category": "web",
       "desc": "סורק אבטחה ל-WordPress — תוספים, ערכות נושא, משתמשים וחולשות.",
+      "about": "סורק אבטחה ייעודי ל-WordPress — מזהה גרסה, תוספים וערכות נושא פגיעים, משתמשים וקבצים חשופים, ומצליב מול מאגר חולשות. חובה לכל אתר וורדפרס.",
       "options": [
         { "id": "url", "flag": "--url", "label": "URL", "type": "text", "required": true, "placeholder": "https://blog.example.com" },
         { "id": "enumerate", "flag": "-e", "label": "אנומרציה", "type": "select",
@@ -249,6 +270,7 @@
     {
       "id": "sqlmap", "name": "sqlmap", "binary": "sqlmap", "package": "sqlmap", "category": "web",
       "desc": "כלי אוטומטי לזיהוי וניצול הזרקות SQL.",
+      "about": "מזהה ומנצל אוטומטית הזרקות SQL. יכול לחלץ בסיסי נתונים, טבלאות ומשתמשים, לעקוף אימות ואף להריץ פקודות על השרת. מהחזקים בבדיקות ווב.",
       "options": [
         { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com/page.php?id=1" },
         { "id": "batch", "flag": "--batch", "label": "מצב אוטומטי (--batch)", "type": "bool", "default": true },
@@ -262,6 +284,7 @@
     {
       "id": "nuclei", "name": "Nuclei", "binary": "nuclei", "package": "nuclei", "category": "web",
       "desc": "סורק חולשות מבוסס תבניות (templates) — מהיר וקהילתי.",
+      "about": "סורק חולשות מבוסס תבניות קהילתיות (YAML) — בודק אלפי חולשות, תצורות שגויות ו-CVEs במהירות. מתעדכן כל הזמן ע\"י הקהילה.",
       "options": [
         { "id": "url", "flag": "-u", "label": "מטרה (URL)", "type": "text", "required": true, "placeholder": "https://example.com" },
         { "id": "severity", "flag": "-severity", "label": "חומרה", "type": "text", "placeholder": "critical,high,medium" },
@@ -272,6 +295,7 @@
     {
       "id": "smbclient", "name": "smbclient", "binary": "smbclient", "package": "smbclient", "category": "smb",
       "desc": "לקוח SMB — רשימת שיתופים וגישה לקבצים בשרתי Windows/Samba.",
+      "about": "לקוח SMB לגישה לשיתופי קבצים של Windows/Samba — רשימת שיתופים, כניסה (גם null session) והורדה/העלאה של קבצים. שימושי לבדיקת חשיפת קבצים.",
       "options": [
         { "id": "list", "flag": "-L", "label": "רשימת שיתופים (-L host)", "type": "text", "placeholder": "//192.168.1.10", "primary": true, "required": true },
         { "id": "noauth", "flag": "-N", "label": "ללא סיסמה (-N)", "type": "bool", "default": true },
@@ -282,6 +306,7 @@
     {
       "id": "smbmap", "name": "smbmap", "binary": "smbmap", "package": "smbmap", "category": "smb",
       "desc": "אנומרציית שיתופי SMB והרשאות גישה.",
+      "about": "ממפה שיתופי SMB והרשאות הגישה (קריאה/כתיבה) לכל שיתוף. עוזר לזהות במהירות שיתופים פתוחים או רגישים ברשת Windows.",
       "options": [
         { "id": "host", "flag": "-H", "label": "מארח", "type": "text", "required": true, "placeholder": "192.168.1.10" },
         { "id": "user", "flag": "-u", "label": "משתמש", "type": "text", "placeholder": "guest" },
@@ -292,6 +317,7 @@
     {
       "id": "enum4linux", "name": "enum4linux", "binary": "enum4linux", "package": "enum4linux", "category": "smb",
       "desc": "אנומרציה מקיפה של מערכות Windows/Samba — משתמשים, שיתופים, קבוצות.",
+      "about": "כלי אנומרציה מקיף למערכות Windows/Samba — משתמשים, קבוצות, שיתופים, מדיניות סיסמאות ומידע דומיין דרך SMB/RPC. קלאסי לשלב האנומרציה.",
       "options": [
         { "id": "all", "flag": "-a", "label": "כל הבדיקות (-a)", "type": "bool", "default": true },
         { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.10" }
@@ -301,6 +327,7 @@
     {
       "id": "hydra", "name": "Hydra", "binary": "hydra", "package": "hydra", "category": "passwords",
       "desc": "כלי brute-force להתחברות לשירותים (SSH, FTP, HTTP, RDP ועוד).",
+      "about": "כלי brute-force להתחברות לשירותים מקוונים — SSH, FTP, RDP, HTTP forms, SMB ועוד. בודק שמות משתמש/סיסמאות מרשימות. אך ורק על מטרות מורשות.",
       "options": [
         { "id": "user", "flag": "-l", "label": "משתמש בודד", "type": "text", "placeholder": "admin" },
         { "id": "userlist", "flag": "-L", "label": "רשימת משתמשים", "type": "text", "placeholder": "/path/users.txt" },
@@ -314,6 +341,7 @@
     {
       "id": "john", "name": "John the Ripper", "binary": "john", "package": "john", "category": "passwords",
       "desc": "כלי לפיצוח האשים של סיסמאות.",
+      "about": "מפצח האשים של סיסמאות (John the Ripper) — מזהה סוג hash ומריץ מתקפות מילון/brute-force/כללים לשחזור סיסמאות. תומך במגוון עצום של פורמטים.",
       "options": [
         { "id": "wordlist", "flag": "--wordlist", "label": "Wordlist", "type": "text", "eq": true, "placeholder": "/usr/share/wordlists/rockyou.txt" },
         { "id": "format", "flag": "--format", "label": "פורמט האש", "type": "text", "eq": true, "placeholder": "raw-md5, sha512crypt" },
@@ -325,6 +353,7 @@
     {
       "id": "hashcat", "name": "Hashcat", "binary": "hashcat", "package": "hashcat", "category": "passwords",
       "desc": "פיצוח האשים מואץ GPU — מהיר ורב-עוצמה.",
+      "about": "מפצח ההאשים המהיר בעולם, מואץ GPU. מריץ מתקפות מילון, מסכה, כללים ו-brute-force על עשרות סוגי hash. לבדיקת חוזק סיסמאות שנחשפו.",
       "options": [
         { "id": "mode", "flag": "-m", "label": "מצב האש (-m)", "type": "text", "required": true, "placeholder": "0=MD5 100=SHA1 1800=sha512crypt" },
         { "id": "attack", "flag": "-a", "label": "מצב תקיפה (-a)", "type": "select",
@@ -337,6 +366,7 @@
     {
       "id": "sslscan", "name": "sslscan", "binary": "sslscan", "package": "sslscan", "category": "ssl",
       "desc": "בדיקת תצורת SSL/TLS — פרוטוקולים, ציפרים וחולשות.",
+      "about": "בודק את תצורת ה-SSL/TLS של שרת — אילו פרוטוקולים וציפרים נתמכים, תוקף התעודה, וחולשות ידועות. מזהה הצפנה חלשה/מיושנת.",
       "options": [
         { "id": "target", "flag": "", "label": "מטרה host:port", "type": "text", "primary": true, "required": true, "placeholder": "example.com:443" }
       ],
@@ -345,6 +375,7 @@
     {
       "id": "sslyze", "name": "SSLyze", "binary": "sslyze", "package": "sslyze", "category": "ssl",
       "desc": "ניתוח מעמיק של תצורת SSL/TLS ושרתים.",
+      "about": "ניתוח מעמיק של תצורת SSL/TLS — פרוטוקולים, ציפרים, תעודות, HSTS ו-vulnerabilities כמו Heartbleed/ROBOT. יסודי לביקורת הצפנה.",
       "options": [
         { "id": "target", "flag": "", "label": "מטרה host:port", "type": "text", "primary": true, "required": true, "placeholder": "example.com:443" }
       ],
@@ -353,6 +384,7 @@
     {
       "id": "ping", "name": "ping", "binary": "ping", "package": "iputils-ping", "category": "util",
       "desc": "בדיקת קישוריות בסיסית למארח.",
+      "about": "בודק אם מארח חי ומגיב, ומודד זמן תגובה (latency). הבדיקה הבסיסית ביותר לקישוריות — שלב ראשון לפני סריקות.",
       "options": [
         { "id": "count", "flag": "-c", "label": "מספר חבילות", "type": "number", "default": "4", "placeholder": "4" },
         { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "8.8.8.8" }
@@ -362,6 +394,7 @@
     {
       "id": "curl", "name": "curl", "binary": "curl", "package": "curl", "category": "util",
       "desc": "לקוח HTTP — שליחת בקשות, בדיקת כותרות, הורדת תוכן.",
+      "about": "לקוח HTTP רב-תכליתי. שליחת בקשות (GET/POST), בחינת כותרות תגובה, בדיקת redirects, הורדת תוכן ותשאול APIs. כלי חיוני לבדיקת שרתי ווב ידנית.",
       "options": [
         { "id": "head", "flag": "-I", "label": "כותרות בלבד (-I)", "type": "bool" },
         { "id": "verbose", "flag": "-v", "label": "מפורט (-v)", "type": "bool" },
@@ -375,6 +408,7 @@
     {
       "id": "traceroute", "name": "traceroute", "binary": "traceroute", "package": "traceroute", "category": "util",
       "desc": "מעקב אחר הנתיב (hops) אל מארח יעד.",
+      "about": "מציג את הנתיב (רשימת ה-hops/routers) שהחבילות עוברות עד ליעד וזמן כל קפיצה. עוזר להבין את מבנה הרשת ואיפה יש עיכובים/חסימות.",
       "options": [
         { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "example.com" }
       ],
@@ -383,6 +417,7 @@
     {
       "id": "subfinder", "name": "Subfinder", "binary": "subfinder", "package": "subfinder", "category": "recon",
       "desc": "גילוי תת-דומיינים מהיר ופסיבי (ProjectDiscovery) ממקורות מרובים.",
+      "about": "מגלה תת-דומיינים במהירות ובאופן פסיבי ממקורות רבים (ProjectDiscovery). לא נוגע ביעד — אידיאלי למיפוי משטח התקיפה של ארגון.",
       "options": [
         { "id": "domain", "flag": "-d", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" },
         { "id": "all", "flag": "-all", "label": "כל המקורות (-all)", "type": "bool" },
@@ -394,6 +429,7 @@
     {
       "id": "sublist3r", "name": "Sublist3r", "binary": "sublist3r", "package": "sublist3r", "category": "recon",
       "desc": "מונה תת-דומיינים באמצעות מנועי חיפוש ומקורות OSINT.",
+      "about": "מונה תת-דומיינים באמצעות מנועי חיפוש (Google, Bing) ומקורות OSINT. דרך מהירה לגלות אתרים ותשתיות נסתרות של דומיין.",
       "options": [
         { "id": "domain", "flag": "-d", "label": "דומיין", "type": "text", "required": true, "placeholder": "example.com" },
         { "id": "threads", "flag": "-t", "label": "Threads", "type": "number", "placeholder": "10" },
@@ -405,6 +441,7 @@
     {
       "id": "assetfinder", "name": "assetfinder", "binary": "assetfinder", "package": "assetfinder", "category": "recon",
       "desc": "מוצא דומיינים ותת-דומיינים הקשורים למטרה — מהיר וקליל.",
+      "about": "מוצא דומיינים ותת-דומיינים הקשורים למטרה ממקורות ציבוריים — קליל ומהיר. טוב לשילוב בזרימות אוטומטיות של איסוף נכסים.",
       "options": [
         { "id": "subsonly", "flag": "--subs-only", "label": "רק תת-דומיינים (--subs-only)", "type": "bool", "default": true },
         { "id": "target", "flag": "", "label": "דומיין", "type": "text", "primary": true, "required": true, "placeholder": "example.com" }
@@ -414,6 +451,7 @@
     {
       "id": "dmitry", "name": "DMitry", "binary": "dmitry", "package": "dmitry", "category": "recon",
       "desc": "איסוף מידע — whois, Netcraft, תת-דומיינים, אימיילים וסריקת פורטים.",
+      "about": "כלי איסוף מידע מצטבר — whois, מידע מ-Netcraft, תת-דומיינים, אימיילים וסריקת פורטים בסיסית, הכל בכלי אחד. נוח לסקירה ראשונית.",
       "options": [
         { "id": "whois", "flag": "-w", "label": "Whois (-w)", "type": "bool", "default": true },
         { "id": "netcraft", "flag": "-n", "label": "Netcraft (-n)", "type": "bool" },
@@ -427,6 +465,7 @@
     {
       "id": "sherlock", "name": "Sherlock", "binary": "sherlock", "package": "sherlock", "category": "recon",
       "desc": "מאתר חשבונות של שם משתמש ברשתות חברתיות רבות.",
+      "about": "מחפש חשבונות של שם משתמש נתון בעשרות רשתות חברתיות ואתרים. כלי OSINT לבדיקת נוכחות דיגיטלית של אדם/כינוי.",
       "options": [
         { "id": "timeout", "flag": "--timeout", "label": "Timeout (שניות)", "type": "number", "placeholder": "60" },
         { "id": "user", "flag": "", "label": "שם משתמש", "type": "text", "primary": true, "required": true, "placeholder": "johndoe" }
@@ -436,6 +475,7 @@
     {
       "id": "httpx", "name": "httpx", "binary": "httpx", "package": "httpx-toolkit", "category": "web",
       "desc": "בדיקת שרתי HTTP — סטטוס, כותרות, טכנולוגיות וגילוי אתרים חיים.",
+      "about": "בודק במהירות עבור רשימת מארחים אילו מריצים שרת HTTP חי, ומחזיר סטטוס, כותרות, כותרת דף, טכנולוגיות ו-redirects. מצוין לסינון יעדים אחרי גילוי תת-דומיינים.",
       "options": [
         { "id": "url", "flag": "-u", "label": "מטרה (URL)", "type": "text", "required": true, "placeholder": "https://example.com" },
         { "id": "title", "flag": "-title", "label": "כותרת עמוד (-title)", "type": "bool", "default": true },
@@ -448,6 +488,7 @@
     {
       "id": "wfuzz", "name": "Wfuzz", "binary": "wfuzz", "package": "wfuzz", "category": "web",
       "desc": "Fuzzer ווב — מגלה משאבים, פרמטרים וחולשות. FUZZ מסמן נקודת הזרקה.",
+      "about": "Fuzzer ווב שמחליף את המילה FUZZ בערכים מרשימה — לגילוי תיקיות, פרמטרים, ערכי טפסים וחולשות. גמיש עם סינון תגובות מתקדם.",
       "options": [
         { "id": "payload", "flag": "-z", "label": "Payload", "type": "text", "required": true, "default": "file,/usr/share/wordlists/dirb/common.txt", "help": "לרוב: file,<נתיב-wordlist>" },
         { "id": "hc", "flag": "--hc", "label": "הסתר קודי סטטוס", "type": "text", "placeholder": "404" },
@@ -459,6 +500,7 @@
     {
       "id": "dirsearch", "name": "dirsearch", "binary": "dirsearch", "package": "dirsearch", "category": "web",
       "desc": "סורק נתיבים/קבצים בשרתי ווב, עם תמיכה בסיומות ורקורסיה.",
+      "about": "סורק נתיבים וקבצים בשרתי ווב עם תמיכה בסיומות מרובות ורקורסיה. חלופה פופולרית ל-gobuster/dirb לגילוי תוכן נסתר.",
       "options": [
         { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com" },
         { "id": "ext", "flag": "-e", "label": "סיומות", "type": "text", "placeholder": "php,html,js" },
@@ -471,6 +513,7 @@
     {
       "id": "wapiti", "name": "Wapiti", "binary": "wapiti", "package": "wapiti", "category": "web",
       "desc": "סורק חולשות אפליקציות ווב — SQLi, XSS, LFI, הזרקות ועוד.",
+      "about": "סורק חולשות אפליקציות ווב שזוחל באתר ובודק SQLi, XSS, LFI/RFI, הזרקות פקודה ו-CRLF. מפיק דוח על נקודות התורפה שנמצאו.",
       "options": [
         { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com" },
         { "id": "modules", "flag": "-m", "label": "מודולים", "type": "text", "placeholder": "sql,xss,exec" },
@@ -481,6 +524,7 @@
     {
       "id": "commix", "name": "Commix", "binary": "commix", "package": "commix", "category": "web",
       "desc": "זיהוי וניצול אוטומטי של הזרקות פקודה (Command Injection).",
+      "about": "מזהה ומנצל אוטומטית חולשות Command Injection — הזרקת פקודות מערכת דרך קלט אפליקציה. יכול להשיג הרצת פקודות/shell על שרת פגיע.",
       "options": [
         { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com/?id=1" },
         { "id": "batch", "flag": "--batch", "label": "מצב אוטומטי (--batch)", "type": "bool", "default": true },
@@ -492,6 +536,7 @@
     {
       "id": "xsstrike", "name": "XSStrike", "binary": "xsstrike", "package": "xsstrike", "category": "web",
       "desc": "כלי מתקדם לגילוי וניצול חולשות XSS.",
+      "about": "כלי מתקדם לגילוי וניצול XSS — כולל fuzzing חכם, עקיפת מסננים וזיהוי DOM XSS. מדויק יותר מסורקים גנריים לחולשות Cross-Site Scripting.",
       "options": [
         { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com/?q=1" },
         { "id": "crawl", "flag": "--crawl", "label": "סרוק אתר (--crawl)", "type": "bool" },
@@ -502,6 +547,7 @@
     {
       "id": "arjun", "name": "Arjun", "binary": "arjun", "package": "arjun", "category": "web",
       "desc": "מגלה פרמטרים נסתרים ב-HTTP endpoints.",
+      "about": "מגלה פרמטרים נסתרים של HTTP endpoints (query/POST/JSON) שאינם מתועדים. חושף פונקציונליות סמויה שעשויה להיות פגיעה.",
       "options": [
         { "id": "url", "flag": "-u", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com/api" },
         { "id": "method", "flag": "-m", "label": "מתודה", "type": "select",
@@ -512,6 +558,7 @@
     {
       "id": "joomscan", "name": "JoomScan", "binary": "joomscan", "package": "joomscan", "category": "web",
       "desc": "סורק אבטחה ל-Joomla — גרסאות, רכיבים וחולשות ידועות.",
+      "about": "סורק אבטחה ייעודי ל-Joomla — מזהה גרסה, רכיבים (extensions) פגיעים וחולשות ידועות. המקבילה ל-WPScan עבור Joomla.",
       "options": [
         { "id": "url", "flag": "--url", "label": "URL", "type": "text", "required": true, "placeholder": "https://example.com" },
         { "id": "components", "flag": "--enumerate-components", "label": "מנה רכיבים", "type": "bool" }
@@ -521,6 +568,7 @@
     {
       "id": "gospider", "name": "GoSpider", "binary": "gospider", "package": "gospider", "category": "web",
       "desc": "זחלן ווב מהיר (Go) — מיפוי קישורים, טפסים ונכסים.",
+      "about": "זחלן ווב מהיר (Go) שממפה קישורים, טפסים, קבצי JS ונכסים באתר — כולל חילוץ URLs מ-JavaScript. עוזר להבין את מבנה האפליקציה ומשטח התקיפה.",
       "options": [
         { "id": "site", "flag": "-s", "label": "אתר", "type": "text", "required": true, "placeholder": "https://example.com" },
         { "id": "depth", "flag": "-d", "label": "עומק", "type": "number", "placeholder": "1" },
@@ -532,6 +580,7 @@
     {
       "id": "crackmapexec", "name": "CrackMapExec", "binary": "crackmapexec", "package": "crackmapexec", "category": "smb",
       "desc": "\"סכין שוויצרית\" לרשתות Windows/AD — אנומרציה ואימות SMB/WinRM/LDAP.",
+      "about": "\"סכין שוויצרית\" לרשתות Windows/Active Directory — אימות המוני, אנומרציית SMB/WinRM/LDAP, בדיקת credentials וריצת פקודות. כלי מפתח בבדיקות פנים-ארגוניות.",
       "options": [
         { "id": "proto", "flag": "", "label": "פרוטוקול", "type": "select", "required": true,
           "choices": [ {"v":"smb","t":"smb"}, {"v":"winrm","t":"winrm"}, {"v":"ldap","t":"ldap"}, {"v":"ssh","t":"ssh"}, {"v":"mssql","t":"mssql"}, {"v":"ftp","t":"ftp"} ] },
@@ -546,6 +595,7 @@
     {
       "id": "rpcclient", "name": "rpcclient", "binary": "rpcclient", "package": "smbclient", "category": "smb",
       "desc": "לקוח MS-RPC — אנומרציה של משתמשים, קבוצות ומידע דומיין (null session).",
+      "about": "לקוח MS-RPC לאנומרציה של שרתי Windows — משתמשים, קבוצות, מדיניות סיסמאות ומידע דומיין, לעיתים גם ב-null session. שימושי לחקר AD.",
       "options": [
         { "id": "user", "flag": "-U", "label": "משתמש", "type": "text", "placeholder": "'' (ריק=אנונימי)" },
         { "id": "nopass", "flag": "-N", "label": "ללא סיסמה (-N)", "type": "bool", "default": true },
@@ -558,6 +608,7 @@
     {
       "id": "enum4linux-ng", "name": "enum4linux-ng", "binary": "enum4linux-ng", "package": "enum4linux-ng", "category": "smb",
       "desc": "גרסה משודרגת של enum4linux — אנומרציית SMB/RPC מקיפה בפייתון.",
+      "about": "גרסה משופרת ומודרנית (Python) של enum4linux לאנומרציית SMB/RPC — משתמשים, שיתופים, קבוצות ומדיניות, עם פלט נקי ומובנה.",
       "options": [
         { "id": "all", "flag": "-A", "label": "כל הבדיקות (-A)", "type": "bool", "default": true },
         { "id": "users", "flag": "-U", "label": "משתמשים (-U)", "type": "bool" },
@@ -569,6 +620,7 @@
     {
       "id": "snmpwalk", "name": "snmpwalk", "binary": "snmpwalk", "package": "snmp", "category": "smb",
       "desc": "שאילתות SNMP — משיכת עץ ה-MIB ממכשירים עם קהילה חשופה.",
+      "about": "מושך את עץ המידע (MIB) ממכשיר עם SNMP וקהילה (community) חשופה — לרוב 'public'. עלול לחשוף תצורת רשת, ממשקים, תהליכים ומידע רגיש מראוטרים/מדפסות.",
       "options": [
         { "id": "version", "flag": "-v", "label": "גרסה", "type": "select", "required": true,
           "choices": [ {"v":"2c","t":"2c"}, {"v":"1","t":"1"}, {"v":"3","t":"3"} ] },
@@ -580,6 +632,7 @@
     {
       "id": "snmp-check", "name": "snmp-check", "binary": "snmp-check", "package": "snmpcheck", "category": "smb",
       "desc": "אנומרציית SNMP קריאה לאדם — מערכת, משתמשים, תהליכים, חיבורים.",
+      "about": "אנומרציית SNMP בפורמט קריא לאדם — מידע מערכת, משתמשים, תהליכים, חיבורי רשת ותוכנה מותקנת ממכשיר עם community חשופה.",
       "options": [
         { "id": "community", "flag": "-c", "label": "Community", "type": "text", "default": "public", "placeholder": "public" },
         { "id": "target", "flag": "", "label": "מטרה", "type": "text", "primary": true, "required": true, "placeholder": "192.168.1.10" }
@@ -589,6 +642,7 @@
     {
       "id": "medusa", "name": "Medusa", "binary": "medusa", "package": "medusa", "category": "passwords",
       "desc": "כלי brute-force מודולרי ומקבילי להתחברות לשירותים.",
+      "about": "כלי brute-force מודולרי ומקבילי לפיצוח התחברות לשירותים (SSH, FTP, HTTP, SMB ועוד). דומה ל-hydra, מהיר ויציב. רק על מטרות מורשות.",
       "options": [
         { "id": "host", "flag": "-h", "label": "מארח", "type": "text", "required": true, "placeholder": "192.168.1.10" },
         { "id": "user", "flag": "-u", "label": "משתמש בודד", "type": "text", "placeholder": "admin" },
@@ -603,6 +657,7 @@
     {
       "id": "ncrack", "name": "Ncrack", "binary": "ncrack", "package": "ncrack", "category": "passwords",
       "desc": "כלי פיצוח אימות רשת מהיר (מבית Nmap).",
+      "about": "כלי פיצוח אימות רשת מהיר מבית Nmap, מותאם לבדיקת סיסמאות בקנה מידה גדול על SSH, RDP, FTP ועוד. רק על מטרות מורשות.",
       "options": [
         { "id": "user", "flag": "-u", "label": "משתמש", "type": "text", "placeholder": "root" },
         { "id": "userlist", "flag": "-U", "label": "רשימת משתמשים", "type": "text" },
@@ -614,6 +669,7 @@
     {
       "id": "crunch", "name": "Crunch", "binary": "crunch", "package": "crunch", "category": "passwords",
       "desc": "מחולל רשימות סיסמאות (wordlists) לפי אורך ותווים.",
+      "about": "מחולל רשימות סיסמאות (wordlists) לפי אורך, סט תווים ותבנית. שימושי ליצירת מילונים מותאמים למתקפות brute-force/מילון.",
       "options": [
         { "id": "min", "flag": "", "label": "אורך מינימלי", "type": "number", "required": true, "placeholder": "6" },
         { "id": "max", "flag": "", "label": "אורך מקסימלי", "type": "number", "required": true, "placeholder": "8" },
@@ -625,6 +681,7 @@
     {
       "id": "cewl", "name": "CeWL", "binary": "cewl", "package": "cewl", "category": "passwords",
       "desc": "מחולל wordlist מותאם ע\"י גירוד מילים מאתר יעד.",
+      "about": "מייצר wordlist מותאם ע\"י גירוד מילים מאתר היעד — שמות ומונחים ייחודיים לארגון. מגדיל סיכוי לפצח סיסמאות מבוססות-הקשר.",
       "options": [
         { "id": "depth", "flag": "-d", "label": "עומק זחילה", "type": "number", "placeholder": "2" },
         { "id": "minlen", "flag": "-m", "label": "אורך מילה מינימלי", "type": "number", "placeholder": "5" },
@@ -636,6 +693,7 @@
     {
       "id": "hashid", "name": "hashid", "binary": "hashid", "package": "hashid", "category": "passwords",
       "desc": "מזהה את סוג ה-hash ומציע מצבי hashcat/john מתאימים.",
+      "about": "מזהה את סוג ה-hash מתוך מחרוזת (MD5, SHA, bcrypt וכו') ומציע את מצבי ה-hashcat/John המתאימים. שלב ראשון לפני פיצוח.",
       "options": [
         { "id": "mode", "flag": "-m", "label": "הצג מצב hashcat (-m)", "type": "bool", "default": true },
         { "id": "john", "flag": "-j", "label": "הצג פורמט John (-j)", "type": "bool" },
@@ -646,6 +704,7 @@
     {
       "id": "searchsploit", "name": "SearchSploit", "binary": "searchsploit", "package": "exploitdb", "category": "exploit",
       "desc": "חיפוש מקומי במאגר Exploit-DB אחר אקספלויטים לפי מוצר/גרסה.",
+      "about": "חיפוש מקומי במאגר Exploit-DB אחר אקספלויטים ו-PoC לפי מוצר, גרסה או CVE. מצליבים מול השירותים שזוהו בסריקה כדי למצוא ניצול קיים.",
       "options": [
         { "id": "www", "flag": "-w", "label": "הצג קישורי אתר (-w)", "type": "bool" },
         { "id": "cve", "flag": "--cve", "label": "חיפוש לפי CVE", "type": "text", "placeholder": "2021-44228" },
@@ -656,6 +715,7 @@
     {
       "id": "msfvenom", "name": "msfvenom", "binary": "msfvenom", "package": "metasploit-framework", "category": "exploit",
       "desc": "מחולל payloads של Metasploit בפורמטים שונים.",
+      "about": "מחולל payloads של Metasploit (reverse shells, meterpreter ועוד) בפורמטים ומקודדים שונים. ליצירת מטענים בבדיקות ניצול. רק בסביבה מורשית.",
       "options": [
         { "id": "payload", "flag": "-p", "label": "Payload", "type": "select", "required": true,
           "choices": [ {"v":"windows/meterpreter/reverse_tcp","t":"windows/meterpreter/reverse_tcp"}, {"v":"windows/x64/meterpreter/reverse_tcp","t":"windows/x64/meterpreter/reverse_tcp"}, {"v":"linux/x86/meterpreter/reverse_tcp","t":"linux/x86/meterpreter/reverse_tcp"}, {"v":"linux/x64/shell_reverse_tcp","t":"linux/x64/shell_reverse_tcp"}, {"v":"php/meterpreter/reverse_tcp","t":"php/meterpreter/reverse_tcp"}, {"v":"cmd/unix/reverse_bash","t":"cmd/unix/reverse_bash"} ] },
@@ -670,6 +730,7 @@
     {
       "id": "binwalk", "name": "Binwalk", "binary": "binwalk", "package": "binwalk", "category": "forensics",
       "desc": "ניתוח וחילוץ קבצים מוטמעים ותמונות קושחה (firmware).",
+      "about": "מנתח קבצים בינאריים ותמונות קושחה (firmware) ומזהה/מחלץ קבצים מוטמעים — מערכות קבצים, תמונות, מפתחות. כלי מפתח בהנדסה לאחור ו-CTF.",
       "options": [
         { "id": "extract", "flag": "-e", "label": "חלץ קבצים (-e)", "type": "bool" },
         { "id": "matryoshka", "flag": "-M", "label": "חילוץ רקורסיבי (-M)", "type": "bool" },
@@ -680,6 +741,7 @@
     {
       "id": "foremost", "name": "Foremost", "binary": "foremost", "package": "foremost", "category": "forensics",
       "desc": "שחזור קבצים (file carving) לפי חתימות מתוך דיסק/תמונה.",
+      "about": "משחזר קבצים (file carving) לפי חתימות מתוך דיסק, image או קובץ פגום — גם כשמערכת הקבצים הרוסה. שימושי בפורנזיקה ושחזור מידע.",
       "options": [
         { "id": "input", "flag": "-i", "label": "קובץ קלט", "type": "text", "required": true, "placeholder": "/path/image.dd" },
         { "id": "output", "flag": "-o", "label": "תיקיית פלט", "type": "text", "required": true, "default": "/tmp/foremost_out" },
@@ -690,6 +752,7 @@
     {
       "id": "exiftool", "name": "ExifTool", "binary": "exiftool", "package": "libimage-exiftool-perl", "category": "forensics",
       "desc": "קריאת מטא-דאטה מקבצי תמונה, מסמכים ומדיה.",
+      "about": "קורא (ומעדכן) מטא-דאטה מקבצי תמונה, מסמכים ומדיה — GPS, דגם מצלמה, תוכנה, תאריכים ומחבר. חושף מידע נסתר בקבצים; מרכזי ב-OSINT ופורנזיקה.",
       "options": [
         { "id": "all", "flag": "-a", "label": "כלול כפולים (-a)", "type": "bool" },
         { "id": "groups", "flag": "-G", "label": "הצג קבוצות (-G)", "type": "bool" },
@@ -700,6 +763,7 @@
     {
       "id": "steghide", "name": "Steghide", "binary": "steghide", "package": "steghide", "category": "forensics",
       "desc": "חילוץ מידע מוסתר (steganography) מקבצי תמונה/שמע.",
+      "about": "מחלץ (ומטמין) מידע מוסתר בתוך קבצי תמונה/שמע (steganography), לרוב מוגן בסיסמה. שימושי ב-CTF ובחקירת קבצים חשודים לגילוי מטען סמוי.",
       "options": [
         { "id": "cmd", "flag": "", "label": "פעולה", "type": "select", "required": true,
           "choices": [ {"v":"extract","t":"extract (חילוץ)"}, {"v":"info","t":"info (מידע)"} ] },
@@ -711,6 +775,7 @@
     {
       "id": "strings", "name": "strings", "binary": "strings", "package": "binutils", "category": "forensics",
       "desc": "חילוץ מחרוזות טקסט קריא מקבצים בינאריים.",
+      "about": "מחלץ מחרוזות טקסט קריא מתוך קובץ בינארי — עלול לחשוף סיסמאות, URLs, נתיבים והודעות המוטמעים בקוד. כלי בסיסי בהנדסה לאחור ופורנזיקה.",
       "options": [
         { "id": "minlen", "flag": "-n", "label": "אורך מינימלי", "type": "number", "placeholder": "4" },
         { "id": "file", "flag": "", "label": "קובץ", "type": "text", "primary": true, "required": true, "placeholder": "/path/binary" }
@@ -720,6 +785,7 @@
     {
       "id": "aircrack-ng", "name": "Aircrack-ng", "binary": "aircrack-ng", "package": "aircrack-ng", "category": "wireless",
       "desc": "פיצוח מפתחות WEP/WPA מקובצי לכידה (.cap/.pcap). עובד offline.",
+      "about": "מפצח מפתחות WEP/WPA/WPA2 מתוך קובץ לכידה (.cap/.pcap) שמכיל handshake. עובד offline. לבדיקת חוזק אבטחת Wi-Fi — על רשתות שלך בלבד.",
       "options": [
         { "id": "wordlist", "flag": "-w", "label": "Wordlist", "type": "text", "placeholder": "/usr/share/wordlists/rockyou.txt" },
         { "id": "bssid", "flag": "-b", "label": "BSSID", "type": "text", "placeholder": "00:11:22:33:44:55" },
@@ -730,6 +796,7 @@
     {
       "id": "hping3", "name": "hping3", "binary": "hping3", "package": "hping3", "category": "netscan",
       "desc": "יוצר חבילות TCP/IP מותאמות — בדיקת firewall, סריקה ו-traceroute. דורש root.",
+      "about": "יוצר ושולח חבילות TCP/IP מותאמות אישית — לבדיקת חוקי firewall, סריקת פורטים מתקדמת, traceroute מבוסס TCP ובדיקות עומס/תגובה. גמיש מאוד. דורש root.",
       "options": [
         { "id": "mode", "flag": "", "label": "סוג חבילה", "type": "select",
           "choices": [ {"v":"","t":"ברירת מחדל"}, {"v":"-S","t":"-S SYN"}, {"v":"-A","t":"-A ACK"}, {"v":"-F","t":"-F FIN"}, {"v":"-1","t":"-1 ICMP"}, {"v":"-2","t":"-2 UDP"} ] },
@@ -742,6 +809,7 @@
     {
       "id": "fping", "name": "fping", "binary": "fping", "package": "fping", "category": "netscan",
       "desc": "Ping מקבילי למארחים רבים — גילוי מהיר של מכשירים חיים.",
+      "about": "שולח ping למארחים רבים במקביל ומחזיר מי חי — מהיר בהרבה מ-ping רגיל לסריקת טווח. מצוין לגילוי מהיר של מכשירים חיים.",
       "options": [
         { "id": "alive", "flag": "-a", "label": "הצג חיים בלבד (-a)", "type": "bool", "default": true },
         { "id": "gen", "flag": "-g", "label": "טווח/רשת (-g)", "type": "bool", "default": true },
@@ -753,6 +821,7 @@
     {
       "id": "nping", "name": "Nping", "binary": "nping", "package": "nmap", "category": "netscan",
       "desc": "מחולל חבילות רשת (מבית Nmap) לבדיקת קישוריות ותגובות.",
+      "about": "מחולל חבילות רשת מבית Nmap — שליחת חבילות TCP/UDP/ICMP מותאמות לבדיקת קישוריות, תגובות firewall וניתוח התנהגות רשת.",
       "options": [
         { "id": "mode", "flag": "", "label": "פרוטוקול", "type": "select",
           "choices": [ {"v":"--tcp","t":"--tcp"}, {"v":"--udp","t":"--udp"}, {"v":"--icmp","t":"--icmp"}, {"v":"--arp","t":"--arp"} ] },
@@ -765,6 +834,7 @@
     {
       "id": "tcpdump", "name": "tcpdump", "binary": "tcpdump", "package": "tcpdump", "category": "netscan",
       "desc": "לוכד ומנתח תעבורת רשת. דורש root. מוגבל למספר חבילות כדי לא להיתקע.",
+      "about": "לוכד ומנתח תעבורת רשת חיה ברמת החבילה. אפשר לסנן לפי מארח/פורט/פרוטוקול, לראות תוכן בקשות ולזהות תעבורה חשודה. דורש root.",
       "options": [
         { "id": "iface", "flag": "-i", "label": "ממשק", "type": "text", "default": "eth0", "placeholder": "eth0" },
         { "id": "count", "flag": "-c", "label": "מספר חבילות", "type": "number", "default": "50", "placeholder": "50", "help": "חובה — אחרת ילכוד ללא הפסקה" },
@@ -776,6 +846,7 @@
     {
       "id": "tshark", "name": "TShark", "binary": "tshark", "package": "tshark", "category": "netscan",
       "desc": "גרסת שורת הפקודה של Wireshark ללכידת וניתוח חבילות. דורש root.",
+      "about": "גרסת שורת הפקודה של Wireshark — לכידה וניתוח מעמיק של חבילות עם מפענחי פרוטוקולים עשירים. לחקירת תעבורה וחילוץ מידע מ-pcap. דורש root.",
       "options": [
         { "id": "iface", "flag": "-i", "label": "ממשק", "type": "text", "default": "eth0", "placeholder": "eth0" },
         { "id": "count", "flag": "-c", "label": "מספר חבילות", "type": "number", "default": "50", "placeholder": "50", "help": "חובה — אחרת ילכוד ללא הפסקה" },
@@ -787,6 +858,7 @@
     {
       "id": "macchanger", "name": "MAC Changer", "binary": "macchanger", "package": "macchanger", "category": "util",
       "desc": "צפייה ושינוי כתובת ה-MAC של ממשק רשת.",
+      "about": "מציג ומשנה את כתובת ה-MAC של ממשק רשת — לאנונימיות, עקיפת סינון MAC או בדיקות. השינוי זמני עד אתחול.",
       "options": [
         { "id": "show", "flag": "-s", "label": "הצג נוכחי (-s)", "type": "bool" },
         { "id": "random", "flag": "-r", "label": "MAC אקראי (-r)", "type": "bool" },

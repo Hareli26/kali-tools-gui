@@ -674,6 +674,20 @@ h2, .col-title, .dash-section { text-shadow: 0 0 16px rgba(47,129,247,.18); }
   .v-circle { transition: none; }
 }
 
+/* ==================== TOOL "ABOUT" CARD ==================== */
+.tool-about {
+  margin: 4px 0 20px; padding: 14px 18px; border-radius: 14px;
+  background: linear-gradient(135deg, rgba(47,129,247,.08), rgba(168,85,247,.06));
+  border: 1px solid rgba(47,129,247,.28);
+}
+.tool-about-label {
+  font-size: .82rem; font-weight: 700; color: var(--accent);
+  margin-bottom: 6px; letter-spacing: .01em;
+}
+.tool-about-text {
+  margin: 0; color: var(--text); font-size: .96rem; line-height: 1.7;
+}
+
 /* ==================== GLOBAL RUNNING BAR ==================== */
 .run-bar {
   position: fixed; z-index: 60; left: 50%; bottom: 22px; transform: translateX(-50%);

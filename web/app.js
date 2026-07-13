@@ -103,6 +103,17 @@ function openForm(tool) {
   $("formBinary").textContent = tool.binary;
   $("formError").classList.add("hidden");
 
+  // "about" — what the tool is and what you can do with it
+  const about = $("formAbout");
+  about.innerHTML = "";
+  if (tool.about) {
+    about.appendChild(el("div", "tool-about-label", "ℹ️ על הכלי — מה זה ומה אפשר לעשות"));
+    about.appendChild(el("p", "tool-about-text", tool.about));
+    about.classList.remove("hidden");
+  } else {
+    about.classList.add("hidden");
+  }
+
   const form = $("toolForm");
   form.innerHTML = "";
   (tool.options || []).forEach(opt => form.appendChild(renderField(opt)));
@@ -1492,6 +1503,16 @@ async function applyHash() {
   else if (h === "tools") { showScreen("picker"); }
   else if (h === "vault" || h === "obsidian") { showScreen("vault"); }
   else if (h === "users") { showScreen("users"); }
+  else if (h.startsWith("tool-")) {
+    const id = h.slice(5);
+    let tries = 0;
+    const openIt = () => {
+      const t = CATALOG && CATALOG.tools.find(x => x.id === id);
+      if (t) { openForm(t); showScreen("form"); }
+      else if (tries++ < 30) setTimeout(openIt, 150);
+    };
+    openIt();
+  }
   else if (h.startsWith("brain-")) { await openBrain(h.slice(6)); }
 }
 

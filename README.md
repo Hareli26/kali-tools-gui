@@ -26,7 +26,7 @@ Kali WSL בהתקנת ברירת מחדל היא **מינימלית** — רוב
   מודל *jobs* להרצות ארוכות עם פלט מוזרם וכפתור עצירה.
 - **Frontend** — `web/`: SPA ב‑vanilla JS (ללא build), RTL, ערכת נושא כהה. 3 מסכים:
   1. `index.html` #screen-picker — בחירת כלי (חיפוש + קטגוריות + כרטיסים).
-  2. #screen-form — טופס דינמי לפי הגדרת הכלי + תצוגת פקודה חיה.
+  2. #screen-form — כרטיס הסבר על הכלי ("מה זה ומה אפשר לעשות") + טופס דינמי + תצוגת פקודה חיה. קישור ישיר: `#tool-<id>`.
   3. #screen-results — פלט חי, סטטוס, עצירה, העתקה, הורדה, הרצה חוזרת.
 - **קטלוג** — `tools.json`: 72 כלים ב‑11 קטגוריות (Recon, DNS, Network, Web, SMB,
   Passwords, SSL/TLS, Exploitation, Forensics, Wireless, Utilities). קל להרחבה (ראה למטה).
