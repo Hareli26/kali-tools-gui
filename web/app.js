@@ -955,14 +955,16 @@ function renderDashboard(d) {
   feed.innerHTML = "";
   if (!d.activity.length) { feed.appendChild(el("div", "feed-empty", "עדיין לא בוצעו משימות. עבור ל🤖 עוזר AI כדי להתחיל.")); return; }
   d.activity.forEach(a => {
-    const card = el("div", "feed-card" + (a.type === "purple" ? " purple" : ""));
+    const card = el("div", "feed-card" + (a.type === "purple" ? " purple" : a.type === "login" ? " login" : ""));
     const head = el("div", "feed-head");
-    const icon = a.type === "purple" ? "🟣" : "🤖";
+    const icon = a.type === "purple" ? "🟣" : a.type === "login" ? "🔑" : "🤖";
     head.appendChild(el("span", null, `${icon} ${a.intent || "משימה"}`));
     head.appendChild(el("span", "feed-when", relTime(a.ts) || a.when));
     card.appendChild(head);
     const body = el("div", "feed-body");
-    if (a.type === "purple") {
+    if (a.type === "login") {
+      body.innerHTML = `<span class="tag">👤 ${escapeHtml(a.target || a.user || "")}</span>`;
+    } else if (a.type === "purple") {
       body.innerHTML = `<span class="tag">🎯 ${escapeHtml(a.target)}</span>` +
         `<span class="tag">🔴 ${a.red_findings} ממצאים</span>` +
         `<span class="tag">🔵 ${a.threats} איומים</span>` +
@@ -974,16 +976,18 @@ function renderDashboard(d) {
         `<span class="tag">🔎 ${a.findings} ממצאים</span>`;
     }
     card.appendChild(body);
-    const actions = el("div", "feed-actions");
-    if (a.id) {
-      const rep = el("button", "feed-btn", "📄 דוח");
-      rep.onclick = (e) => { e.stopPropagation(); openSavedReport(a.id); };
-      actions.appendChild(rep);
+    if (a.type !== "login") {
+      const actions = el("div", "feed-actions");
+      if (a.id) {
+        const rep = el("button", "feed-btn", "📄 דוח");
+        rep.onclick = (e) => { e.stopPropagation(); openSavedReport(a.id); };
+        actions.appendChild(rep);
+      }
+      const rerun = el("button", "feed-btn run", "▶ הרץ שוב");
+      rerun.onclick = (e) => { e.stopPropagation(); rerunActivity(a); };
+      actions.appendChild(rerun);
+      card.appendChild(actions);
     }
-    const rerun = el("button", "feed-btn run", "▶ הרץ שוב");
-    rerun.onclick = (e) => { e.stopPropagation(); rerunActivity(a); };
-    actions.appendChild(rerun);
-    card.appendChild(actions);
     feed.appendChild(card);
   });
 }

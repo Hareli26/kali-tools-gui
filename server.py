@@ -71,6 +71,12 @@ ALLOWLIST_FILE = (os.environ.get("KALIGUI_ALLOWLIST")
                   or os.path.join(HERE, "deploy", "authenticated-emails.txt"))
 _ALLOWLIST_LOCK = threading.Lock()
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# Login tracking: oauth2-proxy sets the user header on every request, but a bare
+# login isn't an app action. We record a "login" (audit + activity) the first
+# time a user appears after an inactivity gap, so "who entered" is visible.
+LOGIN_GAP = int(os.environ.get("KALIGUI_LOGIN_GAP", "1800"))  # sec (30 min)
+_LAST_SEEN = {}
+_SEEN_LOCK = threading.Lock()
 START_TIME = time.time()
 _LOG_LOCK = threading.Lock()
 _AUDIT_LOCK = threading.Lock()
@@ -561,6 +567,26 @@ class Handler(BaseHTTPRequestHandler):
                 or self.headers.get("X-Auth-Request-Email")
                 or "local")
 
+    def _track_login(self):
+        """Record a 'login' (audit + activity feed) the first time a user is seen
+        after an inactivity gap. oauth2-proxy sets the user header on every request."""
+        u = (self._user() or "").strip()
+        if not u or u == "local":
+            return
+        now = time.time()
+        with _SEEN_LOCK:
+            prev = _LAST_SEEN.get(u, 0)
+            _LAST_SEEN[u] = now
+        if now - prev > LOGIN_GAP:
+            when = datetime.now().strftime("%Y-%m-%d %H:%M")
+            audit(u, "login", "כניסה למערכת")
+            try:
+                db.add_activity({"id": uuid.uuid4().hex[:12], "ts": now, "when": when,
+                                 "type": "login", "intent": "כניסה למערכת",
+                                 "target": u, "user": u, "status": "ok"})
+            except Exception:
+                pass
+
     def _is_admin(self):
         """Only the configured admin may manage users. Locally (no auth proxy and
         no admin configured) the single local operator is treated as admin."""
@@ -589,6 +615,7 @@ class Handler(BaseHTTPRequestHandler):
                                     "is_root": (hasattr(os, "geteuid") and os.geteuid() == 0)})
         if p.startswith("/api/") and not self._authorized():
             return self._send_json({"error": "unauthorized"}, 401)
+        self._track_login()
         try:
             return self._route_get(p)
         except BrokenPipeError:
@@ -644,6 +671,7 @@ class Handler(BaseHTTPRequestHandler):
         p = self.path.split("?", 1)[0]
         if p.startswith("/api/") and not self._authorized():
             return self._send_json({"error": "unauthorized"}, 401)
+        self._track_login()
         try:
             return self._route_post(p)
         except BrokenPipeError:

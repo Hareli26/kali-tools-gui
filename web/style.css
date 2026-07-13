@@ -688,6 +688,10 @@ h2, .col-title, .dash-section { text-shadow: 0 0 16px rgba(47,129,247,.18); }
   margin: 0; color: var(--text); font-size: .96rem; line-height: 1.7;
 }
 
+/* login entries in the activity feed */
+.feed-card.login { border-inline-start: 3px solid var(--accent-2); opacity: .95; }
+.feed-card.login .feed-body { padding-top: 2px; }
+
 /* ==================== GLOBAL RUNNING BAR ==================== */
 .run-bar {
   position: fixed; z-index: 60; left: 50%; bottom: 22px; transform: translateX(-50%);
