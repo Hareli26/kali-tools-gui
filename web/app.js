@@ -234,6 +234,7 @@ function updatePreview() {
 
 /* ------------------------------------------------------- run + screen 3 */
 async function runTool() {
+  if (!requireRun()) return;
   const values = collectValues();
   const errBox = $("formError");
   errBox.classList.add("hidden");
@@ -322,6 +323,7 @@ function askInstall(tool) {
 
 async function doInstall() {
   if (!pendingInstall) return;
+  if (!requireRun()) return;
   const pass = $("sudoPass").value;
   const out = $("installOut");
   out.classList.remove("hidden");
@@ -391,6 +393,7 @@ function renderAIExamples() {
 }
 
 async function makePlan() {
+  if (!requireRun()) return;
   const intent = $("aiIntent").value.trim();
   const target = $("aiTarget").value.trim();
   const err = $("aiPromptErr");
@@ -470,6 +473,7 @@ async function runMission(intent, target, steps) {
 }
 
 async function startMission() {
+  if (!requireRun()) return;
   if (!PLAN) return;
   const included = [];
   document.querySelectorAll("#planSteps input[type=checkbox]").forEach(cb => {
@@ -1062,7 +1066,7 @@ async function openThreat(sig) {
   // 🔧 remediation (fixer agent) — offer an automated fix if one exists
   try {
     const fx = await (await fetch("/api/fix/" + encodeURIComponent(sig))).json();
-    if (fx.available) {
+    if (fx.available && CAN.fix) {
       const box = el("div", "fix-box");
       box.appendChild(el("h4", null, "🔧 תיקון אוטומטי (סוכן מתקן)"));
       const riskLabel = { safe: "🟢 בטוח", caution: "🟠 זהירות" }[fx.risk] || fx.risk;
@@ -1130,6 +1134,7 @@ async function runPurple(intent, target, steps) {
 }
 
 async function startPurple() {
+  if (!requireRun()) return;
   if (!PLAN) return;
   const included = [];
   document.querySelectorAll("#planSteps input[type=checkbox]").forEach(cb => {
@@ -1441,11 +1446,32 @@ let IS_ADMIN = false;
 async function loadWhoami() {
   try {
     const d = await (await fetch("/api/whoami")).json();
-    if (d.user && d.user !== "local") $("userLine").textContent = "👤 " + d.user;
     IS_ADMIN = !!d.is_admin;
+    CURRENT_ROLE = d.role || "operator";
+    CAN = { run: (d.can || []).includes("run"), fix: (d.can || []).includes("fix") };
+    if (d.user && d.user !== "local") $("userLine").textContent = "👤 " + d.user + " · " + roleLabel(CURRENT_ROLE);
     $("modeUsers").classList.toggle("hidden", !IS_ADMIN);
     $("modePlaybooks").classList.toggle("hidden", !IS_ADMIN);
+    applyPermissions();
   } catch (e) { /* ignore */ }
+}
+
+let CURRENT_ROLE = "operator";
+let CAN = { run: true, fix: true };
+function roleLabel(r) { return { admin: "🛡️ מנהל", operator: "⚙️ מפעיל", viewer: "👁️ צופה" }[r] || r; }
+function requireRun() {
+  if (CAN.run) return true;
+  alert(`אין לך הרשאת הרצה (תפקיד: ${roleLabel(CURRENT_ROLE)}). פנה למנהל לשדרוג ההרשאה.`);
+  return false;
+}
+function applyPermissions() {
+  // read-only banner for viewers on the tool/AI screens; buttons still gated in JS + server
+  const ban = $("roBanner");
+  if (ban) ban.classList.toggle("hidden", CAN.run);
+  ["runBtn", "planBtn", "missionBtn", "purpleBtn"].forEach(id => {
+    const b = $(id);
+    if (b && !CAN.run) { b.disabled = true; b.title = "נדרשת הרשאת הרצה"; }
+  });
 }
 
 /* ============================================================ LOCAL LLM (Ollama)
@@ -1826,17 +1852,24 @@ function cmpVerdict(d) {
 
 /* ============================================================ USER MANAGEMENT
    Admin-only screen to manage the Google-login allowlist (oauth2-proxy). */
+let ROLE_OPTS = ["admin", "operator", "viewer"];
 async function loadUsers() {
   const list = $("usersList");
   list.innerHTML = '<div class="audit-empty">טוען...</div>';
   try {
-    const d = await (await fetch("/api/users")).json();
+    const [d, r] = await Promise.all([
+      (await fetch("/api/users")).json(),
+      (await fetch("/api/roles")).json(),
+    ]);
     if (d.error) { list.innerHTML = `<div class="audit-empty">${d.error}</div>`; return; }
-    renderUsers(d);
+    const roleMap = {};
+    (r.users || []).forEach(x => { roleMap[x.email] = x.role; });
+    if (r.roles) ROLE_OPTS = r.roles;
+    renderUsers(d, roleMap);
   } catch (e) { list.innerHTML = '<div class="audit-empty">שגיאה בטעינה.</div>'; }
 }
 
-function renderUsers(d) {
+function renderUsers(d, roleMap) {
   const emails = d.emails || [];
   $("usersCount").textContent = emails.length;
   $("usersSelf").textContent = d.self && d.self !== "local" ? "👤 " + d.self : "";
@@ -1851,17 +1884,35 @@ function renderUsers(d) {
     const isAdmin = d.admin && email === d.admin;
     const left = el("div", "user-info");
     left.innerHTML = `<span class="user-mail">${email}</span>` +
-      (isAdmin ? '<span class="user-badge admin">אדמין</span>' : '<span class="user-badge">מורשה</span>');
+      (isAdmin ? '<span class="user-badge admin">אדמין ראשי</span>' : '<span class="user-badge">מורשה</span>');
     row.appendChild(left);
-    if (!isAdmin) {
+    if (isAdmin) {
+      row.appendChild(el("span", "user-locked", "🔒 מנהל (נעול)"));
+    } else {
+      // role selector
+      const sel = el("select", "vault-search user-role");
+      sel.innerHTML = ROLE_OPTS.map(r =>
+        `<option value="${r}">${roleLabel(r)}</option>`).join("");
+      sel.value = (roleMap && roleMap[email]) || "operator";
+      sel.onchange = () => setUserRole(email, sel.value);
+      row.appendChild(sel);
       const rm = el("button", "ghost-btn danger-btn", "🗑️ הסר");
       rm.onclick = () => removeUser(email);
       row.appendChild(rm);
-    } else {
-      row.appendChild(el("span", "user-locked", "🔒 אתה"));
     }
     list.appendChild(row);
   });
+}
+
+async function setUserRole(email, role) {
+  try {
+    const d = await (await fetch("/api/roles/set", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, role })
+    })).json();
+    if (d.error) { usersMsg(d.error, false); loadUsers(); return; }
+    usersMsg(`✅ ${email} → ${roleLabel(role)}`, true);
+  } catch (e) { usersMsg("שגיאת רשת: " + e, false); }
 }
 
 function usersMsg(text, ok) {

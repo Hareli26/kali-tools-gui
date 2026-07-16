@@ -699,6 +699,13 @@ h2, .col-title, .dash-section { text-shadow: 0 0 16px rgba(47,129,247,.18); }
 .feed-card.login { border-inline-start: 3px solid var(--accent-2); opacity: .95; }
 .feed-card.login .feed-body { padding-top: 2px; }
 
+/* ==================== RBAC (roles) ==================== */
+.ro-banner {
+  text-align: center; padding: 8px 14px; font-size: .9rem; font-weight: 600;
+  background: rgba(210,153,34,.15); color: #e3b341; border-bottom: 1px solid rgba(210,153,34,.35);
+}
+.user-role { flex: 0 0 130px; font-size: .85rem; }
+
 /* ==================== LOCAL LLM (Ollama) ==================== */
 .llm-badge {
   display: inline-block; margin-top: 10px; font-size: .82rem; padding: 4px 12px;

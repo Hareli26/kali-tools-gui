@@ -69,6 +69,14 @@ VAULT_DIR = os.environ.get("KALIGUI_VAULT_DIR") or os.path.join(DATA_DIR, "vault
 ADMIN_EMAIL = (os.environ.get("KALIGUI_ADMIN_EMAIL") or os.environ.get("ADMIN_EMAIL") or "").strip().lower()
 ALLOWLIST_FILE = (os.environ.get("KALIGUI_ALLOWLIST")
                   or os.path.join(HERE, "deploy", "authenticated-emails.txt"))
+# RBAC — role → permissions. "manage" = users/roles/playbooks. read is implicit.
+ROLES = ("admin", "operator", "viewer")
+DEFAULT_ROLE = (os.environ.get("KALIGUI_DEFAULT_ROLE") or "operator").strip().lower()
+ROLE_PERMS = {
+    "admin":    {"run", "fix", "manage"},
+    "operator": {"run"},
+    "viewer":   set(),
+}
 _ALLOWLIST_LOCK = threading.Lock()
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 # Login tracking: oauth2-proxy sets the user header on every request, but a bare
@@ -595,13 +603,27 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-    def _is_admin(self):
-        """Only the configured admin may manage users. Locally (no auth proxy and
-        no admin configured) the single local operator is treated as admin."""
+    def _role(self):
+        """RBAC role for the current user. The bootstrap ADMIN_EMAIL is always
+        admin; locally (no auth proxy configured) access is full. Everyone else
+        gets their assigned role, or DEFAULT_ROLE."""
         u = (self._user() or "").strip().lower()
-        if ADMIN_EMAIL:
-            return u == ADMIN_EMAIL
-        return u == "local"
+        if not ADMIN_EMAIL:
+            return "admin"           # local/dev mode — single operator, full access
+        if u == ADMIN_EMAIL:
+            return "admin"
+        r = db.get_role(u)
+        return r if r in ROLE_PERMS else DEFAULT_ROLE
+
+    def _can(self, perm):
+        return perm in ROLE_PERMS.get(self._role(), set())
+
+    def _is_admin(self):
+        return self._role() == "admin"
+
+    def _deny(self):
+        return self._send_json(
+            {"error": "אין לך הרשאה לפעולה זו (תפקיד: %s)" % self._role()}, 403)
 
     # -- auth (optional shared token) --
     def _authorized(self):
@@ -643,8 +665,12 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/dbstats":
             return self._send_json(db.stats())
         if p == "/api/whoami":
+            role = self._role()
             return self._send_json({"user": self._user(), "is_admin": self._is_admin(),
-                                    "admin": ADMIN_EMAIL, "auth": bool(ADMIN_EMAIL)})
+                                    "admin": ADMIN_EMAIL, "auth": bool(ADMIN_EMAIL),
+                                    "role": role, "can": sorted(ROLE_PERMS.get(role, set()))})
+        if p == "/api/roles":
+            return self._api_roles_list()
         if p == "/api/users":
             return self._api_users_list()
         if p == "/api/audit":
@@ -720,6 +746,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_playbook_delete()
         if p == "/api/llm/enhance":
             return self._api_llm_enhance()
+        if p == "/api/roles/set":
+            return self._api_role_set()
         if p == "/api/plan":
             return self._api_plan()
         if p == "/api/mission":
@@ -921,6 +949,37 @@ class Handler(BaseHTTPRequestHandler):
         allowlist_write(emails)
         audit(self._user(), "user-remove", email)
         return self._users_payload(note="הוסר")
+
+    # -- RBAC role management (admin-only) --
+    def _api_roles_list(self):
+        if not self._is_admin():
+            return self._send_json({"error": "forbidden — admin only"}, 403)
+        assigned = db.list_roles()
+        rows = []
+        for email in allowlist_read():
+            if ADMIN_EMAIL and email == ADMIN_EMAIL:
+                role = "admin"
+            else:
+                role = assigned.get(email) or DEFAULT_ROLE
+            rows.append({"email": email, "role": role,
+                         "locked": bool(ADMIN_EMAIL and email == ADMIN_EMAIL)})
+        return self._send_json({"users": rows, "roles": list(ROLES), "default": DEFAULT_ROLE})
+
+    def _api_role_set(self):
+        if not self._is_admin():
+            return self._send_json({"error": "forbidden — admin only"}, 403)
+        data = self._read_json()
+        email = (data.get("email") or "").strip().lower()
+        role = (data.get("role") or "").strip().lower()
+        if role not in ROLE_PERMS:
+            return self._send_json({"error": "תפקיד לא חוקי"}, 400)
+        if ADMIN_EMAIL and email == ADMIN_EMAIL:
+            return self._send_json({"error": "לא ניתן לשנות את תפקיד האדמין הראשי"}, 400)
+        if not _EMAIL_RE.match(email):
+            return self._send_json({"error": "כתובת לא חוקית"}, 400)
+        db.set_role(email, role)
+        audit(self._user(), "role-set", "%s -> %s" % (email, role))
+        return self._send_json({"ok": True, "email": email, "role": role})
 
     # -- playbook editor (admin-only; user-defined data playbooks) --
     def _api_playbook_save(self):
@@ -1163,6 +1222,8 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def _api_fix_apply(self):
+        if not self._can("fix"):
+            return self._deny()
         data = self._read_json()
         sig = (data.get("signature") or "").strip()
         confirm = data.get("confirm") is True
@@ -1218,6 +1279,8 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def _api_plan(self):
+        if not self._can("run"):
+            return self._deny()
         data = self._read_json()
         intent = (data.get("intent") or "").strip()
         target = (data.get("target") or "").strip()
@@ -1229,6 +1292,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json(result)
 
     def _api_mission_start(self):
+        if not self._can("run"):
+            return self._deny()
         data = self._read_json()
         intent = (data.get("intent") or "").strip()
         target = (data.get("target") or "").strip()
@@ -1263,6 +1328,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- purple team --
     def _api_purple_start(self):
+        if not self._can("run"):
+            return self._deny()
         data = self._read_json()
         intent = (data.get("intent") or "").strip()
         target = (data.get("target") or "").strip()
@@ -1303,6 +1370,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json(cat)
 
     def _api_run(self):
+        if not self._can("run"):
+            return self._deny()
         data = self._read_json()
         tool_id = data.get("tool_id")
         values = data.get("values", {}) or {}
@@ -1341,6 +1410,8 @@ class Handler(BaseHTTPRequestHandler):
         return self._send_json(job.snapshot())
 
     def _api_install(self):
+        if not self._can("run"):
+            return self._deny()
         data = self._read_json()
         pkg = (data.get("package") or "").strip()
         password = data.get("password", "")

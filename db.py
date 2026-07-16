@@ -59,6 +59,9 @@ def init():
         CREATE TABLE IF NOT EXISTS playbooks(
             id TEXT PRIMARY KEY, data TEXT
         );
+        CREATE TABLE IF NOT EXISTS roles(
+            email TEXT PRIMARY KEY, role TEXT
+        );
         """)
     _migrate_from_json()
 
@@ -198,6 +201,30 @@ def save_playbook(pb):
 def delete_playbook(pid):
     with _LOCK, _conn() as c:
         c.execute("DELETE FROM playbooks WHERE id=?", (pid,))
+
+
+# -------------------------------------------------------- roles (RBAC) --------
+def get_role(email):
+    with _LOCK, _conn() as c:
+        r = c.execute("SELECT role FROM roles WHERE email=?", (email,)).fetchone()
+    return r["role"] if r else None
+
+
+def set_role(email, role):
+    with _LOCK, _conn() as c:
+        c.execute("INSERT INTO roles(email,role) VALUES(?,?) "
+                  "ON CONFLICT(email) DO UPDATE SET role=excluded.role", (email, role))
+
+
+def list_roles():
+    with _LOCK, _conn() as c:
+        rows = c.execute("SELECT email,role FROM roles").fetchall()
+    return {r["email"]: r["role"] for r in rows}
+
+
+def delete_role(email):
+    with _LOCK, _conn() as c:
+        c.execute("DELETE FROM roles WHERE email=?", (email,))
 
 
 def stats():
