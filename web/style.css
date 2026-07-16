@@ -1180,3 +1180,64 @@ a, .cat-filters .active { text-shadow: 0 0 8px rgba(34,224,255,.4); }
   #hudFrame::before, #hudFrame::after, .dash-section::before, .live-pill.on, .agent-status.active { animation: none !important; }
   .tilt { transition: none !important; }
 }
+
+/* ======================================================================== */
+/* ========================  🟢 MATRIX THEME  ============================= */
+/* ======================================================================== */
+:root {
+  --neon-cyan: #00ff85; --neon-green: #14ff5f; --neon-purple: #35ffa3;
+  --accent: #00ff6a; --accent-2: #39ff14;
+  --bg: #010603; --bg-2: #041006; --bg-3: #061c0d;
+  --text: #cdffdb; --text-dim: #6fbf8a;
+}
+html { background: #010603; }
+body { background: transparent !important; color: #cdffdb; }
+body::before, body::after { display: none !important; }   /* drop old aurora/grid — the rain IS the background */
+#fxCanvas { opacity: .95; z-index: -1 !important; }
+#scanlines { opacity: .3; }
+
+.topbar {
+  background: linear-gradient(180deg, rgba(3,12,6,.92), rgba(1,6,3,.8)) !important;
+  border-bottom: 1px solid rgba(0,255,120,.35) !important;
+  box-shadow: 0 2px 30px rgba(0,255,120,.12), inset 0 -1px 0 rgba(20,255,95,.25) !important;
+}
+.logo { filter: drop-shadow(0 0 10px rgba(20,255,95,.9)); }
+.brand-title.glitch { color: #d7ffe2; text-shadow: 0 0 10px rgba(0,255,110,.6); }
+.brand-title.glitch::before { color: #00ffa0; }
+.brand-title.glitch::after  { color: #7dff4d; }
+
+.mode-tab { color: #7fcf9c !important; }
+.mode-tab:hover { color: #d7ffe2 !important; border-color: rgba(0,255,120,.5) !important; box-shadow: 0 0 14px rgba(0,255,120,.3); }
+.mode-tab.active {
+  color: #012108 !important; background: linear-gradient(135deg, #00ff85, #39ff14) !important;
+  box-shadow: 0 0 20px rgba(0,255,120,.6), 0 0 34px rgba(57,255,20,.35);
+}
+.lang-toggle { border-color: rgba(0,255,120,.4); color: #35ffa3; }
+.lang-toggle:hover { background: rgba(0,255,120,.14); box-shadow: 0 0 16px rgba(0,255,120,.4); }
+
+h1, .dash-section { text-shadow: 0 0 12px rgba(0,255,110,.35); }
+.dash-section::before { background: linear-gradient(#00ff85, #39ff14) !important; box-shadow: 0 0 10px #00ff6a; animation: barBreatheG 2.6s ease-in-out infinite; }
+@keyframes barBreatheG { 0%,100%{ box-shadow: 0 0 8px #00ff6a; } 50%{ box-shadow: 0 0 18px #00ff6a, 0 0 6px #39ff14; } }
+
+.tool-card, .agent-card, .feed-card, .stat-card, .learn-card, .pb-card, .user-row, .hist-row, .cmp-cell, .learn-intro, .ai-summary {
+  background: linear-gradient(180deg, rgba(6,22,12,.58), rgba(2,10,5,.6)) !important;
+  border-color: rgba(60,220,120,.16) !important;
+}
+.tool-card:hover, .agent-card:hover, .learn-card:hover, .hud:hover {
+  border-color: rgba(0,255,120,.6) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.55), 0 0 24px rgba(0,255,120,.3) !important;
+}
+.hud::before { background: radial-gradient(200px circle at var(--mx,50%) var(--my,50%), rgba(0,255,120,.17), transparent 60%); }
+
+.run-btn { background: linear-gradient(135deg, #00ff85, #39ff14) !important; color: #012108 !important; box-shadow: 0 0 22px rgba(0,255,120,.5) !important; }
+.purple-btn { background: linear-gradient(135deg, #14ff5f, #00e2ff) !important; color: #012108 !important; box-shadow: 0 0 22px rgba(20,255,95,.5) !important; }
+.ghost-btn { border-color: rgba(0,255,120,.3) !important; color: #b6ffcf !important; }
+.ghost-btn:hover { border-color: #00ff85 !important; box-shadow: 0 0 12px rgba(0,255,120,.3); color: #d7ffe2 !important; }
+.binary-chip, code { color: #46ff8f; }
+
+#hudFrame { border-color: rgba(0,255,120,.12); box-shadow: inset 0 0 70px rgba(0,255,120,.04); }
+#hudFrame::before, #hudFrame::after { border-color: #00ff6a; filter: drop-shadow(0 0 6px #00ff6a); }
+
+.pill.ai { background: rgba(0,255,120,.16); color: #7dff9e; border-color: rgba(0,255,120,.4); }
+.llm-badge.on { background: rgba(0,255,120,.14); color: #46ff8f; border-color: rgba(0,255,120,.4); }
+.live-pill.on { color: #46ff8f; }

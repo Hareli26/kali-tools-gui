@@ -2605,45 +2605,44 @@ function initFx() {
   if (location.search.indexOf("nofx") >= 0) return;
   const c = $("fxCanvas"); if (!c) return;
   const ctx = c.getContext("2d");
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const N = 460;
-  let W = 0, H = 0, cx = 0, cy = 0, stars = [], speed = 0.7, target = 0.7;
-  const TINT = ["200,225,255", "180,210,255", "255,214,120", "150,230,255"];
-  function mk(s, spread) {
-    s.x = (Math.random() - .5) * W * 2; s.y = (Math.random() - .5) * H * 2;
-    s.z = spread ? Math.random() * W : W; s.pz = s.z; s.c = TINT[(Math.random() * TINT.length) | 0];
-    return s;
-  }
+  const CHARS = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンｦｱｳｴｵｶｷｹｺ0123456789:.=*+-<>|╌ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜ".split("");
+  let W = 0, H = 0, cols = 0, drops = [], font = 16, speed = 1, target = 1;
   function resize() {
-    W = window.innerWidth; H = window.innerHeight; cx = W / 2; cy = H / 2;
+    W = window.innerWidth; H = window.innerHeight;
     c.width = W * dpr; c.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (!stars.length) stars = Array.from({ length: N }, () => mk({}, true));
+    font = Math.max(13, Math.round(W / 95));
+    cols = Math.ceil(W / font);
+    const rows = H / font;
+    drops = Array.from({ length: cols }, () => Math.floor(Math.random() * (rows + 40)) - 40);  // spread across screen
+    ctx.fillStyle = "#010603"; ctx.fillRect(0, 0, W, H);
   }
-  function frame() {
+  function step() {
     speed += (target - speed) * 0.06;
-    ctx.fillStyle = "rgba(3,4,12,0.28)"; ctx.fillRect(0, 0, W, H);   // motion-blur trails
-    for (const s of stars) {
-      s.pz = s.z; s.z -= speed * (6 + speed * 3);
-      if (s.z < 1) { mk(s, false); continue; }
-      const k = 130 / s.z, pk = 130 / s.pz;
-      const x = cx + s.x * k, y = cy + s.y * k, px = cx + s.x * pk, py = cy + s.y * pk;
-      const b = Math.min(1, (1 - s.z / W) * 1.3);
-      ctx.strokeStyle = `rgba(${s.c},${b})`;
-      ctx.lineWidth = Math.max(0.4, (1 - s.z / W) * 2.6);
-      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
+    ctx.fillStyle = "rgba(1,7,3,0.075)"; ctx.fillRect(0, 0, W, H);   // fade → green-black trails
+    ctx.font = font + "px 'Cascadia Code','Consolas',monospace";
+    for (let i = 0; i < cols; i++) {
+      const y = drops[i] * font;
+      if (y > 0) {
+        const ch = CHARS[(Math.random() * CHARS.length) | 0];
+        if (Math.random() > 0.86) { ctx.fillStyle = "rgba(200,255,214,0.95)"; ctx.shadowColor = "#00ff70"; ctx.shadowBlur = 8; }
+        else { ctx.fillStyle = "rgba(0,225,80,0.72)"; ctx.shadowBlur = 0; }
+        ctx.fillText(ch, i * font, y);
+        ctx.shadowBlur = 0;
+      }
+      drops[i] += 0.5 * speed;
+      if (y > H && Math.random() > 0.975) drops[i] = Math.random() * -20;
     }
-    HYPER.raf = requestAnimationFrame(frame);
   }
-  HYPER = { raf: null, jump: () => { target = 7; clearTimeout(HYPER._t); HYPER._t = setTimeout(() => { target = 0.7; }, 650); } };
+  function frame() { step(); HYPER.raf = requestAnimationFrame(frame); }
+  HYPER = { raf: null, jump: () => { target = 3.4; clearTimeout(HYPER._t); HYPER._t = setTimeout(() => { target = 1; }, 650); } };
   resize();
   window.addEventListener("resize", resize);
-  if (reduce) {
-    ctx.fillStyle = "#03040c"; ctx.fillRect(0, 0, W, H);
-    stars.forEach(s => { const k = 130 / s.z; ctx.fillStyle = `rgba(${s.c},.7)`; ctx.fillRect(cx + s.x * k, cy + s.y * k, 1.6, 1.6); });
-  } else frame();
+  for (let i = 0; i < 46; i++) step();   // prime the canvas so the rain is full on first paint
+  if (!reduce) frame();
 }
-function hyperjump() { if (HYPER && HYPER.jump) HYPER.jump(); }
+function hyperjump() { if (HYPER && HYPER.jump) HYPER.jump(); }   // "digital surge" on navigation
 
 /* ==================================================== STAR WARS OPENING CRAWL */
 function playCrawl() {
