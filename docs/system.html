@@ -135,6 +135,9 @@
   <tr><td><code>POST /api/obsidian/export</code></td><td>ייצוא הכספת (Markdown + frontmatter + wikilinks)</td></tr>
   <tr><td><code>GET /api/fix/&lt;sig&gt;</code> · <code>POST /api/fix</code></td><td>תוכנית תיקון · יישום (דורש <code>confirm</code>)</td></tr>
   <tr><td><code>GET /api/users</code> · <code>POST /api/users/add|remove</code></td><td>ניהול allowlist — <strong>אדמין בלבד</strong> (403 אחרת)</td></tr>
+  <tr><td><code>GET /api/history</code> · <code>GET /api/compare</code></td><td>היסטוריית סריקות · השוואת שתי סריקות (נפתר/חדש/פתוח)</td></tr>
+  <tr><td><code>GET /api/playbooks</code> · <code>POST /api/playbooks/save|delete</code></td><td>עורך Playbooks — קריאה לכל · כתיבה לאדמין בלבד</td></tr>
+  <tr><td><code>GET /api/learning</code></td><td>חומרי למידה: ידע נצבר + הגנות + Sigma/Suricata לכל איום</td></tr>
   <tr><td><code>GET /api/whoami</code></td><td>זהות המשתמש + האם אדמין</td></tr>
   <tr><td><code>GET /api/health</code></td><td>בריאות השירות (גרסה, uptime)</td></tr>
 </table>
@@ -225,8 +228,16 @@ argv += [positional target]</pre>
 
 <div class="section">
 <h2>8. שכבת ה‑Frontend ותצוגת המוח</h2>
-<p>אפליקציית עמוד יחיד (SPA) ב‑vanilla JS ללא שלב build. המצבים: כלים, עוזר AI, מרכז בקרה, תצוגת Obsidian,
-וניהול משתמשים (אדמין). הדשבורד מציג את מצב הסוכנים החי (נגזר מהרצות פעילות), מודיעין נצבר ויומן פעילות.</p>
+<p>אפליקציית עמוד יחיד (SPA) ב‑vanilla JS ללא שלב build. המסכים: כלים, עוזר AI, מרכז בקרה, היסטוריה+השוואת סריקות,
+חומרי למידה, תצוגת Obsidian (גרף 2D + גלקסיה 3D), ניהול משתמשים ועורך Playbooks (אדמין). הדשבורד מציג את מצב
+הסוכנים החי (נגזר מהרצות פעילות), מודיעין נצבר ויומן פעילות (כולל תיעוד כניסות).</p>
+<h3>8.-1 מסכים נוספים</h3>
+<p><strong>היסטוריה + השוואה:</strong> <code>/api/history</code> מציג את כל הבדיקות, ו‑<code>/api/compare</code> משווה שתי
+סריקות Purple של אותה מטרה — אילו איומים נפתרו, נוספו או עדיין פתוחים (מגמת אבטחה). <strong>חומרי למידה:</strong>
+<code>/api/learning</code> מאחד את הידע הנצבר עם ההגנות/חוקי הזיהוי כ‑Q&A חינוכי לכל איום. <strong>עורך Playbooks:</strong>
+מסך אדמין ליצירת חוקי סוכן מבוססי‑דאטה (placeholders בטוחים, ללא הרצת קוד) דרך <code>/api/playbooks*</code>.
+<strong>גלקסיה 3D:</strong> תצוגת כספת חלופית בקנבס טהור — כל כוכב נתון, עם סיבוב/טיסה/גרירה (הטלת פרספקטיבה
+ומטריצות סיבוב ידניות, אפס ספריות).</p>
 <h3>8.0 סרגל ריצה גלובלי + תצוגת Obsidian + ניהול משתמשים</h3>
 <p><strong>סרגל ריצה גלובלי:</strong> רכיב קבוע הסוקר את <code>/api/active</code> ומופיע בכל מסך כל עוד משימה
 פעילה — מציג את הכלי הנוכחי, ההתקדמות (שלב X/Y) והפאזה, עם חזרה בלחיצה. מכיוון שהמשימות רצות כ‑threads
@@ -320,6 +331,22 @@ journalctl -u kali-gui -n 50   # לוגים</pre>
 <figure>
   <img class="shot" src="shots/run_bar.png" alt="Global running bar">
   <figcaption class="shotcap">מסך 6 — סרגל הריצה הגלובלי: חיווי חי של המשימה הפעילה (הכלי הנוכחי, התקדמות) הנראה בכל מסך עם חזרה בלחיצה.</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/history_list.png" alt="History and scan comparison">
+  <figcaption class="shotcap">מסך 7 — היסטוריה והשוואת סריקות: כל הבדיקות לאורך זמן; בחירת שתי סריקות Purple מציגה מה נפתר/חדש/עדיין פתוח.</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/learning.png" alt="Learning materials">
+  <figcaption class="shotcap">מסך 8 — חומרי למידה: ידע נצבר + Q&A לכל איום (מהו, הגנה, זיהוי Sigma/Suricata, תיקון, MITRE).</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/playbooks.png" alt="Playbook editor">
+  <figcaption class="shotcap">מסך 9 — עורך Playbooks (אדמין): חוקי הסוכן המובנים (לקריאה) והמותאמים (עריכה) — data-driven, ללא קוד.</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/galaxy_3d.png" alt="3D galaxy view">
+  <figcaption class="shotcap">מסך 10 — גלקסיה 3D: כספת Obsidian כשדה כוכבים תלת‑מימדי — כל כוכב נתון, עם סיבוב, טיסה וגרירה (קנבס טהור).</figcaption>
 </figure>
 
 <div class="section">
