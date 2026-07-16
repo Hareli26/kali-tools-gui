@@ -7,25 +7,29 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <canvas id="fxCanvas" aria-hidden="true"></canvas>
+  <div id="scanlines" aria-hidden="true"></div>
+
   <header class="topbar">
     <div class="brand" id="homeBtn">
       <span class="logo">🐉</span>
       <div>
-        <div class="brand-title">Kali Tools GUI</div>
-        <div class="brand-sub">ממשק גרפי לכלי Kali Linux · מאת הראלי דודאי</div>
+        <div class="brand-title glitch" data-text="Kali Tools GUI">Kali Tools GUI</div>
+        <div class="brand-sub" data-i18n="brand.sub">ממשק גרפי לכלי Kali Linux · מאת הראלי דודאי</div>
       </div>
     </div>
     <div class="topbar-right">
       <nav class="mode-nav">
-        <button id="modeTools" class="mode-tab active" data-goto="picker">🧰 כלים</button>
-        <button id="modeAI" class="mode-tab" data-goto="ai-prompt">🤖 עוזר AI</button>
-        <button id="modeDash" class="mode-tab" data-goto="dashboard">📊 בקרה</button>
-        <button id="modeHistory" class="mode-tab" data-goto="history">🕓 היסטוריה</button>
-        <button id="modeLearning" class="mode-tab" data-goto="learning">📚 למידה</button>
-        <button id="modeVault" class="mode-tab" data-goto="vault">📓 Obsidian</button>
-        <button id="modeUsers" class="mode-tab hidden" data-goto="users">👥 משתמשים</button>
-        <button id="modePlaybooks" class="mode-tab hidden" data-goto="playbooks">✏️ Playbooks</button>
+        <button id="modeTools" class="mode-tab active" data-goto="picker" data-i18n="nav.tools">🧰 כלים</button>
+        <button id="modeAI" class="mode-tab" data-goto="ai-prompt" data-i18n="nav.ai">🤖 עוזר AI</button>
+        <button id="modeDash" class="mode-tab" data-goto="dashboard" data-i18n="nav.dash">📊 בקרה</button>
+        <button id="modeHistory" class="mode-tab" data-goto="history" data-i18n="nav.history">🕓 היסטוריה</button>
+        <button id="modeLearning" class="mode-tab" data-goto="learning" data-i18n="nav.learning">📚 למידה</button>
+        <button id="modeVault" class="mode-tab" data-goto="vault" data-i18n="nav.vault">📓 Obsidian</button>
+        <button id="modeUsers" class="mode-tab hidden" data-goto="users" data-i18n="nav.users">👥 משתמשים</button>
+        <button id="modePlaybooks" class="mode-tab hidden" data-goto="playbooks" data-i18n="nav.playbooks">✏️ Playbooks</button>
       </nav>
+      <button id="langToggle" class="lang-toggle" title="English / עברית">EN</button>
       <span id="userLine" class="stat-line"></span>
       <span id="statLine" class="stat-line"></span>
     </div>
@@ -48,7 +52,7 @@
   <!-- ===================== SCREEN 1: PICKER ===================== -->
   <main id="screen-picker" class="screen active">
     <div class="picker-controls">
-      <input type="text" id="search" placeholder="🔎 חיפוש כלי..." autocomplete="off">
+      <input type="text" id="search" placeholder="🔎 חיפוש כלי..." data-i18n-ph="picker.search" autocomplete="off">
       <div id="catFilters" class="cat-filters"></div>
     </div>
     <div id="toolGrid" class="tool-grid"></div>
@@ -105,8 +109,8 @@
   <main id="screen-dashboard" class="screen">
     <div class="dash-hero">
       <div>
-        <h1>📊 מרכז הבקרה</h1>
-        <p class="dash-sub">מבט חי על הסוכנים, הידע הנצבר ויומן הפעילות</p>
+        <h1 data-i18n="dash.title">📊 מרכז הבקרה</h1>
+        <p class="dash-sub" data-i18n="dash.sub">מבט חי על הסוכנים, הידע הנצבר ויומן הפעילות</p>
       </div>
       <div class="dash-hero-actions">
         <button id="obsidianBtn" class="ghost-btn">📓 ייצא ל‑Obsidian</button>
@@ -275,8 +279,8 @@
   <main id="screen-ai-prompt" class="screen">
     <div class="ai-hero">
       <div class="ai-hero-icon">🤖</div>
-      <h1>עוזר הבדיקות החכם</h1>
-      <p>תאר במילים שלך מה תרצה לבדוק — הסוכן יבחר את הכלים המתאימים, יבנה תוכנית, יריץ, יאמת ויפיק דוח.</p>
+      <h1 data-i18n="ai.title">עוזר הבדיקות החכם</h1>
+      <p data-i18n="ai.sub">תאר במילים שלך מה תרצה לבדוק — הסוכן יבחר את הכלים המתאימים, יבנה תוכנית, יריץ, יאמת ויפיק דוח.</p>
       <span id="llmBadge" class="llm-badge" title=""></span>
     </div>
     <div class="ai-form">

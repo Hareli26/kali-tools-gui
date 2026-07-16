@@ -2586,4 +2586,88 @@ function vaultSearch(term) {
   });
 }
 
-document.addEventListener("DOMContentLoaded", init);
+/* ============================================================ BACKGROUND FX
+   Neon particle-network animated background — pure canvas, behind everything. */
+function initFx() {
+  const c = $("fxCanvas"); if (!c) return;
+  const ctx = c.getContext("2d");
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let W = 0, H = 0, pts = [], raf = null;
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const COLS = ["34,224,255", "53,255,163", "176,107,255", "255,46,151"];
+  function resize() {
+    W = window.innerWidth; H = window.innerHeight;
+    c.width = W * dpr; c.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.max(28, Math.min(90, Math.floor(W * H / 24000)));
+    pts = Array.from({ length: n }, (_, i) => ({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: (Math.random() - .5) * 0.35, vy: (Math.random() - .5) * 0.35,
+      r: 0.6 + Math.random() * 1.8, c: COLS[i % COLS.length]
+    }));
+  }
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    for (const p of pts) { p.x += p.vx; p.y += p.vy; if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1; }
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], b = pts[j], dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
+        if (d2 < 17000) {
+          ctx.strokeStyle = `rgba(34,224,255,${(1 - d2 / 17000) * 0.16})`;
+          ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+      }
+    }
+    pts.forEach(p => {
+      ctx.fillStyle = `rgba(${p.c},0.75)`; ctx.shadowBlur = 8; ctx.shadowColor = `rgba(${p.c},0.9)`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+    raf = requestAnimationFrame(frame);
+  }
+  resize();
+  window.addEventListener("resize", () => { resize(); });
+  if (reduce) frame(); else frame();
+  if (reduce && raf) { cancelAnimationFrame(raf); }
+}
+
+/* ============================================================ I18N (EN / HE)
+   Toggle language + text direction. Hebrew originals are captured from the DOM;
+   English strings come from the dictionary below (extendable per element). */
+const HE_ORIG = {};
+const I18N_EN = {
+  "brand.sub": "Graphical interface for Kali Linux tools · by Hareli Dudai",
+  "nav.tools": "🧰 Tools", "nav.ai": "🤖 AI Assistant", "nav.dash": "📊 Dashboard",
+  "nav.history": "🕓 History", "nav.learning": "📚 Learn", "nav.vault": "📓 Obsidian",
+  "nav.users": "👥 Users", "nav.playbooks": "✏️ Playbooks",
+  "ai.title": "The Smart Testing Assistant",
+  "ai.sub": "Describe what you want to test — the agent will pick the right tools, plan, run, verify and report.",
+  "ai.plan": "🧠 Create Plan", "ai.intentLabel": "What do you want to test?", "ai.targetLabel": "Target",
+  "dash.title": "📊 Command Center", "dash.sub": "Live view of the agents, accumulated intelligence and activity log",
+  "picker.search": "🔎 Search tool...",
+};
+let LANG = (function () { try { return localStorage.getItem("kg_lang") || "he"; } catch (e) { return "he"; } })();
+
+function applyLang(lang) {
+  LANG = lang;
+  try { localStorage.setItem("kg_lang", lang); } catch (e) {}
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "he" ? "rtl" : "ltr";
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const k = el.getAttribute("data-i18n");
+    const v = lang === "he" ? HE_ORIG[k] : (I18N_EN[k] != null ? I18N_EN[k] : HE_ORIG[k]);
+    if (v != null) el.textContent = v;
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+    const k = el.getAttribute("data-i18n-ph");
+    el.placeholder = lang === "he" ? (HE_ORIG["ph:" + k] || el.placeholder) : (I18N_EN[k] || el.placeholder);
+  });
+  const btn = $("langToggle"); if (btn) btn.textContent = lang === "he" ? "EN" : "עב";
+}
+function initI18n() {
+  document.querySelectorAll("[data-i18n]").forEach(el => { HE_ORIG[el.getAttribute("data-i18n")] = el.textContent; });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => { HE_ORIG["ph:" + el.getAttribute("data-i18n-ph")] = el.placeholder; });
+  const btn = $("langToggle"); if (btn) btn.onclick = () => applyLang(LANG === "he" ? "en" : "he");
+  applyLang(LANG);
+}
+
+document.addEventListener("DOMContentLoaded", () => { init(); initFx(); initI18n(); });
