@@ -699,6 +699,28 @@ h2, .col-title, .dash-section { text-shadow: 0 0 16px rgba(47,129,247,.18); }
 .feed-card.login { border-inline-start: 3px solid var(--accent-2); opacity: .95; }
 .feed-card.login .feed-body { padding-top: 2px; }
 
+/* ==================== 3D AGENTS CONSTELLATION ==================== */
+.dash-section-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.agents-stage {
+  position: relative; height: min(58vh, 540px); margin-bottom: 8px;
+  border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 42%, #0b0a22 0%, #060814 62%, #03030a 100%);
+}
+.agents-stage.hidden { display: none; }
+#agentsCanvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+#agentsCanvas:active { cursor: grabbing; }
+.agents-hint {
+  position: absolute; top: 10px; inset-inline-start: 14px; font-size: .8rem; color: var(--text-dim);
+  background: rgba(13,17,23,.6); padding: 4px 10px; border-radius: 8px; pointer-events: none;
+}
+.agent-panel-tag { font-weight: 700; font-size: 1.06rem; color: var(--text); margin-bottom: 6px; }
+.agent-panel-role { font-size: .85rem; color: var(--text-dim); margin-bottom: 12px; }
+.agent-panel-text { line-height: 1.8; color: var(--text); font-size: .95rem; }
+.agent-panel-live {
+  margin-top: 14px; padding: 10px 12px; border-radius: 10px; font-size: .9rem;
+  background: rgba(47,129,247,.1); border: 1px solid rgba(47,129,247,.3); color: var(--text);
+}
+
 /* ==================== RBAC (roles) ==================== */
 .ro-banner {
   text-align: center; padding: 8px 14px; font-size: .9rem; font-weight: 600;

@@ -115,8 +115,19 @@
       </div>
     </div>
 
-    <h2 class="dash-section">🎭 הסוכנים ומצבם</h2>
+    <div class="dash-section-row">
+      <h2 class="dash-section">🎭 הסוכנים ומצבם</h2>
+      <button id="agents3dBtn" class="ghost-btn">🌌 תלת‑מימד</button>
+    </div>
     <div id="dashAgents" class="agents-grid"></div>
+    <div id="agentsStage" class="agents-stage hidden">
+      <canvas id="agentsCanvas"></canvas>
+      <div class="agents-hint">🖱️ גרור לסיבוב · גלגל להתקרב · לחץ כוכב להסבר על הסוכן</div>
+      <aside id="agentPanel" class="vault-panel hidden">
+        <button id="agentPanelClose" class="modal-x">✕</button>
+        <div id="agentPanelBody" class="agent-panel-body"></div>
+      </aside>
+    </div>
 
     <div class="dash-two">
       <section>

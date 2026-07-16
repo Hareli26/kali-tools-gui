@@ -41,6 +41,7 @@ function showScreen(name) {
   if (mp) mp.classList.toggle("active", isPlaybooks);
   if (ml) ml.classList.toggle("active", isLearning);
   if (isDash) loadDashboard();
+  else if (typeof agents3dStop === "function") agents3dStop();  // pause agents 3D off-screen
   if (isVault) loadVault();
   else if (typeof galaxyStop === "function") galaxyStop();  // pause the 3D loop off-screen
   if (isUsers) loadUsers();
@@ -903,6 +904,8 @@ function renderDashboard(d) {
   live.textContent = d.live ? "● פעיל כעת" : "● לא פעיל";
 
   // agents
+  DASH_AGENTS = d.agents || [];
+  if (AGENTS3D_ON) { buildAgents3d(); }   // keep the 3D constellation live
   const ag = $("dashAgents");
   ag.innerHTML = "";
   d.agents.forEach(a => {
@@ -1409,6 +1412,8 @@ function init() {
   $("histTarget").onchange = () => { HIST_SEL = []; renderHistory(); $("histCompare").classList.add("hidden"); };
   $("histCompareBtn").onclick = runCompare;
   $("histClearBtn").onclick = () => { HIST_SEL = []; renderHistory(); $("histCompare").classList.add("hidden"); };
+  $("agents3dBtn").onclick = agents3dToggle;
+  $("agentPanelClose").onclick = () => $("agentPanel").classList.add("hidden");
   $("vaultReloadBtn").onclick = () => loadVault();
   $("vaultMode3d").onclick = vaultToggle3d;
   $("vaultSearch").oninput = (e) => vaultSearch(e.target.value);
@@ -1956,6 +1961,10 @@ async function applyHash() {
   const h = (location.hash || "").replace(/^#/, "");
   if (!h) return;
   if (h === "dashboard") { showScreen("dashboard"); }
+  else if (h === "agents3d") {
+    showScreen("dashboard");
+    setTimeout(() => { if (!AGENTS3D_ON) agents3dToggle(); }, 500);
+  }
   else if (h === "ai") { showScreen("ai-prompt"); }
   else if (h === "tools") { showScreen("picker"); }
   else if (h === "vault" || h === "obsidian") { showScreen("vault"); }
@@ -2046,6 +2055,165 @@ function vaultToggle3d() {
     : "🖱️ גרור צומת · גלגל להתקרב · לחץ צומת לפתיחת הפתק";
   $("vaultPanel").classList.add("hidden");
   renderVault();
+}
+
+/* ====================================================== 3D AGENTS CONSTELLATION
+   The dashboard agents as a rotating 3D star constellation; click a star for an
+   explanation. Reuses the pure-canvas 3D projection (galProject). */
+let DASH_AGENTS = [];
+let AGENTS3D_ON = false;
+let AGX = null;
+
+const AGENT_INFO = {
+  red:    { color: [248, 81, 73], title: "צוות אדום (Executor)",
+    text: "מנוע התקיפה. מריץ את כלי ה‑Kali על המטרה ומפיק ממצאים גולמיים — פורטים פתוחים, שירותים, גרסאות וחולשות. זהו ה‑Executor שמזין את כל שאר הסוכנים בנתוני אמת." },
+  broker: { color: [63, 185, 80], title: "מתווך (Broker)",
+    text: "הגשר בין תקיפה להגנה. לוקח כל ממצא אדום, ממפה אותו לכלל הגנה מתוך בסיס הידע, מאחד כפילויות ומדרג את האיומים לפי חומרה." },
+  blue:   { color: [47, 129, 247], title: "צוות כחול (Blue Team)",
+    text: "מפיק לכל איום תוכנית הגנה מלאה: פעולות הקשחה, חוקי זיהוי מוכנים (Sigma ל‑SIEM + Suricata ל‑IDS), שיוך MITRE ATT&CK ותצורה לדוגמה." },
+  learn:  { color: [210, 153, 34], title: "למידה מתמשכת (Learning)",
+    text: "מנרמל כל ממצא לחתימה (signature) וצובר אותו במסד הנתונים עם מונה הופעות ותאריכים. כך הכיסוי ההגנתי גדל והמערכת 'לומדת' אילו איומים חוזרים לאורך זמן." },
+  orch:   { color: [168, 85, 247], title: "מתזמר (Orchestrator)",
+    text: "מנצח על כל הזרימה: מריץ את הצוות האדום, מפעיל את המתווך והכחול, מעדכן את הלמידה, ומפיק את דוח ה‑Purple המלא. אם מוגדר LLM — מוסיף תקציר AI." },
+  fix:    { color: [124, 196, 255], title: "סוכן מתקן (Remediation)",
+    text: "מיישם בפועל את הגנות הצוות הכחול (למשל fail2ban, עדכוני אבטחה) — רק לאחר אישור מפורש, עם גיבוי קונפיגים ורישום ביומן. תיקונים מסוכנים (SSH/firewall) ידניים בלבד." },
+};
+
+function agents3dToggle() {
+  AGENTS3D_ON = !AGENTS3D_ON;
+  $("agents3dBtn").textContent = AGENTS3D_ON ? "📇 כרטיסים" : "🌌 תלת‑מימד";
+  $("dashAgents").classList.toggle("hidden", AGENTS3D_ON);
+  $("agentsStage").classList.toggle("hidden", !AGENTS3D_ON);
+  $("agentPanel").classList.add("hidden");
+  if (AGENTS3D_ON) buildAgents3d(); else agents3dStop();
+}
+
+function agents3dStop() { if (AGX && AGX.raf) { cancelAnimationFrame(AGX.raf); AGX.raf = null; } }
+
+function buildAgents3d() {
+  const prevView = AGX && AGX.view;          // preserve rotation across dashboard polls
+  agents3dStop();
+  const canvas = $("agentsCanvas");
+  const ctx = canvas.getContext("2d");
+  const list = (DASH_AGENTS || []).filter(a => a.id);
+  const n = list.length || 1;
+  list.forEach((a, i) => {
+    const ang = (i / n) * Math.PI * 2, R = 190;
+    a.X = Math.cos(ang) * R; a.Z = Math.sin(ang) * R; a.Y = Math.sin(ang * 2) * 40;
+    a._tw = Math.random() * 6.28;
+  });
+  const stars = [];
+  for (let i = 0; i < 220; i++) {
+    const th = Math.random() * 6.283, ph = Math.acos(2 * Math.random() - 1), Rr = 500 + Math.random() * 600;
+    stars.push({ X: Rr * Math.sin(ph) * Math.cos(th), Y: Rr * Math.sin(ph) * Math.sin(th), Z: Rr * Math.cos(ph),
+                 s: 0.4 + Math.random(), tw: Math.random() * 6.28 });
+  }
+  AGX = { canvas, ctx, agents: list, stars,
+    view: prevView || { rotX: -0.45, rotY: 0.3, dist: 560, f: 560, autoSpin: true },
+    drag: null, moved: 0, last: null, t: 0, proj: [], dpr: Math.min(window.devicePixelRatio || 1, 2), W: 0, H: 0 };
+  agents3dResize();
+  agents3dWire();
+  agents3dLoop();
+}
+
+function agents3dResize() {
+  if (!AGX) return;
+  const r = AGX.canvas.getBoundingClientRect();
+  AGX.W = r.width; AGX.H = r.height;
+  AGX.canvas.width = r.width * AGX.dpr; AGX.canvas.height = r.height * AGX.dpr;
+  AGX.ctx.setTransform(AGX.dpr, 0, 0, AGX.dpr, 0, 0);
+}
+
+function agentColor(a) { const info = AGENT_INFO[a.id]; return info ? info.color : [139, 152, 169]; }
+
+function agents3dLoop() {
+  if (!AGX) return;
+  const { ctx, view: v } = AGX, W = AGX.W, H = AGX.H;
+  AGX.t += 1;
+  if (v.autoSpin && !AGX.drag) v.rotY += 0.003;
+  ctx.clearRect(0, 0, W, H);
+  const bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) / 1.2);
+  bg.addColorStop(0, "rgba(30,20,60,0.4)"); bg.addColorStop(1, "rgba(5,8,18,0)");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  AGX.stars.forEach(s => {
+    const p = galProject(s, v, W, H); if (!p) return;
+    const tw = 0.5 + 0.5 * Math.sin(AGX.t * 0.03 + s.tw);
+    ctx.globalAlpha = Math.min(1, (0.12 + 0.35 * tw) * (600 / p.depth));
+    ctx.fillStyle = "#cdd9ff"; ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.4, s.s * p.scale * 0.5), 0, 6.283); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  const core = galProject({ X: 0, Y: 0, Z: 0 }, v, W, H);
+  const proj = [];
+  AGX.agents.forEach(a => { const p = galProject(a, v, W, H); if (p) { p.a = a; proj.push(p); } });
+  if (core) {
+    proj.forEach(p => {
+      ctx.strokeStyle = "rgba(139,152,169," + Math.min(0.3, 120 / p.depth) + ")";
+      ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(core.x, core.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    });
+    const cg = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, 26 * core.scale + 8);
+    cg.addColorStop(0, "rgba(200,180,255,0.85)"); cg.addColorStop(1, "rgba(120,90,220,0)");
+    ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(core.x, core.y, 26 * core.scale + 8, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.beginPath(); ctx.arc(core.x, core.y, 4 * core.scale + 2, 0, 6.283); ctx.fill();
+  }
+  proj.sort((p, q) => q.depth - p.depth);
+  proj.forEach(p => {
+    const a = p.a, c = agentColor(a), active = a.status === "active";
+    const rad = Math.max(4, (active ? 12 : 9) * p.scale);
+    const tw = (active ? 0.85 : 0.55) + 0.18 * Math.sin(AGX.t * 0.06 + a._tw);
+    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad * 3.5);
+    grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${0.95 * tw})`);
+    grad.addColorStop(0.4, `rgba(${c[0]},${c[1]},${c[2]},0.35)`);
+    grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(p.x, p.y, rad * 3.5, 0, 6.283); ctx.fill();
+    ctx.fillStyle = `rgba(255,255,255,${0.9 * tw})`; ctx.beginPath(); ctx.arc(p.x, p.y, rad * 0.5, 0, 6.283); ctx.fill();
+    p.rad = rad;
+    ctx.textAlign = "center";
+    ctx.font = (15 * Math.max(0.8, p.scale)) + "px sans-serif";
+    ctx.fillText(a.icon, p.x, p.y - rad - 6);
+    ctx.fillStyle = "rgba(230,237,243,0.9)"; ctx.font = "12px sans-serif";
+    ctx.fillText(a.name, p.x, p.y + rad + 16);
+  });
+  AGX.proj = proj;
+  AGX.raf = requestAnimationFrame(agents3dLoop);
+}
+
+function agents3dHit(e) {
+  if (!AGX || !AGX.proj) return null;
+  const r = AGX.canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bd = 1e9;
+  AGX.proj.forEach(p => { const d = Math.hypot(p.x - mx, p.y - my); if (d < Math.max(20, (p.rad || 6) * 3) && d < bd) { bd = d; best = p.a; } });
+  return best;
+}
+
+function agents3dWire() {
+  const c = AGX.canvas;
+  c.onpointerdown = (e) => {
+    c.setPointerCapture(e.pointerId); AGX.moved = 0; AGX.last = { x: e.clientX, y: e.clientY };
+    const hit = agents3dHit(e); AGX.drag = hit ? { node: hit } : { orbit: true }; AGX.view.autoSpin = false;
+  };
+  c.onpointermove = (e) => {
+    if (!AGX.drag) return;
+    const dx = e.clientX - AGX.last.x, dy = e.clientY - AGX.last.y; AGX.last = { x: e.clientX, y: e.clientY }; AGX.moved += Math.abs(dx) + Math.abs(dy);
+    if (AGX.drag.orbit) { AGX.view.rotY += dx * 0.006; AGX.view.rotX = Math.max(-1.4, Math.min(1.4, AGX.view.rotX + dy * 0.006)); }
+  };
+  c.onpointerup = (e) => {
+    if (AGX.drag && AGX.drag.node && AGX.moved < 5) openAgentInfo(AGX.drag.node);
+    AGX.drag = null; try { c.releasePointerCapture(e.pointerId); } catch (_) {}
+    setTimeout(() => { if (AGX) AGX.view.autoSpin = true; }, 3000);
+  };
+  c.onwheel = (e) => { e.preventDefault(); AGX.view.dist = Math.max(220, Math.min(1200, AGX.view.dist * (e.deltaY < 0 ? 0.9 : 1.1))); };
+}
+
+function openAgentInfo(a) {
+  const info = AGENT_INFO[a.id] || { title: a.name, text: a.role || "" };
+  const st = { active: "🟢 פעיל", idle: "⚪ ממתין", done: "✅ סיים" }[a.status] || a.status;
+  $("agentPanelBody").innerHTML =
+    `<div class="agent-panel-tag">${a.icon} ${escapeHtml(info.title)}</div>` +
+    `<div class="agent-panel-role">${escapeHtml(a.role || "")} · ${st}</div>` +
+    `<p class="agent-panel-text">${escapeHtml(info.text)}</p>` +
+    (a.detail ? `<div class="agent-panel-live"><b>מצב נוכחי:</b> ${escapeHtml(a.detail)}</div>` : "");
+  $("agentPanel").classList.remove("hidden");
 }
 
 /* ============================================================ 3D GALAXY VIEW
