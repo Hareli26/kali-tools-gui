@@ -651,6 +651,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_history()
         if p == "/api/compare":
             return self._api_compare()
+        if p == "/api/playbooks":
+            return self._send_json({"playbooks": agents.describe_playbooks()})
         if p == "/api/brain":
             return self._api_brain()
         if p == "/api/vault/graph":
@@ -700,6 +702,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_users_add()
         if p == "/api/users/remove":
             return self._api_users_remove()
+        if p == "/api/playbooks/save":
+            return self._api_playbook_save()
+        if p == "/api/playbooks/delete":
+            return self._api_playbook_delete()
         if p == "/api/plan":
             return self._api_plan()
         if p == "/api/mission":
@@ -901,6 +907,50 @@ class Handler(BaseHTTPRequestHandler):
         allowlist_write(emails)
         audit(self._user(), "user-remove", email)
         return self._users_payload(note="הוסר")
+
+    # -- playbook editor (admin-only; user-defined data playbooks) --
+    def _api_playbook_save(self):
+        if not self._is_admin():
+            return self._send_json({"error": "forbidden — admin only"}, 403)
+        data = self._read_json()
+        pid = (data.get("id") or "").strip().lower()
+        if not re.match(r"^[a-z0-9_-]{2,40}$", pid):
+            return self._send_json({"error": "מזהה לא חוקי (אותיות/ספרות/מקף, 2-40 תווים)"}, 400)
+        if pid in agents.BUILTIN_IDS:
+            return self._send_json({"error": "המזהה מתנגש עם playbook מובנה — בחר אחר"}, 400)
+        name = (data.get("name") or "").strip()
+        if not name:
+            return self._send_json({"error": "חסר שם"}, 400)
+        keywords = [str(k).strip() for k in (data.get("keywords") or []) if str(k).strip()]
+        if not keywords:
+            return self._send_json({"error": "יש להזין לפחות מילת מפתח אחת"}, 400)
+        tool_ids = {t["id"] for t in load_catalog()["tools"]}
+        steps = []
+        for s in (data.get("steps") or []):
+            tid = (s.get("tool_id") or "").strip()
+            if tid not in tool_ids:
+                return self._send_json({"error": "כלי לא קיים בקטלוג: %s" % (tid or "(ריק)")}, 400)
+            vals = s.get("values") or {}
+            if not isinstance(vals, dict):
+                return self._send_json({"error": "values חייב להיות אובייקט"}, 400)
+            steps.append({"tool_id": tid, "why": str(s.get("why", "")).strip(),
+                          "values": vals, "suggestion": str(s.get("suggestion", "")).strip()})
+        if not steps:
+            return self._send_json({"error": "יש להוסיף לפחות שלב אחד"}, 400)
+        pb = {"id": pid, "name": name, "keywords": keywords, "steps": steps}
+        db.save_playbook(pb)
+        audit(self._user(), "playbook-save", pid)
+        return self._send_json({"ok": True, "playbook": pb})
+
+    def _api_playbook_delete(self):
+        if not self._is_admin():
+            return self._send_json({"error": "forbidden — admin only"}, 403)
+        pid = (self._read_json().get("id") or "").strip().lower()
+        if pid in agents.BUILTIN_IDS:
+            return self._send_json({"error": "לא ניתן למחוק playbook מובנה"}, 400)
+        db.delete_playbook(pid)
+        audit(self._user(), "playbook-delete", pid)
+        return self._send_json({"ok": True})
 
     def _api_history(self):
         """All past scans (missions + purple), newest first — powers the history

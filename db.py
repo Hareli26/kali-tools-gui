@@ -56,6 +56,9 @@ def init():
             id TEXT PRIMARY KEY, kind TEXT, intent TEXT, target TEXT,
             ts REAL, whenstr TEXT, report TEXT
         );
+        CREATE TABLE IF NOT EXISTS playbooks(
+            id TEXT PRIMARY KEY, data TEXT
+        );
         """)
     _migrate_from_json()
 
@@ -169,6 +172,32 @@ def all_reports_full(limit=500):
     return [{"meta": {"id": r["id"], "kind": r["kind"], "intent": r["intent"],
                       "target": r["target"], "ts": r["ts"], "when": r["whenstr"]},
              "report": r["report"]} for r in rows]
+
+
+# -------------------------------------------------- custom playbooks (agent) --
+def list_playbooks():
+    """User-defined data playbooks (list of dicts)."""
+    with _LOCK, _conn() as c:
+        rows = c.execute("SELECT data FROM playbooks ORDER BY id").fetchall()
+    out = []
+    for r in rows:
+        try:
+            out.append(json.loads(r["data"]))
+        except Exception:
+            pass
+    return out
+
+
+def save_playbook(pb):
+    with _LOCK, _conn() as c:
+        c.execute("INSERT INTO playbooks(id,data) VALUES(?,?) "
+                  "ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+                  (pb["id"], json.dumps(pb, ensure_ascii=False)))
+
+
+def delete_playbook(pid):
+    with _LOCK, _conn() as c:
+        c.execute("DELETE FROM playbooks WHERE id=?", (pid,))
 
 
 def stats():

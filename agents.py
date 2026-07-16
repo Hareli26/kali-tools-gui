@@ -15,7 +15,11 @@ Optional LLM enhancement via Ollama if OLLAMA_URL is reachable and a model is se
 import json
 import os
 import re
+import sys
 import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import db  # noqa: E402  (SQLite store — holds user-defined data playbooks)
 
 # ---------------------------------------------------------------- targets ----
 def target_variants(t):
@@ -37,6 +41,37 @@ def target_variants(t):
 
 def _step(tool_id, why, values, suggestion=""):
     return {"tool_id": tool_id, "why": why, "values": values, "suggestion": suggestion}
+
+# ---- data-driven (user-defined) playbooks: SAFE placeholder substitution ----
+# A custom playbook is pure data (no code). Step values may contain placeholders
+# {target} {host} {url} {domain} {raw} that are substituted from the target — no
+# code is ever executed, so editing playbooks from the UI is safe.
+_PLACEHOLDERS = ("target", "host", "url", "domain", "raw", "hostport443")
+
+def _subst(values, v):
+    out = {}
+    for k, val in (values or {}).items():
+        if isinstance(val, str):
+            for ph in _PLACEHOLDERS:
+                src = v.get("raw" if ph == "target" else ph, "")
+                val = val.replace("{%s}" % ph, str(src))
+        out[k] = val
+    return out
+
+def _build_from_data(pb, v):
+    steps = []
+    for s in (pb.get("steps") or []):
+        if not s.get("tool_id"):
+            continue
+        steps.append(_step(s["tool_id"], s.get("why", ""),
+                           _subst(s.get("values", {}), v), s.get("suggestion", "")))
+    return steps
+
+def load_custom_playbooks():
+    try:
+        return [pb for pb in db.list_playbooks() if pb.get("id") and pb.get("keywords") is not None]
+    except Exception:
+        return []
 
 # --------------------------------------------------------------- playbooks ---
 # Each playbook: id, name, keywords (he+en), build(variants) -> [steps]
@@ -238,9 +273,10 @@ ROOT_TOOLS = {"masscan", "netdiscover", "arp-scan", "tcpdump", "tshark", "hping3
 def plan(intent, target):
     v = target_variants(target)
     il = (intent or "").lower()
+    all_pbs = list(PLAYBOOKS) + load_custom_playbooks()
     scored = []
-    for pb in PLAYBOOKS:
-        score = sum(1 for k in pb["keywords"] if k in il)
+    for pb in all_pbs:
+        score = sum(1 for k in (pb.get("keywords") or []) if k and k.lower() in il)
         if score:
             scored.append((score, pb))
     if scored:
@@ -259,7 +295,8 @@ def plan(intent, target):
     steps = []
     seen = set()
     for pb in chosen:
-        for st in pb["build"](v):
+        built = pb["build"](v) if callable(pb.get("build")) else _build_from_data(pb, v)
+        for st in built:
             key = (st["tool_id"], json.dumps(st.get("values", {}), sort_keys=True, ensure_ascii=False))
             if key in seen:
                 continue
@@ -276,6 +313,25 @@ def plan(intent, target):
         "playbooks": [pb["name"] for pb in chosen],
         "steps": steps,
     }
+
+BUILTIN_IDS = {pb["id"] for pb in PLAYBOOKS} | {"general"}
+
+def describe_playbooks():
+    """Serializable view of every playbook for the in-app editor: built-in ones
+    (read-only, steps derived from a sample target) + user-defined ones (editable)."""
+    sample = target_variants("example.com")
+    out = []
+    for pb in PLAYBOOKS:
+        try:
+            steps = [{"tool_id": s["tool_id"], "why": s.get("why", "")} for s in pb["build"](sample)]
+        except Exception:
+            steps = []
+        out.append({"id": pb["id"], "name": pb["name"], "builtin": True,
+                    "keywords": pb.get("keywords", []), "steps": steps})
+    for pb in load_custom_playbooks():
+        out.append({"id": pb["id"], "name": pb.get("name", pb["id"]), "builtin": False,
+                    "keywords": pb.get("keywords", []), "steps": pb.get("steps", [])})
+    return out
 
 # --------------------------------------------------------------- verifier ----
 _ERR_ROOT = ("requires root", "you requested a scan type which requires root",

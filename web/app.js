@@ -26,21 +26,24 @@ function showScreen(name) {
   const isVault = name === "vault";
   const isUsers = name === "users";
   const isHistory = name === "history";
+  const isPlaybooks = name === "playbooks";
   const isAI = name.startsWith("ai-") || name === "purple";
-  const isTools = !isDash && !isAI && !isVault && !isUsers && !isHistory;
+  const isTools = !isDash && !isAI && !isVault && !isUsers && !isHistory && !isPlaybooks;
   const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash"), mv = $("modeVault"),
-        mu = $("modeUsers"), mh = $("modeHistory");
+        mu = $("modeUsers"), mh = $("modeHistory"), mp = $("modePlaybooks");
   if (mt) mt.classList.toggle("active", isTools);
   if (ma) ma.classList.toggle("active", isAI);
   if (md) md.classList.toggle("active", isDash);
   if (mv) mv.classList.toggle("active", isVault);
   if (mu) mu.classList.toggle("active", isUsers);
   if (mh) mh.classList.toggle("active", isHistory);
+  if (mp) mp.classList.toggle("active", isPlaybooks);
   if (isDash) loadDashboard();
   if (isVault) loadVault();
   else if (typeof galaxyStop === "function") galaxyStop();  // pause the 3D loop off-screen
   if (isUsers) loadUsers();
   if (isHistory) loadHistory();
+  if (isPlaybooks) loadPlaybooks();
   window.scrollTo(0, 0);
 }
 
@@ -1389,6 +1392,7 @@ function init() {
   };
   $("userAddBtn").onclick = addUser;
   $("userEmail").onkeydown = (e) => { if (e.key === "Enter") addUser(); };
+  $("pbNewBtn").onclick = () => pbOpenEditor(null);
   $("histReload").onclick = () => loadHistory();
   $("histTarget").onchange = () => { HIST_SEL = []; renderHistory(); $("histCompare").classList.add("hidden"); };
   $("histCompareBtn").onclick = runCompare;
@@ -1432,7 +1436,146 @@ async function loadWhoami() {
     if (d.user && d.user !== "local") $("userLine").textContent = "👤 " + d.user;
     IS_ADMIN = !!d.is_admin;
     $("modeUsers").classList.toggle("hidden", !IS_ADMIN);
+    $("modePlaybooks").classList.toggle("hidden", !IS_ADMIN);
   } catch (e) { /* ignore */ }
+}
+
+/* ============================================================ PLAYBOOK EDITOR
+   Admin-only: add/edit data-driven playbooks (agent rules) without touching code. */
+let PB_LIST = [];
+
+async function loadPlaybooks() {
+  const list = $("pbList");
+  list.innerHTML = '<div class="audit-empty">טוען...</div>';
+  $("pbEditor").classList.add("hidden");
+  try {
+    const d = await (await fetch("/api/playbooks")).json();
+    PB_LIST = d.playbooks || [];
+    renderPbList();
+  } catch (e) { list.innerHTML = '<div class="audit-empty">שגיאה בטעינה.</div>'; }
+}
+
+function renderPbList() {
+  const list = $("pbList");
+  list.innerHTML = "";
+  PB_LIST.forEach(pb => {
+    const card = el("div", "pb-card" + (pb.builtin ? " builtin" : ""));
+    const head = el("div", "pb-head");
+    head.innerHTML = `<span class="pb-name">${escapeHtml(pb.name)}</span>` +
+      `<span class="pb-badge ${pb.builtin ? "b" : "c"}">${pb.builtin ? "מובנה" : "מותאם"}</span>` +
+      `<code class="pb-id">${escapeHtml(pb.id)}</code>`;
+    card.appendChild(head);
+    const kw = el("div", "pb-kw");
+    kw.innerHTML = (pb.keywords || []).map(k => `<span class="tag">${escapeHtml(k)}</span>`).join("");
+    card.appendChild(kw);
+    const steps = el("div", "pb-steps-preview");
+    steps.innerHTML = (pb.steps || []).map((s, i) =>
+      `<span class="pb-step-chip">${i + 1}. ${escapeHtml(s.tool_id)}</span>`).join(" ← ");
+    card.appendChild(steps);
+    if (!pb.builtin) {
+      const actions = el("div", "pb-actions");
+      const ed = el("button", "ghost-btn", "✏️ ערוך"); ed.onclick = () => pbOpenEditor(pb);
+      const del = el("button", "ghost-btn danger-btn", "🗑️ מחק"); del.onclick = () => pbDelete(pb);
+      actions.appendChild(ed); actions.appendChild(del);
+      card.appendChild(actions);
+    }
+    list.appendChild(card);
+  });
+}
+
+function pbOpenEditor(pb) {
+  const ed = $("pbEditor");
+  ed.classList.remove("hidden");
+  const editing = !!pb;
+  pb = pb || { id: "", name: "", keywords: [], steps: [] };
+  ed.innerHTML =
+    `<h3>${editing ? "✏️ עריכת Playbook" : "➕ Playbook חדש"}</h3>` +
+    `<div class="pb-field"><label>מזהה (id — אנגלית/ספרות/מקף)</label><input id="pbId" class="vault-search" placeholder="my_recon" value="${escapeHtml(pb.id)}" ${editing ? "readonly" : ""}></div>` +
+    `<div class="pb-field"><label>שם</label><input id="pbName" class="vault-search" placeholder="הסריקה שלי" value="${escapeHtml(pb.name)}"></div>` +
+    `<div class="pb-field"><label>מילות מפתח (מופרדות בפסיק) — הסוכן יבחר את ה‑playbook כשהן מופיעות בכוונה</label>` +
+      `<input id="pbKw" class="vault-search" placeholder="recon, סריקה, my scan" value="${escapeHtml((pb.keywords || []).join(", "))}"></div>` +
+    `<label class="pb-steps-label">שלבים (הסוכן יריץ בסדר זה):</label>` +
+    `<div id="pbSteps" class="pb-steps"></div>` +
+    `<button id="pbAddStep" class="ghost-btn">➕ הוסף שלב</button>` +
+    `<div class="pb-ph-hint">מצייני מקום זמינים בערכים: <code>{target}</code> <code>{host}</code> <code>{url}</code> <code>{domain}</code> — יוחלפו במטרה בזמן הריצה.</div>` +
+    `<div class="modal-actions"><button id="pbCancel" class="ghost-btn">ביטול</button><button id="pbSave" class="run-btn">💾 שמור</button></div>`;
+  const list = (pb.steps && pb.steps.length) ? pb.steps : [{}];
+  list.forEach(s => pbAddStepRow(s));
+  $("pbAddStep").onclick = () => pbAddStepRow({});
+  $("pbCancel").onclick = () => ed.classList.add("hidden");
+  $("pbSave").onclick = pbSave;
+  ed.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function pbAddStepRow(s) {
+  s = s || {};
+  const box = $("pbSteps");
+  const row = el("div", "pb-step-row");
+  const toolSel = el("select", "vault-search pb-tool");
+  toolSel.innerHTML = (CATALOG ? CATALOG.tools : []).map(t =>
+    `<option value="${t.id}">${escapeHtml(t.name)} (${t.id})</option>`).join("");
+  if (s.tool_id) toolSel.value = s.tool_id;
+  const why = el("input", "vault-search pb-why"); why.placeholder = "למה השלב (הסבר קצר)"; why.value = s.why || "";
+  const vals = el("input", "vault-search pb-vals"); vals.placeholder = "ערכים: target={host}; sv=true"; vals.value = valuesToStr(s.values);
+  const rm = el("button", "ghost-btn danger-btn", "🗑️"); rm.onclick = () => row.remove();
+  row.appendChild(toolSel); row.appendChild(why); row.appendChild(vals); row.appendChild(rm);
+  box.appendChild(row);
+}
+
+function valuesToStr(o) {
+  return Object.entries(o || {}).map(([k, v]) => `${k}=${v}`).join("; ");
+}
+function parseValues(str) {
+  const o = {};
+  (str || "").split(";").forEach(part => {
+    const i = part.indexOf("=");
+    if (i < 0) return;
+    const k = part.slice(0, i).trim(); let v = part.slice(i + 1).trim();
+    if (!k) return;
+    if (v === "true") v = true; else if (v === "false") v = false;
+    o[k] = v;
+  });
+  return o;
+}
+
+async function pbSave() {
+  const steps = [...document.querySelectorAll("#pbSteps .pb-step-row")].map(r => ({
+    tool_id: r.querySelector(".pb-tool").value,
+    why: r.querySelector(".pb-why").value.trim(),
+    values: parseValues(r.querySelector(".pb-vals").value),
+  }));
+  const pb = {
+    id: $("pbId").value.trim(),
+    name: $("pbName").value.trim(),
+    keywords: $("pbKw").value.split(",").map(s => s.trim()).filter(Boolean),
+    steps,
+  };
+  try {
+    const d = await (await fetch("/api/playbooks/save", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pb)
+    })).json();
+    if (d.error) { pbMsg(d.error, false); return; }
+    pbMsg("✅ נשמר. הסוכן ישתמש ב‑playbook הזה בתכנון הבא.", true);
+    $("pbEditor").classList.add("hidden");
+    loadPlaybooks();
+  } catch (e) { pbMsg("שגיאת רשת: " + e, false); }
+}
+
+async function pbDelete(pb) {
+  if (!confirm(`למחוק את ה‑playbook "${pb.name}"?`)) return;
+  try {
+    const d = await (await fetch("/api/playbooks/delete", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: pb.id })
+    })).json();
+    if (d.error) { pbMsg(d.error, false); return; }
+    pbMsg("🗑️ נמחק.", true);
+    loadPlaybooks();
+  } catch (e) { pbMsg("שגיאת רשת: " + e, false); }
+}
+
+function pbMsg(text, ok) {
+  const m = $("pbMsg"); m.textContent = text; m.className = "users-msg " + (ok ? "ok" : "err");
+  setTimeout(() => { m.textContent = ""; m.className = "users-msg"; }, 4500);
 }
 
 /* ============================================================ HISTORY + COMPARE
@@ -1650,6 +1793,7 @@ async function applyHash() {
     showScreen("vault");
   }
   else if (h === "history") { showScreen("history"); }
+  else if (h === "playbooks") { showScreen("playbooks"); }
   else if (h === "users") { showScreen("users"); }
   else if (h.startsWith("tool-")) {
     const id = h.slice(5);

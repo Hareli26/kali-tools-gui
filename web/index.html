@@ -23,6 +23,7 @@
         <button id="modeHistory" class="mode-tab" data-goto="history">🕓 היסטוריה</button>
         <button id="modeVault" class="mode-tab" data-goto="vault">📓 Obsidian</button>
         <button id="modeUsers" class="mode-tab hidden" data-goto="users">👥 משתמשים</button>
+        <button id="modePlaybooks" class="mode-tab hidden" data-goto="playbooks">✏️ Playbooks</button>
       </nav>
       <span id="userLine" class="stat-line"></span>
       <span id="statLine" class="stat-line"></span>
@@ -178,6 +179,22 @@
       🔐 הכניסה מאובטחת בהתחברות Google (oauth2‑proxy). מי שאינו ברשימה יידחה עוד לפני הכניסה למערכת.
       כל הוספה/הסרה נרשמת ב<strong>יומן הביקורת</strong>.
     </div>
+  </main>
+
+  <!-- ===================== PLAYBOOK EDITOR (admin) ===================== -->
+  <main id="screen-playbooks" class="screen">
+    <div class="vault-hero">
+      <div>
+        <h1>✏️ עורך Playbooks</h1>
+        <p class="dash-sub">הוסף או ערוך חוקי סוכן (playbooks) ישירות מהממשק — בלי לגעת בקוד. הסוכן ישתמש בהם בתכנון לפי מילות המפתח.</p>
+      </div>
+      <div class="dash-hero-actions">
+        <button id="pbNewBtn" class="run-btn">➕ Playbook חדש</button>
+      </div>
+    </div>
+    <div id="pbMsg" class="users-msg"></div>
+    <div id="pbEditor" class="pb-editor hidden"></div>
+    <div id="pbList" class="pb-list"></div>
   </main>
 
   <!-- ===================== OBSIDIAN VAULT GRAPH ===================== -->

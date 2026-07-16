@@ -699,6 +699,43 @@ h2, .col-title, .dash-section { text-shadow: 0 0 16px rgba(47,129,247,.18); }
 .feed-card.login { border-inline-start: 3px solid var(--accent-2); opacity: .95; }
 .feed-card.login .feed-body { padding-top: 2px; }
 
+/* ==================== PLAYBOOK EDITOR ==================== */
+.pb-list { display: flex; flex-direction: column; gap: 10px; }
+.pb-card {
+  padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px;
+  background: rgba(22,27,34,.6);
+}
+.pb-card.builtin { opacity: .82; border-inline-start: 3px solid var(--text-dim); }
+.pb-card:not(.builtin) { border-inline-start: 3px solid var(--accent-2); }
+.pb-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pb-name { font-weight: 700; color: var(--text); font-size: 1.02rem; }
+.pb-badge { font-size: .72rem; padding: 2px 9px; border-radius: 999px; }
+.pb-badge.b { background: rgba(139,152,169,.15); color: var(--text-dim); }
+.pb-badge.c { background: rgba(63,185,80,.15); color: var(--accent-2); border: 1px solid rgba(63,185,80,.35); }
+.pb-id { font-family: var(--mono); font-size: .8rem; color: var(--accent); direction: ltr; }
+.pb-kw { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 6px; }
+.pb-steps-preview { color: var(--text-dim); font-size: .85rem; direction: rtl; }
+.pb-step-chip { color: var(--text); }
+.pb-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+.pb-editor {
+  padding: 18px 20px; margin-bottom: 16px; border-radius: 14px;
+  border: 1px solid rgba(47,129,247,.4); background: rgba(47,129,247,.06);
+}
+.pb-editor h3 { margin: 0 0 12px; }
+.pb-field { margin-bottom: 12px; }
+.pb-field label { display: block; font-size: .85rem; color: var(--text-dim); margin-bottom: 4px; }
+.pb-field .vault-search { width: 100%; }
+.pb-steps-label { display: block; font-weight: 600; margin: 8px 0 6px; }
+.pb-steps { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.pb-step-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pb-step-row .pb-tool { flex: 0 0 190px; }
+.pb-step-row .pb-why { flex: 1 1 180px; }
+.pb-step-row .pb-vals { flex: 1 1 200px; font-family: var(--mono); direction: ltr; }
+.pb-step-row .danger-btn { flex: 0 0 auto; }
+.pb-ph-hint { font-size: .82rem; color: var(--text-dim); margin: 6px 0 4px; }
+.pb-ph-hint code { direction: ltr; }
+
 /* ==================== HISTORY + SCAN COMPARISON ==================== */
 .hist-list { display: flex; flex-direction: column; gap: 8px; }
 .hist-row {
