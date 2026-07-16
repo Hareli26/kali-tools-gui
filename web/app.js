@@ -41,7 +41,7 @@ function showScreen(name) {
   if (mh) mh.classList.toggle("active", isHistory);
   if (mp) mp.classList.toggle("active", isPlaybooks);
   if (ml) ml.classList.toggle("active", isLearning);
-  if (isDash) loadDashboard();
+  if (isDash) { DASH_ANIMATE = true; loadDashboard(); }
   else if (typeof agents3dStop === "function") agents3dStop();  // pause agents 3D off-screen
   if (isVault) loadVault();
   else if (typeof galaxyStop === "function") galaxyStop();  // pause the 3D loop off-screen
@@ -88,9 +88,11 @@ function renderGrid() {
     return true;
   });
   $("pickerEmpty").classList.toggle("hidden", list.length > 0);
-  list.forEach(t => {
+  const anim = !searchTerm && activeCat === "all";   // cascade only on the full view, not while filtering
+  list.forEach((t, i) => {
     const cat = CATS[t.category] || {};
-    const card = el("div", "tool-card" + (t.installed ? "" : " disabled"));
+    const card = el("div", "tool-card hud tilt" + (anim ? " reveal" : "") + (t.installed ? "" : " disabled"));
+    if (anim) card.style.animationDelay = Math.min(i, 24) * 0.028 + "s";
     const badge = el("span", "badge " + (t.installed ? "on" : "off"), t.installed ? "מותקן" : "לא מותקן");
     card.appendChild(badge);
     const top = el("div", "tc-top");
@@ -906,13 +908,15 @@ function renderDashboard(d) {
   live.className = "live-pill" + (d.live ? " on" : "");
   live.textContent = d.live ? "● פעיל כעת" : "● לא פעיל";
 
+  const anim = DASH_ANIMATE; DASH_ANIMATE = false;   // animate only on first entry
   // agents
   DASH_AGENTS = d.agents || [];
   if (AGENTS3D_ON) { buildAgents3d(); }   // keep the 3D constellation live
   const ag = $("dashAgents");
   ag.innerHTML = "";
-  d.agents.forEach(a => {
-    const card = el("div", "agent-card " + a.status);
+  d.agents.forEach((a, i) => {
+    const card = el("div", "agent-card hud tilt " + a.status + (anim ? " reveal" : ""));
+    if (anim) card.style.animationDelay = i * 0.06 + "s";
     const top = el("div", "agent-top");
     top.appendChild(el("span", "agent-ico", a.icon));
     const info = el("div");
@@ -935,10 +939,15 @@ function renderDashboard(d) {
   const k = d.knowledge;
   const stats = $("dashStats");
   stats.innerHTML = "";
-  const mk = (n, lbl) => { const c = el("div", "stat-card"); c.innerHTML = `<b>${n}</b><span>${lbl}</span>`; return c; };
-  stats.appendChild(mk(k.runs, "הרצות"));
-  stats.appendChild(mk(k.total_signatures, "סוגי ממצאים"));
-  stats.appendChild(mk(`${d.tools.installed}/${d.tools.total}`, "כלים מותקנים"));
+  const mk = (n, lbl, num) => {
+    const c = el("div", "stat-card hud" + (anim ? " reveal" : ""));
+    c.innerHTML = `<b>${anim && num ? 0 : n}</b><span>${lbl}</span>`;
+    if (anim && num) countUp(c.querySelector("b"), n, 900);
+    return c;
+  };
+  stats.appendChild(mk(k.runs, "הרצות", true));
+  stats.appendChild(mk(k.total_signatures, "סוגי ממצאים", true));
+  stats.appendChild(mk(`${d.tools.installed}/${d.tools.total}`, "כלים מותקנים", false));
 
   // severity bars
   const sev = $("dashSeverity");
@@ -2071,6 +2080,7 @@ function vaultToggle3d() {
    The dashboard agents as a rotating 3D star constellation; click a star for an
    explanation. Reuses the pure-canvas 3D projection (galProject). */
 let DASH_AGENTS = [];
+let DASH_ANIMATE = false;
 let AGENTS3D_ON = false;
 let AGX = null;
 
@@ -2592,6 +2602,7 @@ function vaultSearch(term) {
    Nav changes trigger a brief "jump to lightspeed". Pure canvas, behind all. */
 let HYPER = null;
 function initFx() {
+  if (location.search.indexOf("nofx") >= 0) return;
   const c = $("fxCanvas"); if (!c) return;
   const ctx = c.getContext("2d");
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -2698,8 +2709,57 @@ function initI18n() {
   applyLang(LANG);
 }
 
+/* ============================================================ LIVING MOTION
+   3D tilt on cards, count-up numbers, and staggered reveals — makes the whole
+   interface feel alive and in motion. */
+function initMotion() {
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) return;
+  // 3D tilt: cards with .tilt follow the cursor
+  document.addEventListener("mousemove", (e) => {
+    const card = e.target.closest && e.target.closest(".tilt");
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    card.style.transform = `perspective(700px) rotateY(${px * 8}deg) rotateX(${-py * 8}deg) translateY(-4px)`;
+    card.style.setProperty("--mx", (px * 100 + 50) + "%");
+    card.style.setProperty("--my", (py * 100 + 50) + "%");
+  }, { passive: true });
+  document.addEventListener("mouseout", (e) => {
+    const card = e.target.closest && e.target.closest(".tilt");
+    if (card && !card.contains(e.relatedTarget)) card.style.transform = "";
+  }, true);
+}
+
+// animate a number from 0 → target
+function countUp(el, target, dur) {
+  if (!el) return;
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target = Number(target) || 0;
+  if (reduce || target === 0) { el.textContent = String(target); return; }
+  const t0 = performance.now ? performance.now() : 0, D = dur || 800;
+  function step(now) {
+    const p = Math.min(1, (now - t0) / D);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// stagger-reveal the children of a freshly-rendered container
+function staggerReveal(container, sel) {
+  if (!container) return;
+  const items = container.querySelectorAll(sel);
+  items.forEach((n, i) => {
+    n.classList.remove("reveal"); void n.offsetWidth;
+    n.style.animationDelay = Math.min(i, 20) * 0.05 + "s";
+    n.classList.add("reveal");
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-  init(); initFx(); initI18n();
+  init(); initFx(); initI18n(); initMotion();
   const rep = $("crawlReplay"); if (rep) rep.onclick = playCrawl;
   maybeCrawl();
 });
