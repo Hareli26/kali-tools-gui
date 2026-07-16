@@ -1286,7 +1286,11 @@ class Handler(BaseHTTPRequestHandler):
         target = (data.get("target") or "").strip()
         if not intent or not target:
             return self._send_json({"error": "יש להזין כוונה ומטרה"}, 400)
-        result = agents.plan(intent, target)
+        use_llm = data.get("ai") is True
+        result = agents.plan(intent, target, use_llm=use_llm)
+        if use_llm and result.get("engine") != "ai-llm":
+            result["ai_note"] = ("מנוע ה-AI לא היה זמין או לא החזיר תוכנית תקינה — "
+                                 "בוצע תכנון מבוסס-חוקים במקום.")
         cat = load_catalog()
         result["steps"] = [enrich_step(s, cat) for s in result["steps"]]
         return self._send_json(result)

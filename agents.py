@@ -269,9 +269,77 @@ GENERAL = {
 
 ROOT_TOOLS = {"masscan", "netdiscover", "arp-scan", "tcpdump", "tshark", "hping3", "nping", "responder"}
 
-# ---------------------------------------------------------------- planner ----
-def plan(intent, target):
+# ------------------------------------------------ LLM planner (real decisions) --
+_CATALOG = None
+def _catalog():
+    global _CATALOG
+    if _CATALOG is None:
+        try:
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools.json")
+            _CATALOG = json.load(open(path, encoding="utf-8"))
+        except Exception:
+            _CATALOG = {"tools": []}
+    return _CATALOG
+
+def _tool_brief():
+    """Compact catalog for the LLM prompt: id, name, category, and option ids."""
+    lines = []
+    for t in _catalog().get("tools", []):
+        opts = ",".join(o["id"] for o in t.get("options", []))
+        lines.append("%s | %s | %s | opts: %s" % (t["id"], t["name"], t.get("category", ""), opts))
+    return "\n".join(lines)
+
+def llm_plan(intent, target):
+    """Ask the local LLM to CHOOSE which tools to run (real decision-making).
+    Constrained to the real catalog + validated; returns steps or None on failure.
+    The user still approves before anything runs, and commands are argv (no shell)."""
     v = target_variants(target)
+    valid = {t["id"] for t in _catalog().get("tools", [])}
+    prompt = (
+        "You are a penetration-testing planner. Choose which tools to run for the given "
+        "intent and target, using ONLY tools from the catalog below.\n"
+        "Return STRICT JSON only: an array of steps, each "
+        '{\"tool_id\": \"<id from catalog>\", \"why\": \"<short reason in Hebrew>\", '
+        '\"values\": {\"<option id>\": \"<value>\"}}.\n'
+        "For the target value use the placeholder {target} (host) or {url} (for web tools). "
+        "Pick 3-8 relevant steps, ordered logically (recon first). No prose, JSON only.\n\n"
+        "INTENT: %s\nTARGET: %s (host=%s, url=%s)\n\nCATALOG (id | name | category | options):\n%s"
+        % (intent, target, v["host"], v["url"], _tool_brief())
+    )
+    raw = llm_generate(prompt, timeout=120)
+    if not raw:
+        return None
+    # extract JSON array (tolerate ```json fences / surrounding text)
+    m = re.search(r"\[.*\]", raw, re.S)
+    if not m:
+        return None
+    try:
+        arr = json.loads(m.group(0))
+    except Exception:
+        return None
+    steps = []
+    for s in arr[:10]:
+        if not isinstance(s, dict):
+            continue
+        tid = str(s.get("tool_id", "")).strip()
+        if tid not in valid:
+            continue
+        vals = s.get("values") if isinstance(s.get("values"), dict) else {}
+        steps.append(_step(tid, str(s.get("why", "")).strip(), _subst(vals, v)))
+    return steps or None
+
+# ---------------------------------------------------------------- planner ----
+def plan(intent, target, use_llm=False):
+    v = target_variants(target)
+    if use_llm and llm_available():
+        llm_steps = llm_plan(intent, target)
+        if llm_steps:
+            for st in llm_steps:
+                st["playbook"] = "תכנון AI"
+                st["needs_root"] = st["tool_id"] in ROOT_TOOLS
+            return {"engine": "ai-llm", "intent": intent, "target": target,
+                    "playbooks": ["🧠 תכנון ע\"י LLM"], "steps": llm_steps}
+    # rule-based (default / fallback)
     il = (intent or "").lower()
     all_pbs = list(PLAYBOOKS) + load_custom_playbooks()
     scored = []

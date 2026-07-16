@@ -402,15 +402,17 @@ async function makePlan() {
   if (!intent || !target) {
     err.textContent = "יש להזין גם כוונה וגם מטרה."; err.classList.remove("hidden"); return;
   }
+  const ai = $("aiPlanLLM").checked;
   $("planBtn").disabled = true;
-  $("planBtn").textContent = "🧠 מתכנן...";
+  $("planBtn").textContent = ai ? "🧠 ה‑AI מתכנן..." : "🧠 מתכנן...";
   try {
     const res = await fetch("/api/plan", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intent, target })
+      body: JSON.stringify({ intent, target, ai })
     });
     const data = await res.json();
     if (!res.ok) { err.textContent = data.error || "שגיאה"; err.classList.remove("hidden"); return; }
+    if (data.ai_note) alert("ℹ️ " + data.ai_note);
     PLAN = data;
     renderPlan(data);
     showScreen("ai-plan");
@@ -424,7 +426,7 @@ async function makePlan() {
 
 function renderPlan(data) {
   $("planMeta").innerHTML =
-    `<span class="pill">מנוע: ${data.engine === "llm" ? "AI" : "חוקים"}</span>` +
+    `<span class="pill ${data.engine === "ai-llm" ? "ai" : ""}">מנוע: ${data.engine === "ai-llm" ? "🧠 AI (LLM)" : "⚙️ חוקים"}</span>` +
     `<span class="pill">מטרה: ${escapeHtml(data.target)}</span>` +
     (data.playbooks || []).map(p => `<span class="pill">${escapeHtml(p)}</span>`).join("");
   const box = $("planSteps");
@@ -1501,6 +1503,13 @@ async function loadLlmStatus() {
       badge.className = "llm-badge off";
       badge.title = "הגדר OLLAMA_URL + OLLAMA_MODEL לשדרוג ניסוח הדוחות";
     }
+    // AI-planning checkbox — only usable when the LLM is actually available
+    const cb = $("aiPlanLLM"), st = $("aiPlanStatus");
+    if (cb) {
+      cb.disabled = !LLM_ON;
+      if (!LLM_ON) cb.checked = false;
+    }
+    if (st) st.textContent = LLM_ON ? "· זמין" : "· דורש Ollama פעיל";
   } catch (e) { /* ignore */ }
 }
 
