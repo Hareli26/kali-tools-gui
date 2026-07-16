@@ -634,6 +634,13 @@ h2, .col-title, .dash-section { text-shadow: 0 0 16px rgba(47,129,247,.18); }
     var(--bg);
 }
 #vaultSvg { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+.galaxy-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  cursor: grab; touch-action: none;
+  background: radial-gradient(ellipse at 50% 42%, #0b0a22 0%, #060814 62%, #03030a 100%);
+}
+.galaxy-canvas:active { cursor: grabbing; }
+.galaxy-canvas.hidden { display: none; }
 #vaultSvg:active { cursor: grabbing; }
 
 .v-edge { stroke: rgba(139,152,169,.28); stroke-width: 1.2; }

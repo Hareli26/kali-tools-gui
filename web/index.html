@@ -189,6 +189,7 @@
       </div>
       <div class="dash-hero-actions">
         <input type="text" id="vaultSearch" class="vault-search" placeholder="🔎 חיפוש צומת...">
+        <button id="vaultMode3d" class="ghost-btn">🌌 גלקסיה 3D</button>
         <button id="vaultExportBtn" class="ghost-btn">📓 ייצא כספת</button>
         <button id="vaultReloadBtn" class="ghost-btn">🔄 רענן</button>
       </div>
@@ -198,11 +199,12 @@
       <span class="vl-item"><i class="vl-dot moc"></i> מרכז</span>
       <span class="vl-item"><i class="vl-dot report"></i> דוחות (<span id="vlReports">0</span>)</span>
       <span class="vl-item"><i class="vl-dot threat"></i> איומים (<span id="vlThreats">0</span>)</span>
-      <span class="vl-hint">🖱️ גרור צומת · גלגל להתקרב · לחץ צומת לפתיחת הפתק</span>
+      <span class="vl-hint" id="vaultHint">🖱️ גרור צומת · גלגל להתקרב · לחץ צומת לפתיחת הפתק</span>
     </div>
 
     <div class="vault-stage">
       <svg id="vaultSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <canvas id="galaxyCanvas" class="galaxy-canvas hidden"></canvas>
       <aside id="vaultPanel" class="vault-panel hidden">
         <button id="vaultPanelClose" class="modal-x">✕</button>
         <div id="vaultPanelTag" class="vault-panel-tag"></div>

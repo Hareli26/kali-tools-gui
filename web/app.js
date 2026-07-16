@@ -38,6 +38,7 @@ function showScreen(name) {
   if (mh) mh.classList.toggle("active", isHistory);
   if (isDash) loadDashboard();
   if (isVault) loadVault();
+  else if (typeof galaxyStop === "function") galaxyStop();  // pause the 3D loop off-screen
   if (isUsers) loadUsers();
   if (isHistory) loadHistory();
   window.scrollTo(0, 0);
@@ -1393,7 +1394,9 @@ function init() {
   $("histCompareBtn").onclick = runCompare;
   $("histClearBtn").onclick = () => { HIST_SEL = []; renderHistory(); $("histCompare").classList.add("hidden"); };
   $("vaultReloadBtn").onclick = () => loadVault();
+  $("vaultMode3d").onclick = vaultToggle3d;
   $("vaultSearch").oninput = (e) => vaultSearch(e.target.value);
+  window.addEventListener("resize", () => { if (GAL && !$("galaxyCanvas").classList.contains("hidden")) galaxyResize(); });
   $("vaultPanelClose").onclick = () => {
     $("vaultPanel").classList.add("hidden");
     VAULT.nodes.forEach(x => x._g.classList.remove("v-active", "v-linked"));
@@ -1640,6 +1643,12 @@ async function applyHash() {
   else if (h === "ai") { showScreen("ai-prompt"); }
   else if (h === "tools") { showScreen("picker"); }
   else if (h === "vault" || h === "obsidian") { showScreen("vault"); }
+  else if (h === "galaxy") {
+    VAULT_MODE = "3d";
+    $("vaultMode3d").textContent = "🕸️ גרף 2D";
+    $("vaultHint").textContent = "🖱️ גרור לסיבוב הגלקסיה · גלגל לטוס פנימה/החוצה · גרור כוכב להזזה · לחץ כוכב לפתיחת הפתק";
+    showScreen("vault");
+  }
   else if (h === "history") { showScreen("history"); }
   else if (h === "users") { showScreen("users"); }
   else if (h.startsWith("tool-")) {
@@ -1669,24 +1678,247 @@ function vEl(tag, attrs) {
   return e;
 }
 
+let VAULT_MODE = "2d";      // "2d" (SVG graph) | "3d" (canvas galaxy)
+let VAULT_GRAPH = null;     // last-loaded {nodes, links}
+
 async function loadVault() {
-  const svg = $("vaultSvg");
-  const empty = $("vaultEmpty");
   $("vaultPanel").classList.add("hidden");
-  svg.innerHTML = "";
   try {
     const g = await (await fetch("/api/vault/graph")).json();
+    VAULT_GRAPH = { nodes: g.nodes || [], links: g.links || [] };
     $("vlReports").textContent = g.counts ? g.counts.reports : 0;
     $("vlThreats").textContent = g.counts ? g.counts.threats : 0;
-    const reportsOrThreats = (g.nodes || []).some(n => n.type !== "moc");
-    if (!reportsOrThreats) { empty.classList.remove("hidden"); return; }
-    empty.classList.add("hidden");
-    vaultLayout(g.nodes, g.links || []);
-    vaultRender(g.nodes, g.links || []);
+    renderVault();
   } catch (e) {
-    empty.textContent = "שגיאה בטעינת הגרף: " + e;
-    empty.classList.remove("hidden");
+    $("vaultEmpty").textContent = "שגיאה בטעינת הגרף: " + e;
+    $("vaultEmpty").classList.remove("hidden");
   }
+}
+
+function renderVault() {
+  const empty = $("vaultEmpty"), svg = $("vaultSvg"), canvas = $("galaxyCanvas");
+  const g = VAULT_GRAPH || { nodes: [], links: [] };
+  const has = g.nodes.some(n => n.type !== "moc");
+  if (!has) {
+    empty.classList.remove("hidden");
+    svg.classList.add("hidden"); canvas.classList.add("hidden");
+    galaxyStop();
+    return;
+  }
+  empty.classList.add("hidden");
+  if (VAULT_MODE === "3d") {
+    galaxyStop();
+    svg.classList.add("hidden"); svg.innerHTML = "";
+    canvas.classList.remove("hidden");
+    galaxyBuild(g.nodes, g.links);
+  } else {
+    galaxyStop();
+    canvas.classList.add("hidden");
+    svg.classList.remove("hidden");
+    vaultLayout(g.nodes, g.links);
+    vaultRender(g.nodes, g.links);
+  }
+}
+
+function vaultToggle3d() {
+  VAULT_MODE = VAULT_MODE === "3d" ? "2d" : "3d";
+  $("vaultMode3d").textContent = VAULT_MODE === "3d" ? "🕸️ גרף 2D" : "🌌 גלקסיה 3D";
+  $("vaultHint").textContent = VAULT_MODE === "3d"
+    ? "🖱️ גרור לסיבוב הגלקסיה · גלגל לטוס פנימה/החוצה · גרור כוכב להזזה · לחץ כוכב לפתיחת הפתק"
+    : "🖱️ גרור צומת · גלגל להתקרב · לחץ צומת לפתיחת הפתק";
+  $("vaultPanel").classList.add("hidden");
+  renderVault();
+}
+
+/* ============================================================ 3D GALAXY VIEW
+   The Obsidian vault as a navigable 3D star field — pure canvas, no libraries.
+   Each star is a data node (report/threat/MOC); spin, fly, and drag stars. */
+let GAL = null;
+
+function galaxyStop() {
+  if (GAL && GAL.raf) { cancelAnimationFrame(GAL.raf); GAL.raf = null; }
+}
+
+function galaxyBuild(nodes, links) {
+  galaxyStop();
+  const canvas = $("galaxyCanvas");
+  const ctx = canvas.getContext("2d");
+  const idx = {}; nodes.forEach(n => idx[n.id] = n);
+  let k = 0;
+  nodes.forEach(n => {
+    if (n.type === "moc") { n.X = 0; n.Y = 0; n.Z = 0; }
+    else {
+      const a = k * 0.5, r = 70 + k * 9 + (n.type === "threat" ? 0 : 45);
+      n.X = Math.cos(a) * r; n.Z = Math.sin(a) * r; n.Y = (Math.random() - 0.5) * 60;
+      k++;
+    }
+    n._tw = Math.random() * 6.28; n._dim = false;
+  });
+  const edges = links.map(l => ({ s: idx[l.source], t: idx[l.target] })).filter(e => e.s && e.t);
+  const stars = [];
+  for (let i = 0; i < 340; i++) {
+    const th = Math.random() * 6.283, ph = Math.acos(2 * Math.random() - 1), R = 520 + Math.random() * 760;
+    stars.push({ X: R * Math.sin(ph) * Math.cos(th), Y: R * Math.sin(ph) * Math.sin(th), Z: R * Math.cos(ph),
+                 s: 0.4 + Math.random() * 1.1, tw: Math.random() * 6.283 });
+  }
+  GAL = {
+    canvas, ctx, nodes, edges, stars,
+    view: { rotX: -0.5, rotY: 0.4, dist: 640, f: 640, autoSpin: true },
+    drag: null, moved: 0, last: null, t: 0, proj: [],
+    dpr: Math.min(window.devicePixelRatio || 1, 2), W: 0, H: 0,
+  };
+  galaxyResize();
+  galaxyWire();
+  galaxyLoop();
+}
+
+function galaxyResize() {
+  if (!GAL) return;
+  const r = GAL.canvas.getBoundingClientRect();
+  GAL.W = r.width; GAL.H = r.height;
+  GAL.canvas.width = r.width * GAL.dpr; GAL.canvas.height = r.height * GAL.dpr;
+  GAL.ctx.setTransform(GAL.dpr, 0, 0, GAL.dpr, 0, 0);
+}
+
+function galProject(p, v, W, H) {
+  const cy = Math.cos(v.rotY), sy = Math.sin(v.rotY);
+  const x1 = p.X * cy - p.Z * sy, z1 = p.X * sy + p.Z * cy;
+  const cx = Math.cos(v.rotX), sx = Math.sin(v.rotX);
+  const y1 = p.Y * cx - z1 * sx, z2 = p.Y * sx + z1 * cx;
+  const zz = z2 + v.dist;
+  if (zz <= 1) return null;
+  const scale = v.f / zz;
+  return { x: W / 2 + x1 * scale, y: H / 2 + y1 * scale, scale, depth: zz };
+}
+
+function galColor(n) {
+  if (n.type === "moc") return [168, 85, 247];
+  if (n.type === "report") return [47, 129, 247];
+  const s = n.severity;
+  if (s === "critical") return [255, 45, 45];
+  if (s === "high") return [248, 81, 73];
+  if (s === "medium") return [210, 153, 34];
+  if (s === "low") return [63, 185, 80];
+  return [248, 81, 73];
+}
+function galRadius(n) { return n.type === "moc" ? 9 : n.type === "threat" ? Math.min(7, 3 + (n.count || 1)) : 4.5; }
+
+function galaxyLoop() {
+  if (!GAL) return;
+  const { ctx, view: v } = GAL, W = GAL.W, H = GAL.H;
+  GAL.t += 1;
+  if (v.autoSpin && !GAL.drag) v.rotY += 0.0016;
+
+  ctx.clearRect(0, 0, W, H);
+  const bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) / 1.2);
+  bg.addColorStop(0, "rgba(35,22,66,0.40)"); bg.addColorStop(1, "rgba(5,8,18,0)");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  GAL.stars.forEach(s => {
+    const p = galProject(s, v, W, H); if (!p) return;
+    const tw = 0.5 + 0.5 * Math.sin(GAL.t * 0.03 + s.tw);
+    ctx.globalAlpha = Math.min(1, (0.12 + 0.4 * tw) * (600 / p.depth));
+    ctx.fillStyle = "#cdd9ff";
+    ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.4, s.s * p.scale * 0.5), 0, 6.283); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  const proj = [];
+  GAL.nodes.forEach(n => { const p = galProject(n, v, W, H); if (p) { p.n = n; proj.push(p); } });
+
+  ctx.lineWidth = 1;
+  GAL.edges.forEach(e => {
+    const a = galProject(e.s, v, W, H), b = galProject(e.t, v, W, H);
+    if (!a || !b) return;
+    const al = Math.min(0.28, 130 / Math.max(a.depth, b.depth)) * ((e.s._dim || e.t._dim) ? 0.25 : 1);
+    ctx.strokeStyle = "rgba(139,152,169," + al + ")";
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  });
+
+  proj.sort((p, q) => q.depth - p.depth);
+  proj.forEach(p => {
+    const n = p.n, c = galColor(n), rad = Math.max(1.5, galRadius(n) * p.scale);
+    const dimf = n._dim ? 0.18 : 1;
+    const tw = (0.8 + 0.2 * Math.sin(GAL.t * 0.05 + n._tw)) * dimf;
+    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad * 4.2);
+    grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${0.9 * tw})`);
+    grad.addColorStop(0.4, `rgba(${c[0]},${c[1]},${c[2]},${0.35 * dimf})`);
+    grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(p.x, p.y, rad * 4.2, 0, 6.283); ctx.fill();
+    ctx.fillStyle = `rgba(255,255,255,${0.9 * tw})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, rad * 0.55, 0, 6.283); ctx.fill();
+    p.rad = rad;
+    if (!n._dim && (n.type === "moc" || p.scale > 1.05)) {
+      const label = n.type === "moc" ? "מרכז הבקרה" : (n.label.length > 20 ? n.label.slice(0, 19) + "…" : n.label);
+      ctx.fillStyle = "rgba(230,237,243,0.9)"; ctx.font = "12px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(label, p.x, p.y - rad * 4.2 - 4);
+    }
+  });
+  GAL.proj = proj;
+  GAL.raf = requestAnimationFrame(galaxyLoop);
+}
+
+function galHit(e) {
+  if (!GAL || !GAL.proj) return null;
+  const r = GAL.canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bd = 1e9;
+  GAL.proj.forEach(p => {
+    const d = Math.hypot(p.x - mx, p.y - my);
+    if (d < Math.max(12, (p.rad || 3) * 4) && d < bd) { bd = d; best = p.n; }
+  });
+  return best;
+}
+
+function galMoveNode(n, dxs, dys) {
+  const v = GAL.view, p = galProject(n, v, GAL.W, GAL.H), s = p ? p.scale : 1;
+  const dx1 = dxs / s, dy1 = dys / s;
+  const cx = Math.cos(v.rotX), sx = Math.sin(v.rotX);
+  const y_after = dy1 * cx, z1_after = -dy1 * sx;   // inverse rotX (camera-plane vector, z=0)
+  const cy = Math.cos(v.rotY), sy = Math.sin(v.rotY);
+  n.X += dx1 * cy + z1_after * sy;
+  n.Y += y_after;
+  n.Z += -dx1 * sy + z1_after * cy;
+}
+
+function galaxyWire() {
+  const c = GAL.canvas;
+  c.onpointerdown = (e) => {
+    c.setPointerCapture(e.pointerId);
+    GAL.moved = 0; GAL.last = { x: e.clientX, y: e.clientY };
+    const hit = galHit(e);
+    GAL.drag = hit ? { node: hit } : { orbit: true };
+    GAL.view.autoSpin = false;
+  };
+  c.onpointermove = (e) => {
+    if (!GAL.drag) return;
+    const dx = e.clientX - GAL.last.x, dy = e.clientY - GAL.last.y;
+    GAL.last = { x: e.clientX, y: e.clientY };
+    GAL.moved += Math.abs(dx) + Math.abs(dy);
+    if (GAL.drag.orbit) {
+      GAL.view.rotY += dx * 0.006;
+      GAL.view.rotX = Math.max(-1.4, Math.min(1.4, GAL.view.rotX + dy * 0.006));
+    } else if (GAL.drag.node) {
+      galMoveNode(GAL.drag.node, dx, dy);
+    }
+  };
+  c.onpointerup = (e) => {
+    if (GAL.drag && GAL.drag.node && GAL.moved < 5) galaxyOpenNote(GAL.drag.node);
+    GAL.drag = null;
+    try { c.releasePointerCapture(e.pointerId); } catch (_) {}
+    setTimeout(() => { if (GAL) GAL.view.autoSpin = true; }, 3500);
+  };
+  c.onwheel = (e) => {
+    e.preventDefault();
+    GAL.view.dist = Math.max(140, Math.min(1600, GAL.view.dist * (e.deltaY < 0 ? 0.9 : 1.1)));
+  };
+}
+
+function galaxyOpenNote(n) {
+  const tag = n.type === "moc" ? "🛡️ מרכז" : n.type === "threat" ? "🎯 איום" : "📄 דוח";
+  $("vaultPanelTag").textContent = tag;
+  $("vaultPanelBody").innerHTML = mdToHtml(n.body || "*(אין תוכן)*");
+  $("vaultPanel").classList.remove("hidden");
 }
 
 function vaultRadius(n) {
@@ -1847,9 +2079,15 @@ function vaultOpenNote(n) {
 
 function vaultSearch(term) {
   term = (term || "").trim().toLowerCase();
+  if (VAULT_MODE === "3d") {
+    if (GAL) GAL.nodes.forEach(n => {
+      n._dim = !(!term || n.type === "moc" || (n.label || "").toLowerCase().includes(term));
+    });
+    return;
+  }
   VAULT.nodes.forEach(n => {
     const hit = !term || n.type === "moc" || (n.label || "").toLowerCase().includes(term);
-    n._g.classList.toggle("v-dim", !hit);
+    if (n._g) n._g.classList.toggle("v-dim", !hit);
   });
 }
 
