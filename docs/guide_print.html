@@ -46,8 +46,8 @@
   <div>
     <span class="badge">72 כלים</span>
     <span class="badge">11 קטגוריות</span>
-    <span class="badge">4 סוכני AI</span>
-    <span class="badge">WSL2 · Windows</span>
+    <span class="badge">Purple Team AI</span>
+    <span class="badge">שרת Kali · VPS</span>
   </div>
   <div class="author" style="margin-top:35mm">
     מדריך הפעלה והדרכה מלא<br><br>
@@ -76,18 +76,23 @@
 <!-- 1 -->
 <div class="section">
 <h2>1. סקירה כללית</h2>
-<p><strong>Kali Tools GUI</strong> היא מערכת גרפית (Web) המאחדת את כלי ה‑Kali Linux הרצים תחת WSL2 על Windows.
-המערכת מציעה שני מצבי עבודה:</p>
+<p><strong>Kali Tools GUI</strong> היא מערכת גרפית (Web) המאחדת את כלי ה‑Kali Linux. בייצור היא רצה על
+<strong>שרת Kali Linux ייעודי (VPS)</strong> מאחורי התחברות Google והרשאות תפקידים, ותומכת גם ב‑WSL2 לפיתוח מקומי.
+המערכת מציעה מצבי עבודה:</p>
 <ul>
   <li><strong>🧰 מצב כלים</strong> — בחירת כלי מרשת כרטיסים, מילוי טופס יכולות עם תצוגת פקודה חיה, הרצה וצפייה בתוצאות במסך נפרד.</li>
   <li><strong>🤖 מצב עוזר AI</strong> — תיאור חופשי של הבדיקה הרצויה; שכבת סוכנים מתכננת, מריצה, מאמתת ומפיקה דוח.</li>
   <li><strong>📊 מרכז בקרה</strong> — מצב הסוכנים החי, מודיעין נצבר, ויומן פעילות.</li>
   <li><strong>📓 תצוגת Obsidian</strong> — גרף קשרים אינטראקטיבי בין הדוחות לאיומים (בתוך המערכת).</li>
-  <li><strong>👥 ניהול משתמשים</strong> — (אדמין) הוספה/הסרה של חשבונות Google מורשים לכניסה.</li>
+  <li><strong>🕓 היסטוריה</strong> — כל הבדיקות לאורך זמן + השוואת שתי סריקות (מגמת אבטחה).</li>
+  <li><strong>📚 חומרי למידה</strong> — Q&A חינוכי לכל איום (מהו, הגנה, זיהוי, תיקון, MITRE).</li>
+  <li><strong>👥 משתמשים + הרשאות (RBAC)</strong> — (אדמין) ניהול חשבונות מורשים והקצאת תפקיד: admin / operator / viewer.</li>
+  <li><strong>✏️ עורך Playbooks</strong> — (אדמין) הוספת/עריכת חוקי סוכן בלי קוד.</li>
 </ul>
 <p><strong>סרגל ריצה גלובלי:</strong> בכל מסך, כל עוד משימה פעילה, מופיע סרגל תחתון שמראה בזמן אמת מה הסוכן עושה
 (הכלי הנוכחי + התקדמות) ומאפשר חזרה למשימה בלחיצה — כך שלעולם לא "מאבדים" ריצה. המשימות רצות בשרת ולא נעצרות בניווט.</p>
-<p>השרת רץ <em>בתוך</em> Kali WSL בספריית פייתון סטנדרטית בלבד (אפס תלויות), ומזהה אוטומטית אילו כלים מותקנים.</p>
+<p>השרת רץ על שרת ה‑Kali בספריית פייתון סטנדרטית בלבד (אפס תלויות), ומזהה אוטומטית אילו כלים מותקנים.
+אופציונלית, מודל <strong>LLM מקומי (Ollama)</strong> משדרג את ניסוח הדוחות.</p>
 </div>
 
 <!-- 2 -->
@@ -116,17 +121,21 @@ sudo apt install -y kali-linux-everything</pre>
 <!-- 3 -->
 <div class="section">
 <h2>3. התקנה והפעלה</h2>
-<p>המערכת מורצת כ‑<strong>root</strong> (ללא סיסמה, דרך <code>-u root</code>) כדי שכל הכלים יעבדו.</p>
-<pre># הפעלה מהירה
-C:\ClaudeCode\kali-gui\start.ps1
-
-# או ידנית
-wsl -d kali-linux -u root -- python3 /mnt/c/ClaudeCode/kali-gui/server.py</pre>
-<p>פתח בדפדפן: <code>http://localhost:8777</code></p>
-<p><strong>תיקון DNS</strong> (אם דומיינים חיצוניים לא נפתרים):</p>
-<pre>printf '[network]\ngenerateResolvConf = false\n' | sudo tee /etc/wsl.conf
-sudo rm -f /etc/resolv.conf
-printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' | sudo tee /etc/resolv.conf</pre>
+<h3>3א. פריסה בייצור — שרת Kali (VPS)</h3>
+<p>בייצור, מתקין יחיד מקים את הכל על שרת Kali נקי: כלי Kali, האפליקציה, מסד הנתונים, שרת ה‑MCP,
+HTTPS (Caddy + oauth2‑proxy עם התחברות Google) ו‑firewall:</p>
+<pre>git clone https://github.com/&lt;user&gt;/kali-tools-gui.git /opt/kali-gui
+cd /opt/kali-gui
+cp deploy/deploy.env.example deploy/deploy.env   # DOMAIN + Google client id/secret
+bash deploy/install-vps.sh</pre>
+<p>ניהול השירות על השרת:</p>
+<pre>systemctl status  kali-gui     # מצב
+systemctl restart kali-gui     # הפעלה מחדש
+journalctl -u kali-gui -n 50   # לוגים</pre>
+<h3>3ב. פיתוח מקומי — WSL2 (אופציונלי)</h3>
+<p>המערכת רצה כ‑<strong>root</strong> כדי שכל הכלים יעבדו. להרצה מקומית תחת Kali‑WSL:</p>
+<pre>wsl -d kali-linux -u root -- python3 /path/to/kali-gui/server.py
+# ואז בדפדפן:  http://localhost:8777</pre>
 </div>
 
 <!-- 4 -->
@@ -199,12 +208,14 @@ printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' | sudo tee /etc/resolv.conf</p
 <!-- 6 -->
 <div class="section">
 <h2>6. ארכיטקטורה</h2>
-<pre>דפדפן (Windows)
-    │  HTTP (localhost:8777)
-    ▼
-server.py  (Python stdlib, root, בתוך Kali WSL)
+<pre>דפדפן ──HTTPS──► Caddy ──► oauth2-proxy (Google + RBAC)
+                              │
+                              ▼
+server.py  (Python stdlib, root, על שרת Kali)
     ├── tools.json   קטלוג 72 כלים
-    ├── agents.py    Planner / Verifier / Reporter
+    ├── agents.py    Planner / Verifier / Reporter (+ LLM אופציונלי)
+    ├── bluered.py   Broker / Blue / Learning / Fixer
+    ├── db.py        SQLite (ידע, פעילות, ביקורת, דוחות, תפקידים)
     └── subprocess ─► כלי Kali אמיתיים (argv, ללא shell)</pre>
 <p>עקרון אבטחה מרכזי: הפקודות נבנות בצד השרת כמערך <code>argv</code> ללא shell — הגנה מהזרקת פקודות.</p>
 </div>

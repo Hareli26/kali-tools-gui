@@ -85,7 +85,7 @@
 <div class="section">
 <h2>1. מבוא</h2>
 <p>מסמך זה מתאר את התכן ההנדסי של מערכת <strong>Kali Tools GUI</strong>: ממשק גרפי ושכבת סוכנים בגישת Purple Team
-המורצת מעל כלי Kali Linux תחת WSL2. המסמך נועד להסביר <em>כיצד</em> המערכת בנויה, כיצד רכיביה משתלבים,
+המורצת על <strong>שרת Kali Linux (VPS)</strong> — ותומכת גם ב‑WSL2 לפיתוח מקומי. המסמך נועד להסביר <em>כיצד</em> המערכת בנויה, כיצד רכיביה משתלבים,
 ובמיוחד — מאיפה הסוכנים "יודעים" לפעול ולקבל נתונים.</p>
 </div>
 
@@ -138,7 +138,9 @@
   <tr><td><code>GET /api/history</code> · <code>GET /api/compare</code></td><td>היסטוריית סריקות · השוואת שתי סריקות (נפתר/חדש/פתוח)</td></tr>
   <tr><td><code>GET /api/playbooks</code> · <code>POST /api/playbooks/save|delete</code></td><td>עורך Playbooks — קריאה לכל · כתיבה לאדמין בלבד</td></tr>
   <tr><td><code>GET /api/learning</code></td><td>חומרי למידה: ידע נצבר + הגנות + Sigma/Suricata לכל איום</td></tr>
-  <tr><td><code>GET /api/whoami</code></td><td>זהות המשתמש + האם אדמין</td></tr>
+  <tr><td><code>GET /api/roles</code> · <code>POST /api/roles/set</code></td><td>הרשאות תפקידים (RBAC) — אדמין בלבד</td></tr>
+  <tr><td><code>GET /api/llm</code> · <code>POST /api/llm/enhance</code></td><td>סטטוס LLM מקומי · שיפור דוח ע"י המודל</td></tr>
+  <tr><td><code>GET /api/whoami</code></td><td>זהות המשתמש + תפקיד (role) + הרשאות (can)</td></tr>
   <tr><td><code>GET /api/health</code></td><td>בריאות השירות (גרסה, uptime)</td></tr>
 </table>
 </div>
@@ -262,16 +264,18 @@ argv += [positional target]</pre>
   <li><b>מניעת traversal:</b> הגשת קבצים סטטיים מוגבלת לתיקיית web בלבד.</li>
   <li><b>שלב אישור:</b> שכבת ה‑AI מציעה תוכנית; ההרצה (וכל תיקון) מתבצעת רק לאחר אישור המשתמש.</li>
   <li><b>אימות בענן:</b> התחברות Google + רשימת מיילים מאושרים (oauth2‑proxy) לגישה מבחוץ.</li>
-  <li><b>ניהול משתמשים מוגן:</b> נקודות <code>/api/users*</code> פתוחות <strong>לאדמין בלבד</strong> (403 אחרת); אימות תקינות אימייל ומניעת נעילה עצמית (אי אפשר להסיר את האדמין).</li>
-  <li><b>ביקורת:</b> כל פעולה (הרצה·תיקון·התקנה·הוספת/הסרת משתמש) נרשמת עם זהות המשתמש שביצע אותה.</li>
+  <li><b>ניהול משתמשים מוגן:</b> נקודות <code>/api/users*</code> ו‑<code>/api/roles*</code> פתוחות <strong>לאדמין בלבד</strong> (403 אחרת); אימות תקינות אימייל ומניעת נעילה עצמית.</li>
+  <li><b>הרשאות תפקידים (RBAC):</b> שלושה תפקידים — <code>admin</code> (הכל), <code>operator</code> (הרצה), <code>viewer</code> (צפייה). האכיפה <strong>בצד השרת</strong> בכל נקודות הפעולה (run/fix/manage → 403 ללא הרשאה); הממשק מתאים את עצמו אך לעולם אינו הסמכות.</li>
+  <li><b>ביקורת:</b> כל פעולה (הרצה·תיקון·התקנה·ניהול משתמשים/תפקידים·כניסה) נרשמת עם זהות המשתמש שביצע אותה.</li>
 </ul>
 </div>
 
 <div class="section">
 <h2>10. פריסה ותפעול בייצור</h2>
-<p>המערכת מותקנת כשירות <strong>systemd</strong> בתוך Kali WSL (<code>kali-gui.service</code>) עם הפעלה אוטומטית
-והתאוששות מקריסה (<code>Restart=on-failure</code>). מתקין חד‑פעמי (<code>Install.bat</code> / <code>setup.ps1</code>)
-מבצע: בדיקת דרישות, תיקון DNS, התקנת השירות, ורישום משימת Windows להעלאת WSL בהתחברות.</p>
+<p>בייצור המערכת רצה על <strong>שרת Kali Linux ייעודי (VPS)</strong> כשירות <strong>systemd</strong>
+(<code>kali-gui.service</code>) עם הפעלה אוטומטית והתאוששות מקריסה (<code>Restart=on-failure</code>). מתקין
+יחיד (<code>deploy/install-vps.sh</code>) מקים את הכל: כלי Kali, האפליקציה, מסד הנתונים, שרת ה‑MCP, שרשרת
+ה‑HTTPS (Caddy + oauth2‑proxy), ו‑firewall. (לפיתוח מקומי המערכת רצה גם תחת WSL2 על Windows.)</p>
 <pre>systemctl status  kali-gui     # מצב
 systemctl restart kali-gui     # הפעלה מחדש
 journalctl -u kali-gui -n 50   # לוגים</pre>
@@ -301,8 +305,9 @@ journalctl -u kali-gui -n 50   # לוגים</pre>
   <tr><td>Frontend</td><td>HTML/CSS/Vanilla JS (ללא build)</td><td>פשטות, אפס כלי בנייה, RTL</td></tr>
   <tr><td>ויזואליזציה</td><td>SVG + requestAnimationFrame</td><td>גרפיקה וקטורית אינטראקטיבית + אנימציה</td></tr>
   <tr><td>אחסון</td><td>SQLite (<code>db.py</code>) + ייצוא Obsidian</td><td>עמידות, שאילתות, הגירה אוטומטית מ‑JSON</td></tr>
-  <tr><td>סביבת ריצה</td><td>Kali Linux תחת WSL2</td><td>גישה מלאה לכלי הפנטסט</td></tr>
-  <tr><td>שירות</td><td>systemd + Windows Task Scheduler</td><td>זמינות תמידית</td></tr>
+  <tr><td>סביבת ריצה</td><td>שרת Kali Linux (VPS) · WSL2 לפיתוח</td><td>גישה מלאה לכלי הפנטסט, נייטיב</td></tr>
+  <tr><td>שירות ופריסה</td><td>systemd + Caddy + oauth2‑proxy</td><td>זמינות, HTTPS אוטומטי, התחברות Google + RBAC</td></tr>
+  <tr><td>LLM (אופציונלי)</td><td>Ollama מקומי</td><td>ניסוח דוחות; נפילה בחן למנוע מבוסס‑חוקים</td></tr>
 </table>
 </div>
 
@@ -347,6 +352,10 @@ journalctl -u kali-gui -n 50   # לוגים</pre>
 <figure>
   <img class="shot" src="shots/galaxy_3d.png" alt="3D galaxy view">
   <figcaption class="shotcap">מסך 10 — גלקסיה 3D: כספת Obsidian כשדה כוכבים תלת‑מימדי — כל כוכב נתון, עם סיבוב, טיסה וגרירה (קנבס טהור).</figcaption>
+</figure>
+<figure>
+  <img class="shot" src="shots/rbac_users.png" alt="RBAC role management">
+  <figcaption class="shotcap">מסך 11 — הרשאות תפקידים (RBAC): הקצאת תפקיד לכל משתמש — admin / operator / viewer — עם אכיפה בצד השרת.</figcaption>
 </figure>
 
 <div class="section">

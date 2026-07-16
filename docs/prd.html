@@ -84,7 +84,7 @@
 <div class="section">
 <h2>1. תקציר מנהלים</h2>
 <div class="lead">
-<strong>Kali Tools GUI</strong> היא מערכת גרפית (Web) המאחדת את עשרות כלי ה‑Kali Linux הרצים תחת WSL2 על Windows,
+<strong>Kali Tools GUI</strong> היא מערכת גרפית (Web) המאחדת את עשרות כלי ה‑Kali Linux, ורצה על <strong>שרת Kali ייעודי (VPS)</strong> — עם תמיכה גם ב‑WSL2 לפיתוח מקומי,
 ומוסיפה מעליהם שכבת סוכנים חכמה בגישת <strong>Purple Team</strong>: צוות אדום שמאתר פרצות, צוות כחול שמפיק הגנות,
 סוכן מתווך ביניהם, וסוכן מתזמר שמנצח את התהליך ומדווח — עם למידה מצטברת בין הרצות.
 </div>
@@ -180,12 +180,12 @@
 <div class="section">
 <h2>7. סקירת ארכיטקטורה</h2>
 <div class="diagram">┌───────────────────────────────────────────────────────────┐
-│  Browser (Windows)  —  RTL SPA (vanilla JS)               │
-│  Tools · AI Assistant · Dashboard · Agent-Brain           │
+│  Browser  —  RTL SPA (vanilla JS)                         │
+│  Tools·AI·Dashboard·History·Learning·Obsidian·Users(RBAC) │
 └───────────────┬───────────────────────────────────────────┘
-                │  HTTP (localhost:8777)
+       HTTPS (Caddy → oauth2-proxy: Google + RBAC)
 ┌───────────────▼───────────────────────────────────────────┐
-│  server.py  (Python stdlib, root, inside Kali WSL)         │
+│  server.py  (Python stdlib, root, on the Kali server/VPS)  │
 │   ├── tools.json    catalog (72 tools / 11 categories)     │
 │   ├── agents.py     Planner · Verifier · Reporter          │
 │   ├── bluered.py    Broker · Blue Team · Learning          │
@@ -257,10 +257,12 @@ wikilinks + MOC) המתעדכנת אוטומטית אחרי כל בדיקה ונ
 
 <div class="section">
 <h2>10. גבולות המערכת (Scope)</h2>
-<p><strong>בתוך הגבולות:</strong> ממשק מקומי חד‑משתמשי; הרצת כלי Kali; שכבת סוכנים מבוססת‑חוקים; דשבורד ולמידה.</p>
+<p><strong>בתוך הגבולות:</strong> מערכת רב‑משתמשית עם הרשאות תפקידים; הרצת כלי Kali; שכבת סוכנים מבוססת‑חוקים
+(עם ניסוח LLM אופציונלי); דשבורד, היסטוריה, למידה וכספת ידע.</p>
 <p><strong>מחוץ לגבולות (גרסה נוכחית):</strong> ריבוי ארגונים/דיירים (multi-tenant); כלים אלחוטיים חיים
-(WSL ללא גישת monitor mode לחומרה).</p>
-<p class="muted">הערה: אימות מרובה‑משתמשים (Google + allowlist) ומסד נתונים מנוהל (SQLite) — <strong>מומשו</strong> וכבר בתוך הגבולות.</p>
+(שרת/VM ללא גישת monitor mode לחומרה אלחוטית).</p>
+<p class="muted">הערה: אימות מרובה‑משתמשים (Google + allowlist), <strong>הרשאות תפקידים (RBAC)</strong> ומסד נתונים
+מנוהל (SQLite) — <strong>מומשו</strong> וכבר בתוך הגבולות.</p>
 </div>
 
 <div class="section">
@@ -270,7 +272,8 @@ wikilinks + MOC) המתעדכנת אוטומטית אחרי כל בדיקה ונ
   <tr><td>שימוש לרעה כנגד מטרות ללא רשות</td><td>אזהרות בממשק ובדוחות; שלב אישור לפני כל הרצה</td></tr>
   <tr><td>כלי איטי תוקע משימה</td><td>מגבלת זמן לכל שלב (timeout) והמשך אוטומטי</td></tr>
   <tr><td>הרצה כ‑root</td><td>האזנה ל‑localhost בלבד; פקודות argv ללא shell</td></tr>
-  <tr><td>כלים אלחוטיים תחת WSL</td><td>נתמך רק aircrack-ng (offline); שאר האלחוטי מחוץ לגבולות</td></tr>
+  <tr><td>כלים אלחוטיים בשרת/VM</td><td>נתמך רק aircrack-ng (offline); שאר האלחוטי מחוץ לגבולות</td></tr>
+  <tr><td>הרצה עם פרטי משתמש שגויים (RBAC)</td><td>אכיפה בצד שרת (403) בכל נקודות הקצה; הממשק בלבד אינו סומך</td></tr>
 </table>
 </div>
 
