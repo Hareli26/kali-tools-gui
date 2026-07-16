@@ -653,6 +653,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_compare()
         if p == "/api/playbooks":
             return self._send_json({"playbooks": agents.describe_playbooks()})
+        if p == "/api/learning":
+            return self._api_learning()
         if p == "/api/brain":
             return self._api_brain()
         if p == "/api/vault/graph":
@@ -951,6 +953,40 @@ class Handler(BaseHTTPRequestHandler):
         db.delete_playbook(pid)
         audit(self._user(), "playbook-delete", pid)
         return self._send_json({"ok": True})
+
+    def _api_learning(self):
+        """Learning-materials page: every threat type the system knows, enriched
+        with what it has learned (KB counts) and how it handles it (defenses,
+        detections, Sigma/Suricata, remediation, MITRE) — in a Q&A form."""
+        kb = bluered.load_kb()
+        sigs = kb.get("signatures", {})
+        sevrank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        items, sev_counts = [], {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        for rule in bluered.DEFENSE_KB:
+            sid = rule["id"]
+            rec = sigs.get(sid, {})
+            det = bluered.get_detections(sid)
+            rem = bluered.get_remediation(sid)
+            learned = sid in sigs
+            if learned:
+                sev_counts[rule["severity"]] = sev_counts.get(rule["severity"], 0) + 1
+            items.append({
+                "signature": sid, "name": rule["name"], "severity": rule["severity"],
+                "threat": rule["threat"], "defenses": rule["defenses"],
+                "detections": rule["detections"], "config": rule.get("config", ""),
+                "mitre": rule.get("mitre", ""),
+                "sigma": det.get("sigma", ""), "suricata": det.get("suricata", ""),
+                "fix": {"available": bool(rem and rem.get("risk") != "manual" and rem.get("commands")),
+                        "title": (rem or {}).get("title", ""), "risk": (rem or {}).get("risk", ""),
+                        "note": (rem or {}).get("note", "")},
+                "seen": rec.get("count", 0), "learned": learned,
+                "first_seen": rec.get("first_seen", ""), "last_seen": rec.get("last_seen", ""),
+            })
+        items.sort(key=lambda x: (0 if x["learned"] else 1, -x["seen"], sevrank.get(x["severity"], 9)))
+        return self._send_json({
+            "runs": kb.get("runs", 0), "learned": len(sigs),
+            "total_types": len(bluered.DEFENSE_KB), "severity": sev_counts, "items": items,
+        })
 
     def _api_history(self):
         """All past scans (missions + purple), newest first — powers the history

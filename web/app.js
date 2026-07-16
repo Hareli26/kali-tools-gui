@@ -27,10 +27,11 @@ function showScreen(name) {
   const isUsers = name === "users";
   const isHistory = name === "history";
   const isPlaybooks = name === "playbooks";
+  const isLearning = name === "learning";
   const isAI = name.startsWith("ai-") || name === "purple";
-  const isTools = !isDash && !isAI && !isVault && !isUsers && !isHistory && !isPlaybooks;
+  const isTools = !isDash && !isAI && !isVault && !isUsers && !isHistory && !isPlaybooks && !isLearning;
   const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash"), mv = $("modeVault"),
-        mu = $("modeUsers"), mh = $("modeHistory"), mp = $("modePlaybooks");
+        mu = $("modeUsers"), mh = $("modeHistory"), mp = $("modePlaybooks"), ml = $("modeLearning");
   if (mt) mt.classList.toggle("active", isTools);
   if (ma) ma.classList.toggle("active", isAI);
   if (md) md.classList.toggle("active", isDash);
@@ -38,12 +39,14 @@ function showScreen(name) {
   if (mu) mu.classList.toggle("active", isUsers);
   if (mh) mh.classList.toggle("active", isHistory);
   if (mp) mp.classList.toggle("active", isPlaybooks);
+  if (ml) ml.classList.toggle("active", isLearning);
   if (isDash) loadDashboard();
   if (isVault) loadVault();
   else if (typeof galaxyStop === "function") galaxyStop();  // pause the 3D loop off-screen
   if (isUsers) loadUsers();
   if (isHistory) loadHistory();
   if (isPlaybooks) loadPlaybooks();
+  if (isLearning) loadLearning();
   window.scrollTo(0, 0);
 }
 
@@ -1393,6 +1396,8 @@ function init() {
   $("userAddBtn").onclick = addUser;
   $("userEmail").onkeydown = (e) => { if (e.key === "Enter") addUser(); };
   $("pbNewBtn").onclick = () => pbOpenEditor(null);
+  $("learnReload").onclick = () => loadLearning();
+  $("learnSearch").oninput = (e) => renderLearnList(e.target.value);
   $("histReload").onclick = () => loadHistory();
   $("histTarget").onchange = () => { HIST_SEL = []; renderHistory(); $("histCompare").classList.add("hidden"); };
   $("histCompareBtn").onclick = runCompare;
@@ -1438,6 +1443,78 @@ async function loadWhoami() {
     $("modeUsers").classList.toggle("hidden", !IS_ADMIN);
     $("modePlaybooks").classList.toggle("hidden", !IS_ADMIN);
   } catch (e) { /* ignore */ }
+}
+
+/* ============================================================ LEARNING MATERIALS
+   What the system learned + how it handles each threat, as an educational Q&A. */
+let LEARN_ITEMS = [];
+
+async function loadLearning() {
+  const list = $("learnList");
+  list.innerHTML = '<div class="audit-empty">טוען...</div>';
+  try {
+    const d = await (await fetch("/api/learning")).json();
+    LEARN_ITEMS = d.items || [];
+    renderLearnStats(d);
+    renderLearnList("");
+  } catch (e) { list.innerHTML = '<div class="audit-empty">שגיאה בטעינה.</div>'; }
+}
+
+function renderLearnStats(d) {
+  const sc = d.severity || {};
+  $("learnStats").innerHTML =
+    `<div class="lstat"><b>${d.runs || 0}</b><span>הרצות</span></div>` +
+    `<div class="lstat"><b>${d.learned || 0}/${d.total_types || 0}</b><span>סוגי איומים שנלמדו</span></div>` +
+    `<div class="lstat crit"><b>${sc.critical || 0}</b><span>קריטי</span></div>` +
+    `<div class="lstat high"><b>${sc.high || 0}</b><span>גבוה</span></div>` +
+    `<div class="lstat med"><b>${sc.medium || 0}</b><span>בינוני</span></div>` +
+    `<div class="lstat low"><b>${sc.low || 0}</b><span>נמוך</span></div>`;
+}
+
+function renderLearnList(term) {
+  term = (term || "").trim().toLowerCase();
+  const list = $("learnList");
+  list.innerHTML = "";
+  const items = LEARN_ITEMS.filter(it => !term ||
+    it.name.toLowerCase().includes(term) || (it.threat || "").toLowerCase().includes(term) ||
+    (it.mitre || "").toLowerCase().includes(term));
+  if (!items.length) { list.innerHTML = '<div class="audit-empty">לא נמצאו איומים תואמים.</div>'; return; }
+  items.forEach(it => list.appendChild(learnCard(it)));
+}
+
+function learnCard(it) {
+  const card = el("div", "learn-card " + it.severity);
+  const head = el("button", "learn-head");
+  head.innerHTML =
+    `<span class="learn-sev">${SEV_ICON[it.severity] || ""}</span>` +
+    `<span class="learn-name">${escapeHtml(it.name)}</span>` +
+    (it.learned
+      ? `<span class="learn-badge learned">נלמד · נצפה ${it.seen}×</span>`
+      : `<span class="learn-badge new">טרם נצפה</span>`) +
+    `<span class="learn-toggle">▾</span>`;
+  const body = el("div", "learn-body hidden");
+  const list = (arr) => "<ul>" + (arr || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") + "</ul>";
+  let html = "";
+  html += `<div class="qa"><div class="q">❓ מה זה ולמה זה מסוכן?</div><div class="a">${escapeHtml(it.threat)}</div></div>`;
+  html += `<div class="qa"><div class="q">🛡️ איך מתגוננים?</div><div class="a">${list(it.defenses)}</div></div>`;
+  html += `<div class="qa"><div class="q">👁️ איך מזהים?</div><div class="a">${list(it.detections)}`;
+  if (it.sigma) html += `<div class="qa-sub">חוק Sigma (SIEM):</div><pre>${escapeHtml(it.sigma)}</pre>`;
+  if (it.suricata) html += `<div class="qa-sub">חוק Suricata (IDS):</div><pre>${escapeHtml(it.suricata)}</pre>`;
+  html += `</div></div>`;
+  if (it.config) html += `<div class="qa"><div class="q">⚙️ תצורה לדוגמה</div><div class="a"><pre>${escapeHtml(it.config)}</pre></div></div>`;
+  html += `<div class="qa"><div class="q">🔧 יש תיקון אוטומטי?</div><div class="a">` +
+    (it.fix && it.fix.available
+      ? `כן — <b>${escapeHtml(it.fix.title)}</b> (${it.fix.risk === "safe" ? "🟢 בטוח" : "🟠 זהירות"}). ${escapeHtml(it.fix.note || "")}`
+      : `לא — נדרש טיפול ידני (ראה הגנות ותצורה למעלה).`) + `</div></div>`;
+  if (it.mitre) html += `<div class="qa"><div class="q">🎯 MITRE ATT&CK</div><div class="a"><span class="mitre">${escapeHtml(it.mitre)}</span></div></div>`;
+  html += `<div class="qa"><div class="q">📊 מה המערכת למדה על זה?</div><div class="a">` +
+    (it.learned
+      ? `נצפה <b>${it.seen}</b> פעמים · ראשון: ${escapeHtml(it.first_seen || "?")} · אחרון: ${escapeHtml(it.last_seen || "?")}`
+      : `טרם נצפה בהרצות. כשיופיע בבדיקה — המערכת תלמד אותו אוטומטית ותתחיל לספור.`) + `</div></div>`;
+  body.innerHTML = html;
+  head.onclick = () => { body.classList.toggle("hidden"); head.classList.toggle("open"); };
+  card.appendChild(head); card.appendChild(body);
+  return card;
 }
 
 /* ============================================================ PLAYBOOK EDITOR
@@ -1793,6 +1870,7 @@ async function applyHash() {
     showScreen("vault");
   }
   else if (h === "history") { showScreen("history"); }
+  else if (h === "learning") { showScreen("learning"); }
   else if (h === "playbooks") { showScreen("playbooks"); }
   else if (h === "users") { showScreen("users"); }
   else if (h.startsWith("tool-")) {

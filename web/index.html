@@ -21,6 +21,7 @@
         <button id="modeAI" class="mode-tab" data-goto="ai-prompt">🤖 עוזר AI</button>
         <button id="modeDash" class="mode-tab" data-goto="dashboard">📊 בקרה</button>
         <button id="modeHistory" class="mode-tab" data-goto="history">🕓 היסטוריה</button>
+        <button id="modeLearning" class="mode-tab" data-goto="learning">📚 למידה</button>
         <button id="modeVault" class="mode-tab" data-goto="vault">📓 Obsidian</button>
         <button id="modeUsers" class="mode-tab hidden" data-goto="users">👥 משתמשים</button>
         <button id="modePlaybooks" class="mode-tab hidden" data-goto="playbooks">✏️ Playbooks</button>
@@ -179,6 +180,30 @@
       🔐 הכניסה מאובטחת בהתחברות Google (oauth2‑proxy). מי שאינו ברשימה יידחה עוד לפני הכניסה למערכת.
       כל הוספה/הסרה נרשמת ב<strong>יומן הביקורת</strong>.
     </div>
+  </main>
+
+  <!-- ===================== LEARNING MATERIALS (Q&A) ===================== -->
+  <main id="screen-learning" class="screen">
+    <div class="vault-hero">
+      <div>
+        <h1>📚 חומרי למידה</h1>
+        <p class="dash-sub">מה המערכת למדה, איך היא מתמודדת עם כל איום, ושאלות‑ותשובות לכל סוג ממצא — למידה מעשית של אבטחת מידע.</p>
+      </div>
+      <div class="dash-hero-actions">
+        <input type="text" id="learnSearch" class="vault-search" placeholder="🔎 חיפוש איום...">
+        <button id="learnReload" class="ghost-btn">🔄 רענן</button>
+      </div>
+    </div>
+
+    <div class="learn-intro">
+      <h3>🧠 איך המערכת לומדת?</h3>
+      <p>כל ממצא של הצוות האדום מנורמל ל<strong>חתימה</strong> (signature) ונצבר בבסיס הנתונים עם מונה הופעות ותאריך ראשון/אחרון.
+      הצוות הכחול ממפה כל חתימה ל<strong>הגנות</strong>, <strong>חוקי זיהוי</strong> (Sigma/Suricata), <strong>שיוך MITRE ATT&CK</strong>,
+      ולעיתים <strong>תיקון אוטומטי</strong>. כך הכיסוי ההגנתי גדל עם כל בדיקה. למטה — כרטיס לימוד לכל סוג איום.</p>
+    </div>
+
+    <div id="learnStats" class="learn-stats"></div>
+    <div id="learnList" class="learn-list"></div>
   </main>
 
   <!-- ===================== PLAYBOOK EDITOR (admin) ===================== -->
