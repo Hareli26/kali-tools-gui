@@ -10,6 +10,22 @@
   <canvas id="fxCanvas" aria-hidden="true"></canvas>
   <div id="scanlines" aria-hidden="true"></div>
 
+  <!-- ===== STAR WARS OPENING CRAWL ===== -->
+  <div id="crawl" class="crawl hidden">
+    <button id="crawlSkip" class="crawl-skip">דלג ⏭</button>
+    <div class="crawl-intro">לפני זמן לא רב, בגלקסיה קרובה מאוד־מאוד....</div>
+    <div class="crawl-viewport">
+      <div class="crawl-content">
+        <div class="crawl-episode">פרק I</div>
+        <div class="crawl-logo">KALI TOOLS GUI</div>
+        <p>בקצוות האפלים של הרשת, כוחות הצללים סורקים ללא הרף אחר פרצות במערכות התמימים.</p>
+        <p>אך קם דור חדש של סוכנים: צוות אדום נועז המאתר את החולשות, וצוות כחול חכם ההופך כל ממצא למגן בלתי חדיר.</p>
+        <p>בפיקודו של הסוכן המְתַזְמֵר הם לומדים, מתאמים ומדווחים — ומחשלים את ההגנה בכל קרב מחדש.</p>
+        <p>זוהי Kali Tools GUI. הצטרף למערכה, ושיהיה הכוח עמך. 🐉</p>
+      </div>
+    </div>
+  </div>
+
   <header class="topbar">
     <div class="brand" id="homeBtn">
       <span class="logo">🐉</span>
@@ -29,6 +45,7 @@
         <button id="modeUsers" class="mode-tab hidden" data-goto="users" data-i18n="nav.users">👥 משתמשים</button>
         <button id="modePlaybooks" class="mode-tab hidden" data-goto="playbooks" data-i18n="nav.playbooks">✏️ Playbooks</button>
       </nav>
+      <button id="crawlReplay" class="lang-toggle" title="פתיח בסגנון Star Wars">🎬</button>
       <button id="langToggle" class="lang-toggle" title="English / עברית">EN</button>
       <span id="userLine" class="stat-line"></span>
       <span id="statLine" class="stat-line"></span>

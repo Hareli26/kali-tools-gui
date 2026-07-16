@@ -20,6 +20,7 @@ const el = (tag, cls, txt) => {
 };
 
 function showScreen(name) {
+  if (typeof hyperjump === "function") hyperjump();   // brief jump to lightspeed on nav
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   $("screen-" + name).classList.add("active");
   const isDash = name === "dashboard";
@@ -2586,48 +2587,75 @@ function vaultSearch(term) {
   });
 }
 
-/* ============================================================ BACKGROUND FX
-   Neon particle-network animated background — pure canvas, behind everything. */
+/* ============================================================ HYPERSPACE FX
+   Star Wars-style hyperspace starfield — stars streak from a vanishing point.
+   Nav changes trigger a brief "jump to lightspeed". Pure canvas, behind all. */
+let HYPER = null;
 function initFx() {
   const c = $("fxCanvas"); if (!c) return;
   const ctx = c.getContext("2d");
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  let W = 0, H = 0, pts = [], raf = null;
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const COLS = ["34,224,255", "53,255,163", "176,107,255", "255,46,151"];
+  const N = 460;
+  let W = 0, H = 0, cx = 0, cy = 0, stars = [], speed = 0.7, target = 0.7;
+  const TINT = ["200,225,255", "180,210,255", "255,214,120", "150,230,255"];
+  function mk(s, spread) {
+    s.x = (Math.random() - .5) * W * 2; s.y = (Math.random() - .5) * H * 2;
+    s.z = spread ? Math.random() * W : W; s.pz = s.z; s.c = TINT[(Math.random() * TINT.length) | 0];
+    return s;
+  }
   function resize() {
-    W = window.innerWidth; H = window.innerHeight;
+    W = window.innerWidth; H = window.innerHeight; cx = W / 2; cy = H / 2;
     c.width = W * dpr; c.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const n = Math.max(28, Math.min(90, Math.floor(W * H / 24000)));
-    pts = Array.from({ length: n }, (_, i) => ({
-      x: Math.random() * W, y: Math.random() * H,
-      vx: (Math.random() - .5) * 0.35, vy: (Math.random() - .5) * 0.35,
-      r: 0.6 + Math.random() * 1.8, c: COLS[i % COLS.length]
-    }));
+    if (!stars.length) stars = Array.from({ length: N }, () => mk({}, true));
   }
   function frame() {
-    ctx.clearRect(0, 0, W, H);
-    for (const p of pts) { p.x += p.vx; p.y += p.vy; if (p.x < 0 || p.x > W) p.vx *= -1; if (p.y < 0 || p.y > H) p.vy *= -1; }
-    for (let i = 0; i < pts.length; i++) {
-      for (let j = i + 1; j < pts.length; j++) {
-        const a = pts[i], b = pts[j], dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
-        if (d2 < 17000) {
-          ctx.strokeStyle = `rgba(34,224,255,${(1 - d2 / 17000) * 0.16})`;
-          ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-        }
-      }
+    speed += (target - speed) * 0.06;
+    ctx.fillStyle = "rgba(3,4,12,0.28)"; ctx.fillRect(0, 0, W, H);   // motion-blur trails
+    for (const s of stars) {
+      s.pz = s.z; s.z -= speed * (6 + speed * 3);
+      if (s.z < 1) { mk(s, false); continue; }
+      const k = 130 / s.z, pk = 130 / s.pz;
+      const x = cx + s.x * k, y = cy + s.y * k, px = cx + s.x * pk, py = cy + s.y * pk;
+      const b = Math.min(1, (1 - s.z / W) * 1.3);
+      ctx.strokeStyle = `rgba(${s.c},${b})`;
+      ctx.lineWidth = Math.max(0.4, (1 - s.z / W) * 2.6);
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
     }
-    pts.forEach(p => {
-      ctx.fillStyle = `rgba(${p.c},0.75)`; ctx.shadowBlur = 8; ctx.shadowColor = `rgba(${p.c},0.9)`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
-    });
-    ctx.shadowBlur = 0;
-    raf = requestAnimationFrame(frame);
+    HYPER.raf = requestAnimationFrame(frame);
   }
+  HYPER = { raf: null, jump: () => { target = 7; clearTimeout(HYPER._t); HYPER._t = setTimeout(() => { target = 0.7; }, 650); } };
   resize();
-  window.addEventListener("resize", () => { resize(); });
-  if (reduce) frame(); else frame();
-  if (reduce && raf) { cancelAnimationFrame(raf); }
+  window.addEventListener("resize", resize);
+  if (reduce) {
+    ctx.fillStyle = "#03040c"; ctx.fillRect(0, 0, W, H);
+    stars.forEach(s => { const k = 130 / s.z; ctx.fillStyle = `rgba(${s.c},.7)`; ctx.fillRect(cx + s.x * k, cy + s.y * k, 1.6, 1.6); });
+  } else frame();
+}
+function hyperjump() { if (HYPER && HYPER.jump) HYPER.jump(); }
+
+/* ==================================================== STAR WARS OPENING CRAWL */
+function playCrawl() {
+  const el = $("crawl"); if (!el) return;
+  el.classList.remove("hidden");
+  hyperjump();
+  // restart the CSS animations
+  ["crawl-intro", "crawl-content"].forEach(cls => {
+    const n = el.querySelector("." + cls);
+    if (n) { n.style.animation = "none"; void n.offsetHeight; n.style.animation = ""; }
+  });
+  const close = () => el.classList.add("hidden");
+  $("crawlSkip").onclick = close;
+  el.onclick = (e) => { if (e.target === el) close(); };
+  const esc = (e) => { if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc); } };
+  document.addEventListener("keydown", esc);
+  clearTimeout(el._t); el._t = setTimeout(close, 52000);
+}
+function maybeCrawl() {
+  if (location.search.indexOf("nocrawl") >= 0) return;
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let seen = false; try { seen = localStorage.getItem("kg_crawl") === "1"; } catch (e) {}
+  if (!seen && !reduce) { playCrawl(); try { localStorage.setItem("kg_crawl", "1"); } catch (e) {} }
 }
 
 /* ============================================================ I18N (EN / HE)
@@ -2670,4 +2698,8 @@ function initI18n() {
   applyLang(LANG);
 }
 
-document.addEventListener("DOMContentLoaded", () => { init(); initFx(); initI18n(); });
+document.addEventListener("DOMContentLoaded", () => {
+  init(); initFx(); initI18n();
+  const rep = $("crawlReplay"); if (rep) rep.onclick = playCrawl;
+  maybeCrawl();
+});
