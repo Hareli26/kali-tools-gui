@@ -20,6 +20,7 @@
         <button id="modeTools" class="mode-tab active" data-goto="picker">🧰 כלים</button>
         <button id="modeAI" class="mode-tab" data-goto="ai-prompt">🤖 עוזר AI</button>
         <button id="modeDash" class="mode-tab" data-goto="dashboard">📊 בקרה</button>
+        <button id="modeHistory" class="mode-tab" data-goto="history">🕓 היסטוריה</button>
         <button id="modeVault" class="mode-tab" data-goto="vault">📓 Obsidian</button>
         <button id="modeUsers" class="mode-tab hidden" data-goto="users">👥 משתמשים</button>
       </nav>
@@ -126,6 +127,30 @@
         <div id="dashFeed" class="feed"></div>
       </section>
     </div>
+  </main>
+
+  <!-- ===================== HISTORY + SCAN COMPARISON ===================== -->
+  <main id="screen-history" class="screen">
+    <div class="vault-hero">
+      <div>
+        <h1>🕓 היסטוריה והשוואת סריקות</h1>
+        <p class="dash-sub">כל הבדיקות לאורך זמן. בחר שתי סריקות של אותה מטרה כדי לראות מגמת אבטחה — מה נפתר, מה חדש, ומה עדיין פתוח.</p>
+      </div>
+      <div class="dash-hero-actions">
+        <select id="histTarget" class="vault-search"></select>
+        <button id="histReload" class="ghost-btn">🔄 רענן</button>
+      </div>
+    </div>
+
+    <div id="histCompareBar" class="hist-bar hidden">
+      <span id="histSelInfo" class="hist-selinfo"></span>
+      <button id="histCompareBtn" class="run-btn" disabled>🔀 השווה נבחרים</button>
+      <button id="histClearBtn" class="ghost-btn">נקה בחירה</button>
+    </div>
+
+    <div id="histCompare" class="hist-compare hidden"></div>
+    <div id="histList" class="hist-list"></div>
+    <div id="histEmpty" class="vault-empty hidden">עדיין אין בדיקות בהיסטוריה. הרץ משימה או Purple Team כדי להתחיל.</div>
   </main>
 
   <!-- ===================== USER MANAGEMENT (admin) ===================== -->

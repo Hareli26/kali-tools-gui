@@ -25,17 +25,21 @@ function showScreen(name) {
   const isDash = name === "dashboard";
   const isVault = name === "vault";
   const isUsers = name === "users";
+  const isHistory = name === "history";
   const isAI = name.startsWith("ai-") || name === "purple";
-  const isTools = !isDash && !isAI && !isVault && !isUsers;
-  const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash"), mv = $("modeVault"), mu = $("modeUsers");
+  const isTools = !isDash && !isAI && !isVault && !isUsers && !isHistory;
+  const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash"), mv = $("modeVault"),
+        mu = $("modeUsers"), mh = $("modeHistory");
   if (mt) mt.classList.toggle("active", isTools);
   if (ma) ma.classList.toggle("active", isAI);
   if (md) md.classList.toggle("active", isDash);
   if (mv) mv.classList.toggle("active", isVault);
   if (mu) mu.classList.toggle("active", isUsers);
+  if (mh) mh.classList.toggle("active", isHistory);
   if (isDash) loadDashboard();
   if (isVault) loadVault();
   if (isUsers) loadUsers();
+  if (isHistory) loadHistory();
   window.scrollTo(0, 0);
 }
 
@@ -1384,6 +1388,10 @@ function init() {
   };
   $("userAddBtn").onclick = addUser;
   $("userEmail").onkeydown = (e) => { if (e.key === "Enter") addUser(); };
+  $("histReload").onclick = () => loadHistory();
+  $("histTarget").onchange = () => { HIST_SEL = []; renderHistory(); $("histCompare").classList.add("hidden"); };
+  $("histCompareBtn").onclick = runCompare;
+  $("histClearBtn").onclick = () => { HIST_SEL = []; renderHistory(); $("histCompare").classList.add("hidden"); };
   $("vaultReloadBtn").onclick = () => loadVault();
   $("vaultSearch").oninput = (e) => vaultSearch(e.target.value);
   $("vaultPanelClose").onclick = () => {
@@ -1422,6 +1430,130 @@ async function loadWhoami() {
     IS_ADMIN = !!d.is_admin;
     $("modeUsers").classList.toggle("hidden", !IS_ADMIN);
   } catch (e) { /* ignore */ }
+}
+
+/* ============================================================ HISTORY + COMPARE
+   All past scans, with a two-scan comparison that shows the security-posture
+   trend over time (what was resolved / added / still open). */
+let HIST_RUNS = [];
+let HIST_SEL = [];   // selected purple-run ids to compare (max 2)
+
+async function loadHistory() {
+  const list = $("histList");
+  list.innerHTML = '<div class="audit-empty">טוען...</div>';
+  $("histCompare").classList.add("hidden");
+  try {
+    const d = await (await fetch("/api/history")).json();
+    HIST_RUNS = d.runs || [];
+    HIST_SEL = [];
+    renderHistory();
+  } catch (e) { list.innerHTML = '<div class="audit-empty">שגיאה בטעינה.</div>'; }
+}
+
+function renderHistory() {
+  const list = $("histList"), empty = $("histEmpty"), sel = $("histTarget");
+  const targets = [...new Set(HIST_RUNS.map(r => r.target).filter(Boolean))];
+  const cur = sel.value || "";
+  sel.innerHTML = '<option value="">כל המטרות</option>' +
+    targets.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
+  sel.value = cur;
+  const rows = HIST_RUNS.filter(r => !cur || r.target === cur);
+
+  list.innerHTML = "";
+  empty.classList.toggle("hidden", rows.length > 0);
+  rows.forEach(r => {
+    const isPurple = r.type === "purple";
+    const row = el("div", "hist-row" + (isPurple ? " purple" : "") + (HIST_SEL.includes(r.id) ? " sel" : ""));
+    if (isPurple) {
+      const cb = el("input"); cb.type = "checkbox"; cb.className = "hist-cb";
+      cb.checked = HIST_SEL.includes(r.id);
+      cb.title = "בחר להשוואה";
+      cb.onchange = () => toggleHistSel(r.id, cb.checked);
+      row.appendChild(cb);
+    } else {
+      row.appendChild(el("span", "hist-cb-na", "·"));
+    }
+    const info = el("div", "hist-info");
+    const icon = isPurple ? "🟣" : "🤖";
+    const count = isPurple ? `🔵 ${r.threats || 0} איומים` : `🔎 ${r.findings || 0} ממצאים`;
+    info.innerHTML = `<div class="hist-title">${icon} ${escapeHtml(r.intent || "בדיקה")}</div>` +
+      `<div class="hist-meta"><span class="tag">🎯 ${escapeHtml(r.target || "")}</span>` +
+      `<span class="tag">${count}</span>` +
+      (r.severity ? `<span class="tag">${SEV_ICON[r.severity] || ""} ${SEV_HE[r.severity] || r.severity}</span>` : "") +
+      `<span class="hist-when">${r.ts ? relTime(r.ts) : escapeHtml(r.when || "")}</span></div>`;
+    row.appendChild(info);
+    if (r.id) {
+      const rep = el("button", "feed-btn", "📄 דוח");
+      rep.onclick = () => openSavedReport(r.id);
+      row.appendChild(rep);
+    }
+    list.appendChild(row);
+  });
+  updateHistBar();
+}
+
+function toggleHistSel(id, on) {
+  if (on) {
+    if (!HIST_SEL.includes(id)) HIST_SEL.push(id);
+    while (HIST_SEL.length > 2) HIST_SEL.shift();  // keep the most recent 2
+  } else {
+    HIST_SEL = HIST_SEL.filter(x => x !== id);
+  }
+  renderHistory();
+}
+
+function updateHistBar() {
+  const bar = $("histCompareBar"), info = $("histSelInfo"), btn = $("histCompareBtn");
+  bar.classList.toggle("hidden", HIST_SEL.length === 0);
+  info.textContent = `${HIST_SEL.length}/2 סריקות נבחרו להשוואה`;
+  btn.disabled = HIST_SEL.length !== 2;
+}
+
+async function runCompare() {
+  if (HIST_SEL.length !== 2) return;
+  const [a, b] = HIST_SEL;
+  const box = $("histCompare");
+  box.classList.remove("hidden");
+  box.innerHTML = '<p style="color:var(--text-dim)">משווה...</p>';
+  try {
+    const d = await (await fetch(`/api/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`)).json();
+    if (d.error) { box.innerHTML = `<p>${escapeHtml(d.error)}</p>`; return; }
+    renderCompare(d);
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { box.innerHTML = "<p>שגיאת רשת</p>"; }
+}
+
+function renderCompare(d) {
+  const box = $("histCompare");
+  const chips = (arr) => arr.length
+    ? arr.map(x => `<span class="cmp-chip ${x.severity}">${SEV_ICON[x.severity] || ""} ${escapeHtml(x.name)}</span>`).join("")
+    : '<span class="cmp-none">אין</span>';
+  const same = d.a.target === d.b.target;
+  box.innerHTML =
+    `<div class="cmp-head"><h2>🔀 השוואת סריקות${same ? " · 🎯 " + escapeHtml(d.a.target) : ""}</h2></div>` +
+    (!same ? `<div class="cmp-warn">⚠️ הסריקות הן של מטרות שונות — ההשוואה פחות משמעותית.</div>` : "") +
+    `<div class="cmp-ab">` +
+      `<div class="cmp-col"><div class="cmp-lbl">בסיס (ישן)</div><div class="cmp-when">${escapeHtml(d.a.when || "")}</div><div class="cmp-cnt">${d.a.count} איומים</div></div>` +
+      `<div class="cmp-arrow">→</div>` +
+      `<div class="cmp-col"><div class="cmp-lbl">נוכחי (חדש)</div><div class="cmp-when">${escapeHtml(d.b.when || "")}</div><div class="cmp-cnt">${d.b.count} איומים</div></div>` +
+    `</div>` +
+    `<div class="cmp-grid">` +
+      `<div class="cmp-cell resolved"><h4>✅ נפתרו (${d.resolved.length})</h4><div class="cmp-chips">${chips(d.resolved)}</div></div>` +
+      `<div class="cmp-cell added"><h4>🆕 חדשים (${d.added.length})</h4><div class="cmp-chips">${chips(d.added)}</div></div>` +
+      `<div class="cmp-cell persist"><h4>⚠️ עדיין פתוחים (${d.persisting.length})</h4><div class="cmp-chips">${chips(d.persisting)}</div></div>` +
+    `</div>` +
+    `<div class="cmp-verdict ${cmpTrend(d)}">${cmpVerdict(d)}</div>`;
+}
+
+function cmpTrend(d) {
+  const net = d.resolved.length - d.added.length;
+  return net > 0 ? "good" : net < 0 ? "bad" : "flat";
+}
+function cmpVerdict(d) {
+  const net = d.resolved.length - d.added.length;
+  if (net > 0) return `🟢 שיפור: נפתרו ${d.resolved.length} איומים ונוספו ${d.added.length}. מגמת אבטחה חיובית.`;
+  if (net < 0) return `🔴 הרעה: נוספו ${d.added.length} איומים חדשים לעומת ${d.resolved.length} שנפתרו — דורש טיפול.`;
+  return `🟡 יציב: ${d.persisting.length} איומים עדיין פתוחים; אין שינוי נטו.`;
 }
 
 /* ============================================================ USER MANAGEMENT
@@ -1508,6 +1640,7 @@ async function applyHash() {
   else if (h === "ai") { showScreen("ai-prompt"); }
   else if (h === "tools") { showScreen("picker"); }
   else if (h === "vault" || h === "obsidian") { showScreen("vault"); }
+  else if (h === "history") { showScreen("history"); }
   else if (h === "users") { showScreen("users"); }
   else if (h.startsWith("tool-")) {
     const id = h.slice(5);

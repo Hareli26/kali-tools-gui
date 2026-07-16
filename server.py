@@ -647,6 +647,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_dashboard()
         if p == "/api/active":
             return self._api_active()
+        if p == "/api/history":
+            return self._api_history()
+        if p == "/api/compare":
+            return self._api_compare()
         if p == "/api/brain":
             return self._api_brain()
         if p == "/api/vault/graph":
@@ -897,6 +901,48 @@ class Handler(BaseHTTPRequestHandler):
         allowlist_write(emails)
         audit(self._user(), "user-remove", email)
         return self._users_payload(note="הוסר")
+
+    def _api_history(self):
+        """All past scans (missions + purple), newest first — powers the history
+        + scan-comparison screen."""
+        runs = [a for a in reversed(bluered.load_activity())
+                if a.get("type") in ("mission", "purple") and a.get("id")]
+        return self._send_json({"runs": runs})
+
+    def _api_compare(self):
+        """Diff two purple scans (by activity id) → which threats were resolved,
+        which are new, and which persist — a security-posture trend over time."""
+        from urllib.parse import urlparse, parse_qs
+        q = parse_qs(urlparse(self.path).query)
+        aid = (q.get("a", [""])[0]).strip()
+        bid = (q.get("b", [""])[0]).strip()
+        acts = {a.get("id"): a for a in bluered.load_activity()}
+        a, b = acts.get(aid), acts.get(bid)
+        if not a or not b:
+            return self._send_json({"error": "אחת הסריקות לא נמצאה"}, 404)
+        # order by time: 'a' = older baseline, 'b' = newer
+        if (a.get("ts") or 0) > (b.get("ts") or 0):
+            a, b = b, a
+        sa = set(a.get("threat_sigs") or [])
+        sb = set(b.get("threat_sigs") or [])
+
+        def named(sigs):
+            out = []
+            for s in sorted(sigs):
+                r = bluered.get_defense(s) or {}
+                out.append({"signature": s, "name": r.get("name", s),
+                            "severity": r.get("severity", "")})
+            return out
+
+        return self._send_json({
+            "a": {"id": a.get("id"), "when": a.get("when"), "target": a.get("target"),
+                  "intent": a.get("intent"), "count": len(sa)},
+            "b": {"id": b.get("id"), "when": b.get("when"), "target": b.get("target"),
+                  "intent": b.get("intent"), "count": len(sb)},
+            "resolved": named(sa - sb),     # in the older scan, gone in the newer = fixed
+            "added": named(sb - sa),        # new in the newer scan
+            "persisting": named(sa & sb),   # still present in both
+        })
 
     def _api_active(self):
         """Any run currently in progress, with live progress — powers the global
