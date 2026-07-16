@@ -1241,3 +1241,64 @@ h1, .dash-section { text-shadow: 0 0 12px rgba(0,255,110,.35); }
 .pill.ai { background: rgba(0,255,120,.16); color: #7dff9e; border-color: rgba(0,255,120,.4); }
 .llm-badge.on { background: rgba(0,255,120,.14); color: #46ff8f; border-color: rgba(0,255,120,.4); }
 .live-pill.on { color: #46ff8f; }
+
+/* ======================================================================== */
+/* ============  🐉 COMMAND HERO + ORBIT (adapted from Codex)  ============= */
+/* ======================================================================== */
+.command-hero {
+  display: grid; grid-template-columns: 1.15fr .85fr; gap: 32px; align-items: center;
+  position: relative; overflow: hidden; margin: 8px 0 4px;
+  padding: 40px 40px 44px; border-radius: 26px;
+  background: linear-gradient(155deg, rgba(6,26,14,.72), rgba(1,8,4,.55));
+  border: 1px solid rgba(0,255,120,.22);
+  box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 0 60px rgba(0,255,120,.05);
+}
+.command-hero::before {
+  content: ""; position: absolute; top: -40%; inset-inline-end: -10%; width: 60%; height: 180%;
+  background: radial-gradient(circle, rgba(0,255,120,.12), transparent 60%); filter: blur(20px); pointer-events: none;
+}
+.hero-copy { position: relative; z-index: 1; }
+.eyebrow { display: flex; align-items: center; gap: 9px; color: #7fcf9c; font-size: 12px; font-weight: 600; margin-bottom: 22px; letter-spacing: .04em; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; background: #39ff14; box-shadow: 0 0 12px #39ff14; animation: dotPulse 1.8s ease-in-out infinite; }
+@keyframes dotPulse { 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:.45; transform:scale(.7);} }
+.hero-copy h1 { margin: 0 0 16px; font-size: 60px; line-height: .98; letter-spacing: -.04em; color: #eafff0; text-shadow: 0 0 18px rgba(0,255,110,.3); }
+.hero-copy h1 em { font-style: normal; background: linear-gradient(120deg, #00ff85, #39ff14); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero-copy p { margin: 0 0 26px; color: #9fdcb4; font-size: 15px; line-height: 1.65; max-width: 460px; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-primary, .hero-secondary { border: 1px solid transparent; border-radius: 12px; padding: 14px 22px; font-size: 14px; font-weight: 700; cursor: pointer; transition: .18s; font-family: inherit; }
+.hero-primary { display: flex; gap: 18px; align-items: center; background: linear-gradient(135deg, #00ff85, #39ff14); color: #012108; box-shadow: 0 0 24px rgba(0,255,120,.45); }
+.hero-primary span { font-size: 18px; }
+.hero-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,255,120,.4); }
+.hero-secondary { background: rgba(0,255,120,.05); color: #cdffdb; border-color: rgba(0,255,120,.28); }
+.hero-secondary:hover { background: rgba(0,255,120,.12); box-shadow: 0 0 14px rgba(0,255,120,.25); }
+
+.hero-orbit { position: relative; min-height: 390px; isolation: isolate; }
+.hero-orbit::before { content: ""; position: absolute; inset: 10%; border-radius: 50%; background: radial-gradient(circle, rgba(0,255,120,.16), transparent 62%); filter: blur(16px); }
+.orbit-ring { position: absolute; inset: 13%; border: 1px solid rgba(0,255,120,.28); border-radius: 50%; animation: orbitSpin 24s linear infinite; }
+.orbit-ring::before, .orbit-ring::after { content: ""; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 18px var(--accent); }
+.orbit-ring::before { top: 12%; left: 13%; } .orbit-ring::after { bottom: 13%; right: 12%; }
+.orbit-ring-b { inset: 25%; border-style: dashed; opacity: .6; animation-direction: reverse; animation-duration: 17s; }
+@keyframes orbitSpin { to { transform: rotate(360deg); } }
+.orbit-core { position: absolute; inset: 33%; display: grid; place-content: center; text-align: center; border-radius: 50%; background: #051007; border: 1px solid rgba(0,255,120,.45); box-shadow: 0 0 90px rgba(0,255,120,.18), inset 0 0 35px rgba(0,255,120,.1); }
+.orbit-core span { font: 800 64px/1 var(--mono); color: var(--accent); letter-spacing: -.12em; text-shadow: 0 0 20px rgba(0,255,120,.6); }
+.orbit-core small { font: 700 10px/1 var(--mono); color: #6fbf8a; letter-spacing: .32em; margin-top: 7px; }
+.orbit-label { position: absolute; min-width: 96px; padding: 11px 14px; border: 1px solid rgba(0,255,120,.22); border-radius: 12px; background: rgba(3,14,8,.85); backdrop-filter: blur(10px); box-shadow: 0 0 18px rgba(0,255,120,.1); }
+.orbit-label b, .orbit-label span { display: block; }
+.orbit-label b { color: #eafff0; font: 700 15px var(--mono); }
+.orbit-label span { color: #6fbf8a; font: 600 9px var(--mono); margin-top: 3px; letter-spacing: .1em; }
+.orbit-label-1 { top: 5%; right: 4%; } .orbit-label-2 { bottom: 9%; left: 2%; } .orbit-label-3 { top: 24%; left: 0; }
+
+.section-intro { display: flex; align-items: end; justify-content: space-between; margin: 48px 0 18px; }
+.section-kicker { color: var(--accent); font: 700 10px var(--mono); letter-spacing: .18em; }
+.section-intro h2 { margin: 6px 0 0; font-size: 26px; letter-spacing: -.04em; }
+.section-intro p { margin: 0; color: var(--text-dim); font-size: 12px; }
+
+@media (max-width: 900px) {
+  .command-hero { grid-template-columns: 1fr; padding: 30px 24px 34px; }
+  .hero-copy h1 { font-size: 46px; }
+  .hero-orbit { min-height: 300px; }
+  .orbit-core span { font-size: 46px; }
+  .orbit-label { min-width: 80px; padding: 8px 11px; }
+  .section-intro { margin-top: 40px; } .section-intro p { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .orbit-ring { animation: none; } .status-dot { animation: none; } }

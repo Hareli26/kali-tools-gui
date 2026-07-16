@@ -69,6 +69,30 @@
 
   <!-- ===================== SCREEN 1: PICKER ===================== -->
   <main id="screen-picker" class="screen active">
+    <section class="command-hero" aria-labelledby="commandHeroTitle">
+      <div class="hero-copy reveal">
+        <div class="eyebrow"><span class="status-dot"></span> סביבת המבצעים מוכנה</div>
+        <h1 id="commandHeroTitle">מה תרצה<br><em>לחקור היום?</em></h1>
+        <p>בחר כלי מדויק או תאר משימה בשפה חופשית. הסוכנים יתכננו, יריצו, יאמתו ויהפכו את התוצאות לדוח שאפשר לפעול לפיו.</p>
+        <div class="hero-actions">
+          <button class="hero-primary" data-goto="ai-prompt">התחל משימה עם AI <span>↗</span></button>
+          <button class="hero-secondary" data-goto="history">צפה בפעילות האחרונה</button>
+        </div>
+      </div>
+      <div class="hero-orbit" aria-hidden="true">
+        <div class="orbit-ring orbit-ring-a"></div>
+        <div class="orbit-ring orbit-ring-b"></div>
+        <div class="orbit-core"><span>K</span><small>OPS</small></div>
+        <div class="orbit-label orbit-label-1"><b id="heroToolCount">72</b><span>כלים</span></div>
+        <div class="orbit-label orbit-label-2"><b>4</b><span>סוכנים</span></div>
+        <div class="orbit-label orbit-label-3"><b>LIVE</b><span>KALI · VPS</span></div>
+      </div>
+    </section>
+
+    <div class="section-intro">
+      <div><span class="section-kicker">TOOL LIBRARY</span><h2>ארגז הכלים שלך</h2></div>
+      <p>חפש לפי שם, פקודה או מטרה</p>
+    </div>
     <div class="picker-controls">
       <input type="text" id="search" placeholder="🔎 חיפוש כלי..." data-i18n-ph="picker.search" autocomplete="off">
       <div id="catFilters" class="cat-filters"></div>

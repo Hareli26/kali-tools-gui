@@ -63,6 +63,8 @@ async function loadCatalog() {
   const total = CATALOG.tools.length;
   const installed = CATALOG.tools.filter(t => t.installed).length;
   $("statLine").textContent = `${installed}/${total} כלים מותקנים`;
+  const heroCount = $("heroToolCount");
+  if (heroCount) heroCount.textContent = total;
 }
 
 /* ------------------------------------------------------- screen 1: picker */
