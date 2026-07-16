@@ -1028,6 +1028,7 @@ class Handler(BaseHTTPRequestHandler):
         rule = bluered.get_defense(sig)
         if not rule:
             return self._send_json({"error": "איום לא ידוע"}, 404)
+        det = bluered.get_detections(sig)
         kb = bluered.load_kb()
         rec = kb.get("signatures", {}).get(sig, {})
         # occurrences: purple runs where this signature appeared
@@ -1041,6 +1042,7 @@ class Handler(BaseHTTPRequestHandler):
             "name": rule["name"], "severity": rule["severity"], "threat": rule["threat"],
             "defenses": rule["defenses"], "detections": rule["detections"],
             "config": rule.get("config", ""), "mitre": rule.get("mitre", ""),
+            "sigma": det.get("sigma", ""), "suricata": det.get("suricata", ""),
             "count": rec.get("count", 0), "first_seen": rec.get("first_seen", ""),
             "last_seen": rec.get("last_seen", ""),
             "occurrences": occ,

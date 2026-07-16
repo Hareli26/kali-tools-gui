@@ -262,6 +262,90 @@ def get_remediation(signature):
     """Return the automated remediation plan for a signature, or None."""
     return REMEDIATIONS.get(signature)
 
+# ----------------------------------------------- 🔎 detection rules (Blue) ----
+# Ready-to-deploy detection content for each threat: Sigma (SIEM/log analytics)
+# and/or Suricata (network IDS). Defensive only — these DETECT the activity, so
+# the Blue Team can alert on it. Not every threat has both (some are posture/
+# absence, not a discrete event).
+DETECTION_RULES = {
+    "ssh-exposed": {
+        "sigma": ("title: SSH Brute-Force (Multiple Auth Failures)\n"
+                  "logsource:\n  product: linux\n  service: auth\n"
+                  "detection:\n  sel:\n    message|contains: 'Failed password'\n"
+                  "  timeframe: 5m\n  condition: sel | count() by src_ip > 10\n"
+                  "level: high"),
+        "suricata": ('alert tcp any any -> $HOME_NET 22 (msg:"SSH brute-force attempt"; '
+                     'flow:to_server; threshold:type both,track by_src,count 10,seconds 60; '
+                     'classtype:attempted-recon; sid:1000001; rev:1;)'),
+    },
+    "smb-exposed": {
+        "sigma": ("title: Anonymous SMB Logon\n"
+                  "logsource:\n  product: windows\n  service: security\n"
+                  "detection:\n  sel:\n    EventID: 4624\n    LogonType: 3\n"
+                  "    TargetUserName: 'ANONYMOUS LOGON'\n  condition: sel\nlevel: medium"),
+        "suricata": ('alert tcp $EXTERNAL_NET any -> $HOME_NET 445 (msg:"SMB exposed to external network"; '
+                     'flow:to_server; classtype:policy-violation; sid:1000002; rev:1;)'),
+    },
+    "rdp-exposed": {
+        "sigma": ("title: RDP Brute-Force (Failed Logons)\n"
+                  "logsource:\n  product: windows\n  service: security\n"
+                  "detection:\n  sel:\n    EventID: 4625\n    LogonType: 10\n"
+                  "  timeframe: 5m\n  condition: sel | count() by IpAddress > 10\nlevel: high"),
+        "suricata": ('alert tcp $EXTERNAL_NET any -> $HOME_NET 3389 (msg:"RDP exposed to external network"; '
+                     'flow:to_server; classtype:policy-violation; sid:1000003; rev:1;)'),
+    },
+    "no-tls": {
+        "suricata": ('alert tcp $HOME_NET 80 -> $EXTERNAL_NET any (msg:"Cleartext HTTP service exposed"; '
+                     'flow:from_server,established; classtype:policy-violation; sid:1000004; rev:1;)'),
+    },
+    "ftp-telnet": {
+        "suricata": ('alert tcp any any -> $HOME_NET [21,23] (msg:"Cleartext FTP/Telnet protocol in use"; '
+                     'flow:to_server; classtype:policy-violation; sid:1000005; rev:1;)'),
+    },
+    "snmp-exposed": {
+        "suricata": ('alert udp $EXTERNAL_NET any -> $HOME_NET 161 (msg:"SNMP default community string (public)"; '
+                     'content:"|04 06|public"; classtype:attempted-recon; sid:1000006; rev:1;)'),
+    },
+    "exposed-path": {
+        "sigma": ("title: Access to Sensitive Web Path\n"
+                  "logsource:\n  category: webserver\n"
+                  "detection:\n  sel:\n    c-uri|contains:\n      - '/.git'\n      - '/.env'\n"
+                  "      - '/admin'\n      - '/backup'\n      - '/server-status'\n  condition: sel\nlevel: medium"),
+        "suricata": ('alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"Access to sensitive path (.git/.env/admin)"; '
+                     'flow:to_server; http.uri; pcre:"/(\\.git|\\.env|\\/admin|\\/backup)/i"; '
+                     'classtype:web-application-attack; sid:1000007; rev:1;)'),
+    },
+    "injection": {
+        "sigma": ("title: Web SQLi/XSS Pattern in Request\n"
+                  "logsource:\n  category: webserver\n"
+                  "detection:\n  sel:\n    c-uri|re: '(?i)(union\\s+select|or\\s+1=1|<script>|\\.\\./)'\n"
+                  "  condition: sel\nlevel: high"),
+        "suricata": ('alert http any any -> $HOME_NET any (msg:"Possible SQL injection / XSS in URI"; '
+                     'flow:to_server; http.uri; pcre:"/(union.+select|or\\s+1=1|<script>)/i"; '
+                     'classtype:web-application-attack; sid:1000008; rev:1;)'),
+    },
+    "weak-tls": {
+        "suricata": ('alert tls any any -> $HOME_NET any (msg:"Weak SSL/TLS version negotiated (SSLv3/TLS1.0)"; '
+                     'ssl_version:sslv3,tls1.0; classtype:protocol-command-decode; sid:1000009; rev:1;)'),
+    },
+    "directory-indexing": {
+        "suricata": ('alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"Directory indexing page served"; '
+                     'flow:from_server; http.response_body; content:"Index of /"; nocase; '
+                     'classtype:web-application-attack; sid:1000010; rev:1;)'),
+    },
+    "default-file": {
+        "sigma": ("title: Access to Default/Sample Files\n"
+                  "logsource:\n  category: webserver\n"
+                  "detection:\n  sel:\n    c-uri|contains:\n      - '/icons/README'\n"
+                  "      - '/manual/'\n      - '/phpinfo'\n  condition: sel\nlevel: low"),
+    },
+}
+
+
+def get_detections(signature):
+    """Return {sigma?, suricata?} detection rules for a signature (may be empty)."""
+    return DETECTION_RULES.get(signature, {})
+
 def analyze_finding(text):
     low = text.lower()
     for rule in DEFENSE_KB:
@@ -282,10 +366,12 @@ def broker(red_findings):
         key = rule["id"]
         t = threats.get(key)
         if not t:
+            dr = DETECTION_RULES.get(rule["id"], {})
             t = {
                 "signature": rule["id"], "name": rule["name"], "severity": rule["severity"],
                 "threat": rule["threat"], "defenses": rule["defenses"], "detections": rule["detections"],
                 "config": rule.get("config", ""), "mitre": rule.get("mitre", ""),
+                "sigma": dr.get("sigma", ""), "suricata": dr.get("suricata", ""),
                 "evidence": [], "tools": set(),
             }
             threats[key] = t
@@ -358,6 +444,15 @@ def purple_report(intent, target, red_steps, threats, learning, when=""):
             lines.append("")
             lines.append("**תצורה לדוגמה:**")
             lines.append(f"```\n{t['config']}\n```")
+        if t.get("sigma") or t.get("suricata"):
+            lines.append("")
+            lines.append("**🔎 חוקי זיהוי מוכנים לפריסה:**")
+            if t.get("sigma"):
+                lines.append("*Sigma (SIEM / ניתוח לוגים):*")
+                lines.append(f"```yaml\n{t['sigma']}\n```")
+            if t.get("suricata"):
+                lines.append("*Suricata (IDS ברמת הרשת):*")
+                lines.append(f"```\n{t['suricata']}\n```")
         lines.append("")
 
     # learning

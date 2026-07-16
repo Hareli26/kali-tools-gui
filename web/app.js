@@ -1031,6 +1031,8 @@ async function openThreat(sig) {
   html += `<h4>🛡️ פעולות הגנה מומלצות</h4>${list(t.defenses)}`;
   html += `<h4>👁️ זיהוי וניטור</h4>${list(t.detections)}`;
   if (t.config) html += `<h4>⚙️ תצורה לדוגמה</h4><pre>${escapeHtml(t.config)}</pre>`;
+  if (t.sigma) html += `<h4>🔎 חוק Sigma (SIEM / לוגים)</h4><pre>${escapeHtml(t.sigma)}</pre>`;
+  if (t.suricata) html += `<h4>🔎 חוק Suricata (IDS רשת)</h4><pre>${escapeHtml(t.suricata)}</pre>`;
 
   html += `<h4>📍 היכן נצפה</h4>`;
   if (t.occurrences.length) {
