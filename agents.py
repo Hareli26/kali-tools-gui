@@ -473,31 +473,67 @@ def report(mission, when=""):
     lines.append("*הופק ע\"י Kali Tools GUI – שכבת הסוכנים. הרץ כלים אך ורק על מטרות מאושרות.*")
     return "\n".join(lines)
 
-# ------------------------------------------------------------- optional LLM --
-def llm_report(mission, when=""):
-    """If an Ollama model is configured & reachable, produce a nicer prose summary.
-    Returns None on any failure so the caller falls back to the rule-based report."""
-    url = os.environ.get("OLLAMA_URL")
-    model = os.environ.get("OLLAMA_MODEL")
+# ------------------------------------------------- optional LLM (Ollama) -----
+def llm_status():
+    """Live status of the optional local LLM: is a model configured, and is the
+    Ollama server actually reachable + what models does it have."""
+    url = (os.environ.get("OLLAMA_URL") or "").strip()
+    model = (os.environ.get("OLLAMA_MODEL") or "").strip()
+    st = {"configured": bool(url and model), "reachable": False,
+          "url": url, "model": model, "models": []}
+    if not url:
+        return st
+    try:
+        req = urllib.request.Request(url.rstrip("/") + "/api/tags")
+        with urllib.request.urlopen(req, timeout=4) as r:
+            data = json.loads(r.read().decode())
+        st["models"] = [m.get("name", "") for m in data.get("models", [])]
+        st["reachable"] = True
+    except Exception:
+        pass
+    return st
+
+def llm_available():
+    st = llm_status()
+    return st["configured"] and st["reachable"]
+
+def llm_generate(prompt, timeout=90):
+    """Low-level call to Ollama /api/generate. Returns text or None on any failure."""
+    url = (os.environ.get("OLLAMA_URL") or "").strip()
+    model = (os.environ.get("OLLAMA_MODEL") or "").strip()
     if not url or not model:
         return None
     try:
-        steps_txt = "\n".join(
-            f"- {s['tool_name']} ({s.get('verdict',{}).get('label','')}): "
-            f"{'; '.join(s.get('verdict',{}).get('findings',[])[:5]) or 'ללא ממצאים'}"
-            for s in mission.get("steps", [])
-        )
-        prompt = (
-            "אתה אנליסט אבטחת סייבר. כתוב דוח קצר ומקצועי בעברית (Markdown) "
-            f"על בדיקה שבוצעה.\nכוונה: {mission.get('intent')}\nמטרה: {mission.get('target')}\n"
-            f"תוצאות השלבים:\n{steps_txt}\n\nהדוח יכלול: סיכום מנהלים, ממצאים עיקריים, והמלצות."
-        )
         body = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
         req = urllib.request.Request(url.rstrip("/") + "/api/generate", data=body,
                                      headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=90) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.loads(r.read().decode())
-        text = data.get("response", "").strip()
-        return text or None
+        return (data.get("response", "") or "").strip() or None
     except Exception:
         return None
+
+def llm_report(mission, when=""):
+    """If an Ollama model is configured & reachable, produce a nicer prose summary.
+    Returns None on any failure so the caller falls back to the rule-based report."""
+    steps_txt = "\n".join(
+        f"- {s['tool_name']} ({s.get('verdict', {}).get('label', '')}): "
+        f"{'; '.join(s.get('verdict', {}).get('findings', [])[:5]) or 'ללא ממצאים'}"
+        for s in mission.get("steps", [])
+    )
+    prompt = (
+        "אתה אנליסט אבטחת סייבר. כתוב דוח קצר ומקצועי בעברית (Markdown) "
+        f"על בדיקה שבוצעה.\nכוונה: {mission.get('intent')}\nמטרה: {mission.get('target')}\n"
+        f"תוצאות השלבים:\n{steps_txt}\n\nהדוח יכלול: סיכום מנהלים, ממצאים עיקריים, והמלצות."
+    )
+    return llm_generate(prompt)
+
+def llm_summarize_report(report_md, intent="", target=""):
+    """On-demand AI executive summary of an existing (rule-based) report."""
+    prompt = (
+        "אתה אנליסט אבטחת סייבר בכיר. קרא את דוח בדיקת האבטחה הבא וכתוב בעברית (Markdown): "
+        "(1) תקציר מנהלים בהיר עד 180 מילים, (2) שלוש המלצות הפעולה המובילות לפי סדר עדיפות. "
+        "אל תמציא ממצאים שלא מופיעים בדוח.\n\n"
+        f"כוונה: {intent}\nמטרה: {target}\n\n=== הדוח ===\n" + (report_md or "")[:6000]
+    )
+    return llm_generate(prompt, timeout=120)

@@ -482,6 +482,14 @@ class PurpleMission:
         self.learning = bluered.update_kb(self.threats, when)
         self.report = bluered.purple_report(self.intent, self.target,
                                             self.mission.steps, self.threats, self.learning, when)
+        # optional AI executive summary prepended (local LLM, best-effort)
+        try:
+            if agents.llm_available():
+                ai = agents.llm_summarize_report(self.report, self.intent, self.target)
+                if ai:
+                    self.report = "## 🧠 תקציר AI\n\n" + ai + "\n\n---\n\n" + self.report
+        except Exception:
+            pass
         self.phase = "done"
         self.status = "stopped" if self._stop else "done"
         red_findings = sum(len((s.get("verdict") or {}).get("findings", []))
@@ -655,6 +663,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"playbooks": agents.describe_playbooks()})
         if p == "/api/learning":
             return self._api_learning()
+        if p == "/api/llm":
+            return self._send_json(agents.llm_status())
         if p == "/api/brain":
             return self._api_brain()
         if p == "/api/vault/graph":
@@ -708,6 +718,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_playbook_save()
         if p == "/api/playbooks/delete":
             return self._api_playbook_delete()
+        if p == "/api/llm/enhance":
+            return self._api_llm_enhance()
         if p == "/api/plan":
             return self._api_plan()
         if p == "/api/mission":
@@ -953,6 +965,31 @@ class Handler(BaseHTTPRequestHandler):
         db.delete_playbook(pid)
         audit(self._user(), "playbook-delete", pid)
         return self._send_json({"ok": True})
+
+    def _api_llm_enhance(self):
+        """On-demand: rewrite/summarize a stored report with the local LLM."""
+        if not agents.llm_available():
+            st = agents.llm_status()
+            hint = ("הגדר OLLAMA_URL + OLLAMA_MODEL"
+                    if not st["configured"] else "שרת Ollama אינו נגיש")
+            return self._send_json({"error": "מנוע ה-AI אינו זמין (%s)." % hint}, 400)
+        data = self._read_json()
+        rid = (data.get("id") or "").strip()
+        report_md = data.get("report") or ""
+        intent, target = data.get("intent", ""), data.get("target", "")
+        if rid:
+            rep = db.get_report(rid)
+            if rep:
+                report_md = rep["report"]
+                intent = intent or rep["meta"].get("intent", "")
+                target = target or rep["meta"].get("target", "")
+        if not report_md:
+            return self._send_json({"error": "אין דוח לשיפור"}, 400)
+        summary = agents.llm_summarize_report(report_md, intent, target)
+        if not summary:
+            return self._send_json({"error": "המודל לא החזיר תשובה"}, 502)
+        audit(self._user(), "llm-enhance", rid or target)
+        return self._send_json({"ok": True, "summary": summary, "model": agents.llm_status()["model"]})
 
     def _api_learning(self):
         """Learning-materials page: every threat type the system knows, enriched

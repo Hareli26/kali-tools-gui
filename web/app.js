@@ -1349,6 +1349,7 @@ function mdToHtml(md) {
 
 function showReport() {
   $("reportBody").innerHTML = mdToHtml(REPORT_MD || "*(אין דוח)*");
+  const box = $("reportAiSummary"); if (box) { box.classList.add("hidden"); box.innerHTML = ""; }
   showScreen("ai-report");
 }
 
@@ -1366,6 +1367,7 @@ function initAI() {
   $("purpleBtn").onclick = startPurple;
   $("purpleStopBtn").onclick = stopPurple;
   $("purpleReportBtn").onclick = showReport;
+  $("reportEnhanceBtn").onclick = enhanceReport;
   $("reportCopyBtn").onclick = () => navigator.clipboard.writeText(REPORT_MD);
   $("reportDownloadBtn").onclick = downloadReport;
   $("reportRerunBtn").onclick = () => { if (REPORT_META && REPORT_META.target) rerunRun(REPORT_META.intent, REPORT_META.target, REPORT_META.type); };
@@ -1429,6 +1431,7 @@ function init() {
   initAI();
   loadCatalog();
   loadWhoami();
+  loadLlmStatus();
   trackActive();   // global running-bar: re-attaches to any run already in progress
   window.addEventListener("hashchange", applyHash);
   applyHash();
@@ -1443,6 +1446,48 @@ async function loadWhoami() {
     $("modeUsers").classList.toggle("hidden", !IS_ADMIN);
     $("modePlaybooks").classList.toggle("hidden", !IS_ADMIN);
   } catch (e) { /* ignore */ }
+}
+
+/* ============================================================ LOCAL LLM (Ollama)
+   Optional: if a local model is configured & reachable, reports get an AI prose
+   summary. Shows status on the AI screen and an on-demand "enhance" button. */
+let LLM_ON = false;
+async function loadLlmStatus() {
+  try {
+    const d = await (await fetch("/api/llm")).json();
+    LLM_ON = !!(d.configured && d.reachable);
+    const badge = $("llmBadge");
+    if (LLM_ON) {
+      badge.textContent = `🧠 מנוע AI: ${d.model} · פעיל`;
+      badge.className = "llm-badge on";
+      badge.title = "דוחות ינוסחו אוטומטית ע\"י המודל המקומי";
+    } else if (d.configured) {
+      badge.textContent = "🧠 מנוע AI מוגדר אך לא נגיש — מבוסס חוקים";
+      badge.className = "llm-badge warn";
+      badge.title = "שרת Ollama לא מגיב ב‑" + (d.url || "");
+    } else {
+      badge.textContent = "⚙️ מבוסס חוקים · לניסוח AI חכם הגדר Ollama";
+      badge.className = "llm-badge off";
+      badge.title = "הגדר OLLAMA_URL + OLLAMA_MODEL לשדרוג ניסוח הדוחות";
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function enhanceReport() {
+  const box = $("reportAiSummary"), btn = $("reportEnhanceBtn");
+  btn.disabled = true; btn.textContent = "🧠 מנסח...";
+  try {
+    const meta = REPORT_META || {};
+    const d = await (await fetch("/api/llm/enhance", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ report: REPORT_MD, intent: meta.intent, target: meta.target })
+    })).json();
+    if (d.error) { alert(d.error); return; }
+    box.innerHTML = `<div class="ai-summary-head">🧠 תקציר AI · ${escapeHtml(d.model || "")}</div>` + mdToHtml(d.summary);
+    box.classList.remove("hidden");
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { alert("שגיאת רשת: " + e); }
+  finally { btn.disabled = false; btn.textContent = "🧠 שפר עם AI"; }
 }
 
 /* ============================================================ LEARNING MATERIALS

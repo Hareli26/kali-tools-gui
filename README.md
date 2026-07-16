@@ -92,13 +92,18 @@ wsl -d kali-linux -u root -- pkill -f server.py
 - דוחות נשמרים ב‑`reports/<id>.json` ושורדים אתחולים (`/api/reports`, `/api/report/<id>`).
 - משתני סביבה: `KALIGUI_PORT`, `KALIGUI_HOST`, `KALIGUI_STEP_TIMEOUT`, `KALIGUI_MAX_KEEP`.
 
-## הפעלת מנוע AI אמיתי (אופציונלי)
-כברירת מחדל הסוכנים מבוססי-חוקים (עובד מיד). לניסוח דוחות ע"י LLM מקומי:
-```powershell
-# ב-WSL: הורד מודל
-wsl -d kali-linux -u root -- ollama pull llama3.2
+## הפעלת מנוע AI מקומי — Ollama (אופציונלי)
+כברירת מחדל הסוכנים **מבוססי-חוקים** (עובד מיד, אפס תלויות). אם מגדירים מודל Ollama מקומי, המערכת
+**משדרגת את ניסוח הדוחות**: דוחות משימה נכתבים ע"י המודל, ולדוחות Purple נוסף **תקציר AI**. כמו כן יש
+כפתור **"🧠 שפר עם AI"** במסך הדוח (תקציר מנהלים + המלצות על‑פי דרישה), ו**חיווי מצב** במסך עוזר ה‑AI.
+```bash
+# התקן והורד מודל (על המכונה שמריצה את השרת):
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull llama3.2
 # הרץ את השרת עם:  OLLAMA_URL=http://localhost:11434  OLLAMA_MODEL=llama3.2
 ```
+המערכת בודקת **נגישות אמיתית** (`GET {OLLAMA_URL}/api/tags`) — אם המודל לא זמין, נופלת חזרה בחן למנוע
+מבוסס‑החוקים. סטטוס: `GET /api/llm`. ⚠️ Ollama צורך זיכרון/מעבד — הרץ על מכונה מתאימה (לא חובה על VPS קטן).
 
 ## הוספת כלי חדש לקטלוג
 ערוך את `tools.json`, הוסף אובייקט ל‑`tools`:

@@ -264,6 +264,7 @@
       <div class="ai-hero-icon">🤖</div>
       <h1>עוזר הבדיקות החכם</h1>
       <p>תאר במילים שלך מה תרצה לבדוק — הסוכן יבחר את הכלים המתאימים, יבנה תוכנית, יריץ, יאמת ויפיק דוח.</p>
+      <span id="llmBadge" class="llm-badge" title=""></span>
     </div>
     <div class="ai-form">
       <label class="ai-label">מה תרצה לבדוק?</label>
@@ -341,12 +342,14 @@
     <div class="results-head">
       <h1>📄 דוח</h1>
       <div class="results-actions">
+        <button id="reportEnhanceBtn" class="ghost-btn">🧠 שפר עם AI</button>
         <button id="reportRerunBtn" class="run-btn">🔁 הרץ שוב</button>
         <button id="reportCopyBtn" class="ghost-btn">📋 העתק</button>
         <button id="reportDownloadBtn" class="ghost-btn">⬇ הורד</button>
         <button id="newMissionBtn" class="ghost-btn">🤖 משימה חדשה</button>
       </div>
     </div>
+    <div id="reportAiSummary" class="ai-summary hidden"></div>
     <article id="reportBody" class="report-body"></article>
   </main>
 
