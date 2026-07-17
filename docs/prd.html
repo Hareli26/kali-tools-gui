@@ -192,7 +192,7 @@
 └───────────────┬───────────────────────────────────────────┘
        HTTPS (Caddy → oauth2-proxy: Google + RBAC)
 ┌───────────────▼───────────────────────────────────────────┐
-│  server.py   🛡️ PRODUCTION — kali.dudaei.com               │
+│  server.py   🛡️ PRODUCTION — kali.dudaei.com (Kali Linux)  │
 │   ├── tools.json    catalog (72 tools / 11 categories)     │
 │   ├── agents.py     Planner · Verifier · Reporter          │
 │   ├── bluered.py    Broker · Blue Team · Learning          │
@@ -204,7 +204,7 @@
   SQLite · Obsidian vault/ · reports/           │ prod initiates —
                                                 │ the pot holds no key
 ┌───────────────────────────────────────────────┴───────────┐
-│  🍯 SACRIFICIAL HOST — web.dudaei.com (separate machine)   │
+│  🍯 SACRIFICIAL HOST — web.dudaei.com (Ubuntu 24.04)       │
 │   ├── web_pot.py    fake site + bait · captures only       │
 │   └── collector.py  token-gated read endpoint (fw: prod)   │
 │   ✗ never executes  ✗ never classifies  ✗ no prod creds    │
@@ -240,7 +240,8 @@
 בעלי סיכון גבוה (כיבוי סיסמת SSH, שינויי firewall) מוצגים כהנחיה בלבד ואינם רצים אוטומטית, כדי למנוע נעילה.</p>
 <h3>8.6 שכבת הטעיה — מלכודות דבש (Deception)</h3>
 <p>עד כה הצוות הכחול למד רק מתקיפות ש<em>אנחנו</em> יזמנו — מעגל סגור ומלאכותי. שכבת ההטעיה פותחת אותו
-לעולם האמיתי באמצעות <strong>שלוש מלכודות</strong> (<code>web.dudaei.com</code>) הרצות על שרת מוקרב נפרד:</p>
+לעולם האמיתי באמצעות <strong>שלוש מלכודות</strong> (<code>web.dudaei.com</code> / 187.124.189.97) הרצות על
+<strong>שרת מוקרב נפרד (Ubuntu 24.04)</strong> — נפרד משרת הפרודקשן (Kali Linux):</p>
 <ul>
   <li><strong>מלכודת ווב (פורט 80/443)</strong> — אתר חברה מזויף זרוע פיתיונות (<code>.env</code> עם מפתחות
       מזויפים, <code>.git/config</code>, dump מזויף של DB, טופס התחברות שקולט אישורים, ו‑endpoint שנראה

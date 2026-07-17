@@ -97,25 +97,26 @@
 
 <!-- 2 -->
 <div class="section">
-<h2>2. דרישות מקדימות ומה צריך להתקין</h2>
+<h2>2. השרתים ומערכות ההפעלה</h2>
+<p>המערכת פרוסה על <strong>שני שרתים נפרדים</strong>, לכל אחד תפקיד ומערכת הפעלה משלו. ההפרדה מכוונת:
+מלכודת הדבש היא שרת שמזמינים לפרוץ אליו, ולכן אסור שתחלוק מכונה עם הפרודקשן.</p>
 <table>
-  <tr><th>רכיב</th><th>גרסה</th><th>בדיקה</th></tr>
-  <tr><td>Windows 10/11 (64‑bit)</td><td>—</td><td>—</td></tr>
-  <tr><td>WSL2</td><td>עדכני</td><td><code>wsl --version</code></td></tr>
-  <tr><td>Kali Linux (WSL)</td><td>Rolling 2025+</td><td><code>wsl -l -v</code></td></tr>
-  <tr><td>Python 3 (בתוך Kali)</td><td>3.9+</td><td><code>python3 --version</code></td></tr>
-  <tr><td>דפדפן מודרני</td><td>Chrome/Edge/Firefox</td><td>—</td></tr>
+  <tr><th>שרת</th><th>מערכת הפעלה</th><th>תפקיד</th><th>כתובת</th></tr>
+  <tr><td>🛡️ <strong>פרודקשן</strong></td><td><strong>Kali Linux</strong> (VPS)</td>
+      <td>מריץ את האפליקציה, שכבת הסוכנים, החיישן ושרת ה‑MCP</td>
+      <td><code>kali.dudaei.com</code><br>72.62.150.169</td></tr>
+  <tr><td>🍯 <strong>מלכודות</strong></td><td><strong>Ubuntu 24.04</strong> (VPS מוקרב נפרד)</td>
+      <td>מריץ את מלכודות הדבש בלבד (ווב / MySQL / SSH)</td>
+      <td><code>web.dudaei.com</code><br>187.124.189.97</td></tr>
 </table>
-<p><strong>התקנת WSL + Kali</strong> (PowerShell כמנהל):</p>
-<pre>wsl --install
-wsl --install -d kali-linux</pre>
-<p><strong>התקנת כלי Kali</strong> — ההתקנה הבסיסית מינימלית. בחר סט:</p>
-<pre># סט סטנדרטי (מומלץ)
-sudo apt update &amp;&amp; sudo apt install -y kali-linux-default
-
-# או הכול (כבד, עשרות GB)
-sudo apt install -y kali-linux-everything</pre>
-<div class="warn">אין צורך ב‑pip או חבילות פייתון חיצוניות. אין חובה להתקין את כל הכלים מראש — המערכת מזהה אוטומטית ומציעה כפתור התקנה לכל כלי חסר.</div>
+<p><strong>דרישת התקנה יחידה: <code>python3</code> (3.9+)</strong> — הליבה כתובה בספריית פייתון הסטנדרטית בלבד,
+<strong>אפס תלויות</strong>. יוצא דופן יחיד: מלכודת ה‑SSH (על שרת המלכודות) משתמשת ב‑<code>paramiko</code>, כי SSH
+מצפין ב‑AES שאין בספרייה הסטנדרטית — הפרודקשן נשאר ללא תלויות.</p>
+<p>על שרת ה‑Kali, ההתקנה הבסיסית של הכלים מינימלית; אין חובה להתקין הכול מראש — המערכת <strong>מזהה
+אוטומטית</strong> אילו כלים מותקנים ומציעה כפתור התקנה לכל כלי חסר. לסט מלא:</p>
+<pre>sudo apt update &amp;&amp; sudo apt install -y kali-linux-default   # או kali-linux-everything</pre>
+<p><strong>פיתוח מקומי (אופציונלי):</strong> Windows 10/11 עם <strong>WSL2 + Kali</strong> — לפיתוח בלבד, לא לייצור
+(<code>wsl --install -d kali-linux</code>). דפדפן מודרני (Chrome/Edge/Firefox) לצד הלקוח.</p>
 </div>
 
 <!-- 3 -->
@@ -132,8 +133,20 @@ bash deploy/install-vps.sh</pre>
 <pre>systemctl status  kali-gui     # מצב
 systemctl restart kali-gui     # הפעלה מחדש
 journalctl -u kali-gui -n 50   # לוגים</pre>
-<h3>3ב. פיתוח מקומי — WSL2 (אופציונלי)</h3>
-<p>המערכת רצה כ‑<strong>root</strong> כדי שכל הכלים יעבדו. להרצה מקומית תחת Kali‑WSL:</p>
+<h3>3ב. פריסת מלכודות הדבש — שרת Ubuntu מוקרב</h3>
+<p>מלכודות הדבש רצות על השרת המוקרב הנפרד (Ubuntu 24.04) — <strong>לעולם לא על הפרודקשן</strong>. הסקריפטים
+מסרבים לרוץ אם הם מזהים שהם על שרת הפרודקשן:</p>
+<pre># על שרת המלכודות (187.124.189.97):
+sudo HP_DOMAIN=web.dudaei.com HP_PROD_IP=72.62.150.169 ./deploy/install-honeypot.sh   # ווב
+sudo HP_PROD_IP=72.62.150.169 ./deploy/add-sql-honeypot.sh                              # MySQL
+sudo HP_PROD_IP=72.62.150.169 ./deploy/add-ssh-honeypot.sh                              # SSH
+
+# על הפרודקשן — רישום + משיכה אוטומטית כל 60 שניות:
+python3 sensor.py --add web http://187.124.189.97:8081 &lt;token&gt;</pre>
+<p>כל מלכודת חושפת פורט ציבורי (הפיתיון) וקולקטור מוגן בטוקן ומוגבל ב‑firewall ל‑IP הפרודקשן.
+פירוט מלא: <code>honeypot/README.md</code>.</p>
+<h3>3ג. פיתוח מקומי — WSL2 (אופציונלי)</h3>
+<p>המערכת רצה כ‑<strong>root</strong> כדי שכל הכלים יעבדו. לפיתוח מקומי בלבד, תחת Kali‑WSL על Windows:</p>
 <pre>wsl -d kali-linux -u root -- python3 /path/to/kali-gui/server.py
 # ואז בדפדפן:  http://localhost:8777</pre>
 </div>
@@ -248,7 +261,7 @@ server.py  (Python stdlib, root, על שרת Kali)
   <tr><td>כלי "לא מותקן"</td><td>לחץ התקן, או <code>apt install &lt;package&gt;</code></td></tr>
   <tr><td>"דרוש root"</td><td>ודא הרצה עם <code>-u root</code></td></tr>
   <tr><td>דומיין לא נפתר</td><td>בצע תיקון DNS (סעיף 3)</td></tr>
-  <tr><td>כלי אלחוטי לא עובד</td><td>WSL ללא monitor mode — צפוי; רק aircrack-ng offline</td></tr>
+  <tr><td>כלי אלחוטי לא עובד</td><td>VPS/VM ללא כרטיס אלחוטי במצב monitor — צפוי; רק aircrack-ng offline נתמך</td></tr>
 </table>
 </div>
 

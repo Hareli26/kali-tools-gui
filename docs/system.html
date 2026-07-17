@@ -332,6 +332,10 @@ argv += [positional target]</pre>
 (<code>kali-gui.service</code>) עם הפעלה אוטומטית והתאוששות מקריסה (<code>Restart=on-failure</code>). מתקין
 יחיד (<code>deploy/install-vps.sh</code>) מקים את הכל: כלי Kali, האפליקציה, מסד הנתונים, שרת ה‑MCP, שרשרת
 ה‑HTTPS (Caddy + oauth2‑proxy), ו‑firewall. (לפיתוח מקומי המערכת רצה גם תחת WSL2 על Windows.)</p>
+<p><strong>שני שרתים, שתי מערכות הפעלה:</strong> הפרודקשן רץ על <strong>Kali Linux (VPS)</strong>
+(<code>kali.dudaei.com</code>), ומלכודות הדבש על שרת <strong>Ubuntu 24.04 מוקרב ונפרד</strong>
+(<code>web.dudaei.com</code>) — הפרדה פיזית מכוונת, כדי שפריצה למלכודת לא תיגע בפרודקשן. פריסת המלכודות
+דרך <code>deploy/install-honeypot.sh</code>, <code>add-sql-honeypot.sh</code> ו‑<code>add-ssh-honeypot.sh</code>.</p>
 <pre>systemctl status  kali-gui     # מצב
 systemctl restart kali-gui     # הפעלה מחדש
 journalctl -u kali-gui -n 50   # לוגים</pre>
