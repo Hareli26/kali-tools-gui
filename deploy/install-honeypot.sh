@@ -170,6 +170,16 @@ if [ -n "$HP_PROD_IP" ] && command -v ufw >/dev/null 2>&1; then
   ufw allow 80/tcp && ufw allow 443/tcp               >/dev/null 2>&1 || true
   ufw allow from "$HP_PROD_IP" to any port "$HP_COL_PORT" proto tcp >/dev/null 2>&1 || true
   ufw deny "${HP_COL_PORT}/tcp"                       >/dev/null 2>&1 || true
+  # ufw stores rules even when it is not running. If it is inactive the rules
+  # above are NOT enforced and the collector port is really open. We do NOT
+  # auto-enable — that could drop this SSH session — but we allow the current
+  # SSH port so the user can enable it safely, and say so loudly.
+  if ! ufw status 2>/dev/null | grep -q "Status: active"; then
+    SSHP=$(echo "${SSH_CONNECTION:-}" | awk '{print $4}'); SSHP=${SSHP:-22}
+    ufw allow "${SSHP}/tcp" >/dev/null 2>&1 || true
+    warn "ufw is INACTIVE — the rules above are stored but NOT enforced yet."
+    warn "SSH port ${SSHP} is now allowed; enforce the firewall with:  ufw --force enable"
+  fi
 elif [ -n "$HP_PROD_IP" ]; then
   warn "ufw not present — restrict port ${HP_COL_PORT} to ${HP_PROD_IP} yourself:"
   echo "     iptables -A INPUT -p tcp --dport ${HP_COL_PORT} -s ${HP_PROD_IP} -j ACCEPT"

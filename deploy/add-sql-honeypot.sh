@@ -133,6 +133,12 @@ if [ -n "$HP_PROD_IP" ] && command -v ufw >/dev/null 2>&1; then
   ufw allow "${HP_SQL_PORT}/tcp"                                          >/dev/null 2>&1 || true
   ufw allow from "$HP_PROD_IP" to any port "$HP_SQL_COL_PORT" proto tcp   >/dev/null 2>&1 || true
   ufw deny "${HP_SQL_COL_PORT}/tcp"                                       >/dev/null 2>&1 || true
+  if ! ufw status 2>/dev/null | grep -q "Status: active"; then
+    SSHP=$(echo "${SSH_CONNECTION:-}" | awk '{print $4}'); SSHP=${SSHP:-22}
+    ufw allow "${SSHP}/tcp" >/dev/null 2>&1 || true
+    warn "ufw is INACTIVE — rules stored but NOT enforced. SSH port ${SSHP} allowed."
+    warn "enforce with:  ufw --force enable"
+  fi
 elif [ -n "$HP_PROD_IP" ]; then
   warn "ufw not present — restrict port ${HP_SQL_COL_PORT} to ${HP_PROD_IP} yourself."
 else
