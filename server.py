@@ -925,7 +925,15 @@ class Handler(BaseHTTPRequestHandler):
             reports = db.all_reports_full(500)
             kb = bluered.load_kb()
             res = obsidian.export(VAULT_DIR, reports, kb, bluered.get_remediation)
-            audit(self._user(), "obsidian-export", "%d reports, %d threats" % (res["reports"], res["threats"]))
+            # 🍯 also export the honeypot intel — attack notes wikilinked to the
+            # posture threat notes they cross, so the graph shows the connection.
+            hp_res = obsidian.export_honeypot(
+                VAULT_DIR, db.hp_stats(), db.hp_correlate(),
+                db.hp_list_events(limit=300), attack_kb.get_attack)
+            res.update(hp_res)
+            audit(self._user(), "obsidian-export",
+                  "%d reports, %d threats, %d attacks" %
+                  (res["reports"], res["threats"], hp_res.get("attacks", 0)))
             return self._send_json({"ok": True, **res})
         except Exception as e:
             log("obsidian export failed: %s" % e)

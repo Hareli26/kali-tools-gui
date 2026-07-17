@@ -94,3 +94,121 @@ def export(vault_dir, reports, kb, remediation_lookup=None):
         f.write("\n".join(moc) + "\n")
 
     return {"vault": vault_dir, "reports": len(reports), "threats": len(sigs)}
+
+
+# ----------------------------------------------------- 🍯 deception export ----
+def _flag(cc):
+    if not cc or len(cc) != 2 or not cc.isalpha():
+        return "🏴"
+    return "".join(chr(0x1F1E6 + ord(c.upper()) - ord("A")) for c in cc)
+
+
+_CRED_RE = re.compile(r"\buser=(\S+)(?:.*?\b(?:pass|auth)=(\S+))?", re.S)
+
+
+def export_honeypot(vault_dir, hp, correlation, events, attack_lookup=None):
+    """Write the honeypot intel into the vault as Attack notes wikilinked to the
+    posture Threat notes they cross — so Obsidian's graph shows, visually, which
+    real-world attacks target weaknesses we actually have. Plus a Deception MOC.
+    Fails soft: with no honeypot data it writes nothing."""
+    hp = hp or {}
+    sigs = hp.get("signatures", [])
+    if not sigs and not events:
+        return {"attacks": 0}
+
+    attacks_dir = os.path.join(vault_dir, "Attacks")
+    os.makedirs(attacks_dir, exist_ok=True)
+
+    # attack technique -> the posture weaknesses it exploits (from the crossing)
+    cross = {}
+    for c in (correlation or []):
+        cross.setdefault(c["attack"], []).append(c["weakness_name"])
+    # countries whose favourite this technique is (from top_countries)
+    fav_by_tech = {}
+    for c in hp.get("top_countries", []):
+        if c.get("top_technique"):
+            fav_by_tech.setdefault(c["top_technique"], []).append((c.get("cc", ""), c.get("country", "")))
+
+    # --- one note per observed attack technique ---
+    for s in sigs:
+        sig = s["sig"]
+        info = (attack_lookup(sig) if attack_lookup else None) or {}
+        lines = ["---", "type: attack", f"technique: {sig}",
+                 f"severity: {s.get('severity','')}", f"count: {s.get('count',0)}",
+                 f"tags: [security, deception, attack, severity/{s.get('severity','')}]",
+                 "---", "", f"# ⚔️ {s.get('name', sig)}", "",
+                 f"- **חומרה:** {s.get('severity','')}",
+                 f"- **נצפה במלכודות:** {s.get('count',0)} פעמים"]
+        if info.get("mitre"):
+            lines.append(f"- **MITRE ATT&CK:** {info['mitre']}")
+        if info.get("technique"):
+            lines += ["", "## מה התוקף מנסה", info["technique"]]
+        if info.get("defenses"):
+            lines += ["", "## 🛡️ הגנות"] + [f"- {d}" for d in info["defenses"]]
+        weak = list(dict.fromkeys(cross.get(sig, [])))
+        if weak:
+            lines += ["", "## 🔥 אנחנו חשופים לזה", "*תוקפים מנסים את זה, והסריקה שלנו מצאה אצלנו:*"]
+            lines += [f"- [[{_slug(w)}]]" for w in weak]
+        countries = fav_by_tech.get(sig, [])
+        if countries:
+            lines += ["", "## 🌍 מדינות שזו הטכניקה המועדפת שלהן"]
+            lines += [f"- {_flag(cc)} {co}" for cc, co in countries]
+        lines.append("\n> [[🍯 Deception (MOC)]]")
+        with open(os.path.join(attacks_dir, _slug(s.get("name", sig)) + ".md"), "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+    # --- Deception MOC ---
+    m = ["---", "type: moc", "tags: [security, deception, moc]", "---", "",
+         "# 🍯 Deception — מודיעין ממלכודות", "",
+         f"נקלטו **{hp.get('events',0)}** תקיפות אמיתיות מ‑**{hp.get('attackers',0)}** "
+         f"כתובות ({hp.get('events_24h',0)} ב‑24 השעות האחרונות)."]
+
+    if correlation:
+        m += ["", "## 🔥 איומים מאומתים — תוקפים מנסים, ואנחנו חשופים"]
+        for c in correlation:
+            m.append(f"- [[{_slug(c['attack_name'])}]] × {c['attack_count']} "
+                     f"→ אצלנו: [[{_slug(c['weakness_name'])}]]")
+
+    if hp.get("top_countries"):
+        m += ["", "## 🌍 מדינות תוקפות מובילות"]
+        for c in hp["top_countries"]:
+            fav = f" · מועדף: [[{_slug(_tech_name(c['top_technique'], attack_lookup))}]]" if c.get("top_technique") else ""
+            m.append(f"- {_flag(c.get('cc',''))} **{c.get('country','?')}** — {c['events']} תקיפות · {c['attackers']} כתובות{fav}")
+
+    if sigs:
+        m += ["", "## 🎯 טכניקות שנצפו (לפי שכיחות)"]
+        for s in sorted(sigs, key=lambda x: -x.get("count", 0)):
+            m.append(f"- [[{_slug(s.get('name', s['sig']))}]] — {s.get('count',0)}× · {s.get('severity','')}")
+
+    creds = []
+    for e in (events or []):
+        mm = _CRED_RE.search(e.get("blob", "") or "")
+        if mm and mm.group(2):
+            creds.append((e.get("src_ip", ""), e.get("country", ""), mm.group(1), mm.group(2)))
+    if creds:
+        m += ["", "## 🔑 אישורים שנתפסו (דגימה)", "", "| מקור | משתמש | סיסמה |", "|---|---|---|"]
+        for ip, co, u, p in creds[:25]:
+            flag = _flag_from_country_hint(co)
+            m.append(f"| {flag} `{ip}` | `{u}` | `{p}` |")
+
+    if hp.get("top_attackers"):
+        m += ["", "## 🌐 תוקפים מובילים"]
+        for a in hp["top_attackers"]:
+            m.append(f"- {_flag(a.get('cc',''))} `{a['src_ip']}` — {a['n']} בקשות · {a.get('country','')}")
+
+    m.append("\n> [[Security Dashboard (MOC)]]")
+    with open(os.path.join(vault_dir, "🍯 Deception (MOC).md"), "w", encoding="utf-8") as f:
+        f.write("\n".join(m) + "\n")
+
+    return {"attacks": len(sigs), "countries": len(hp.get("top_countries", []))}
+
+
+def _tech_name(sig, attack_lookup):
+    info = (attack_lookup(sig) if attack_lookup else None) or {}
+    return info.get("name", sig)
+
+
+def _flag_from_country_hint(country):
+    # top_attackers/events carry cc separately; here we only have a country name
+    # sample, so just show a generic marker — the flag lives on the attacker rows.
+    return "🌍" if country and country != "Local" else "🏴"
