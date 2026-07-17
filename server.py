@@ -1196,13 +1196,41 @@ class Handler(BaseHTTPRequestHandler):
             "can_manage": self._is_admin(),
         })
 
+    SEV_HE = {"critical": "קריטי", "high": "גבוה", "medium": "בינוני", "low": "נמוך"}
+
     def _api_hp_events(self):
+        """Every attack answers four questions: who, what, how bad, what now.
+
+        The raw row only carries a technique id, so join ATTACK_KB here — the
+        browser should never have to know the knowledge base to render a row.
+        `exposed` is the one that matters: the attacker is trying something our
+        own scans say we are actually weak to.
+        """
         from urllib.parse import urlparse, parse_qs
         q = parse_qs(urlparse(self.path).query)
-        return self._send_json({"events": db.hp_list_events(
+        events = db.hp_list_events(
             limit=int((q.get("limit") or ["200"])[0] or 200),
             technique=(q.get("technique") or [None])[0],
-            src_ip=(q.get("ip") or [None])[0])})
+            src_ip=(q.get("ip") or [None])[0])
+        exposed = {c["attack"]: c["weakness_name"] for c in db.hp_correlate()}
+        for e in events:
+            r = attack_kb.get_attack(e.get("technique") or "")
+            if r:
+                e["name"] = r["name"]                      # what they're doing
+                e["what"] = r["technique"]                 # in plain words
+                e["mitre"] = r.get("mitre", "")
+                e["fix"] = r["defenses"][0] if r["defenses"] else ""   # the headline fix
+                e["fix_count"] = len(r["defenses"])
+                e["exposed_to"] = exposed.get(r["id"], "")  # "" = not known-vulnerable
+            else:
+                e["name"] = "תנועה לא מסווגת"
+                e["what"] = "בקשה שלא תואמת אף טכניקת תקיפה מוכרת — ככל הנראה תנועה שגרתית."
+                e["mitre"] = ""
+                e["fix"] = ""
+                e["fix_count"] = 0
+                e["exposed_to"] = ""
+            e["severity_he"] = self.SEV_HE.get(e.get("severity") or "", "—")
+        return self._send_json({"events": events})
 
     def _api_hp_technique(self, tid):
         r = attack_kb.get_attack(tid)

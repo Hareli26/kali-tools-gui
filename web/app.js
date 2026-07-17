@@ -54,6 +54,7 @@ function showScreen(name) {
   if (isPlaybooks) loadPlaybooks();
   if (isLearning) loadLearning();
   if (isHoney) loadHoneypot();
+  else if (typeof hpAutoStop === "function") hpAutoStop();   // don't poll off-screen
   window.scrollTo(0, 0);
 }
 
@@ -2771,6 +2772,23 @@ function staggerReveal(container, sel) {
    browser, so the editor's token field is write-only (blank = keep existing). */
 /* SEV_ICON / SEV_HE / escapeHtml are already defined above — reused here. */
 let HP_CAN_MANAGE = false;
+let HP_TIMER = null;
+let HP_FILTER = { technique: null, ip: null };
+let HP_LAST_TOP = null;      // newest event seen, to detect arrivals between refreshes
+
+/* Live indication: refresh only while the screen is open. showScreen() calls
+   hpAutoStop() on the way out, so we never poll a screen nobody is looking at. */
+function hpAutoStart() {
+  hpAutoStop();
+  HP_TIMER = setInterval(() => {
+    if (!$("screen-honeypot")?.classList.contains("active")) return hpAutoStop();
+    if (document.hidden) return;            // tab in the background — don't burn requests
+    loadHoneypot(true);
+  }, 15000);
+}
+function hpAutoStop() {
+  if (HP_TIMER) { clearInterval(HP_TIMER); HP_TIMER = null; }
+}
 
 function hpMsg(text, ok = true) {
   const m = $("hpMsg");
@@ -2780,12 +2798,12 @@ function hpMsg(text, ok = true) {
   setTimeout(() => { m.textContent = ""; m.className = "users-msg"; }, 5000);
 }
 
-async function loadHoneypot() {
+async function loadHoneypot(quiet) {
   const feed = $("hpFeed");
-  if (feed) feed.innerHTML = '<div class="audit-empty">טוען...</div>';
+  if (feed && !quiet) feed.innerHTML = '<div class="audit-empty">טוען...</div>';
   try {
     const d = await (await fetch("/api/honeypot")).json();
-    if (d.error) { hpMsg(d.error, false); return; }
+    if (d.error) { if (!quiet) hpMsg(d.error, false); return; }
     HP_CAN_MANAGE = !!d.can_manage;
     const add = $("hpAddBtn");
     if (add) add.classList.toggle("hidden", !HP_CAN_MANAGE);
@@ -2794,14 +2812,15 @@ async function loadHoneypot() {
     renderHpTechs(d.stats.top_techniques || []);
     renderHpAttackers(d.stats.top_attackers || []);
     renderHpPots(d.pots || []);
-    loadHpFeed();
+    loadHpFeed(HP_FILTER.technique, HP_FILTER.ip);
     const live = $("hpLive");
     if (live) {
       const on = (d.pots || []).some(p => p.enabled && !p.last_error);
       live.textContent = on ? `● ${d.stats.events_24h} תקיפות ב-24 שעות` : "● ממתין";
       live.classList.toggle("on", on);
     }
-  } catch (e) { hpMsg("שגיאה בטעינת המלכודות.", false); }
+    hpAutoStart();
+  } catch (e) { if (!quiet) hpMsg("שגיאה בטעינת המלכודות.", false); }
 }
 
 function renderHpStats(s) {
@@ -2894,14 +2913,31 @@ function renderHpAttackers(ips) {
 async function loadHpFeed(technique, ip) {
   const box = $("hpFeed");
   if (!box) return;
+  HP_FILTER = { technique: technique || null, ip: ip || null };
   const q = new URLSearchParams({ limit: "40" });
   if (technique) q.set("technique", technique);
   if (ip) q.set("ip", ip);
   try {
     const d = await (await fetch("/api/honeypot/events?" + q)).json();
+
+    // Announce arrivals since the last refresh, loudest first.
+    const top = (d.events || [])[0];
+    const key = top ? `${top.ts}|${top.src_ip}|${top.path}` : null;
+    if (HP_LAST_TOP && key && key !== HP_LAST_TOP) {
+      const fresh = (d.events || []).filter(e => e.severity === "critical" || e.exposed_to);
+      if (fresh.length) {
+        const t = fresh[0];
+        hpMsg(t.exposed_to
+          ? `🔥 תקיפה חדשה מ-${t.src_ip}: ${t.name} — ואנחנו חשופים לזה!`
+          : `🟥 תקיפה קריטית חדשה מ-${t.src_ip}: ${t.name}`, false);
+      }
+    }
+    if (key) HP_LAST_TOP = key;
+
     box.innerHTML = "";
     if (ip || technique) {
-      const clr = el("button", "ghost-btn hp-feed-clear", "✕ נקה סינון");
+      const clr = el("button", "ghost-btn hp-feed-clear",
+                     `✕ נקה סינון (${ip || technique})`);
       clr.onclick = () => loadHpFeed();
       box.appendChild(clr);
     }
@@ -2909,21 +2945,57 @@ async function loadHpFeed(technique, ip) {
       box.appendChild(el("div", "audit-empty", "אין תקיפות להצגה."));
       return;
     }
+    // Every card answers: מי (IP) · מה (technique + plain words) · כמה מסוכן
+    // (severity) · מה עושים (fix). All values go through el()/textContent —
+    // src_ip, path and ua are attacker-controlled and must never be markup.
     d.events.forEach(e => {
-      const card = el("div", "hp-ev reveal" + (e.severity ? " sev-" + e.severity : ""));
+      const card = el("div", "hp-ev reveal" + (e.severity ? " sev-" + e.severity : "") +
+                             (e.exposed_to ? " exposed" : ""));
+
+      // 1️⃣ מי — the source, when, and the danger level
       const h = el("div", "hp-ev-head");
       h.appendChild(el("span", "hp-ev-sev", SEV_ICON[e.severity] || "⬜"));
-      h.appendChild(el("span", "hp-ev-ip", e.src_ip));
+      const ip = el("span", "hp-ev-ip", "🌍 " + e.src_ip);
+      ip.title = "הצג רק תקיפות מ-" + e.src_ip;
+      ip.onclick = (ev) => { ev.stopPropagation(); loadHpFeed(null, e.src_ip); };
+      h.appendChild(ip);
+      if (e.severity) {
+        const sev = el("span", "hp-ev-sevtag sev-" + e.severity, e.severity_he);
+        h.appendChild(sev);
+      }
       h.appendChild(el("span", "hp-ev-when", e.whenstr || ""));
       card.appendChild(h);
-      const req = el("code", "hp-ev-req", `${e.method} ${e.path}`);
-      card.appendChild(req);
+
+      // 2️⃣ מה — the technique, then the raw request as evidence
+      const nm = el("div", "hp-ev-name", e.name || "");
       if (e.technique) {
-        const tag = el("span", "hp-ev-tec", e.technique);
-        tag.onclick = (ev) => { ev.stopPropagation(); showHpTechnique(e.technique); };
-        card.appendChild(tag);
+        nm.classList.add("clickable");
+        nm.onclick = (ev) => { ev.stopPropagation(); showHpTechnique(e.technique); };
       }
-      if (e.ua) card.appendChild(el("div", "hp-ev-ua", e.ua.slice(0, 70)));
+      card.appendChild(nm);
+      if (e.what) card.appendChild(el("div", "hp-ev-what", e.what));
+      card.appendChild(el("code", "hp-ev-req", `${e.method} ${e.path}`));
+
+      // 3️⃣ האם אנחנו חשופים — the loudest signal on the card
+      if (e.exposed_to) {
+        const ex = el("div", "hp-ev-exposed",
+          `🔥 אנחנו חשופים לזה — הסריקה שלנו מצאה אצלנו: ${e.exposed_to}`);
+        card.appendChild(ex);
+      }
+
+      // 4️⃣ מה עושים — the headline defense, rest behind the technique card
+      if (e.fix) {
+        const fx = el("div", "hp-ev-fix");
+        fx.appendChild(el("span", "hp-ev-fix-ico", "🛡️"));
+        fx.appendChild(el("span", "hp-ev-fix-txt", e.fix));
+        if (e.fix_count > 1 && e.technique) {
+          const more = el("button", "hp-ev-more", `+${e.fix_count - 1} נוספים ›`);
+          more.onclick = (ev) => { ev.stopPropagation(); showHpTechnique(e.technique); };
+          fx.appendChild(more);
+        }
+        card.appendChild(fx);
+      }
+      if (e.ua) card.appendChild(el("div", "hp-ev-ua", "🔧 " + e.ua.slice(0, 70)));
       box.appendChild(card);
     });
   } catch (e) { box.innerHTML = '<div class="audit-empty">שגיאה בטעינה.</div>'; }

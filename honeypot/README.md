@@ -90,7 +90,79 @@
 
 ---
 
-## 🚀 הרצה
+## 🚀 התקנה — שני השרתים
+
+### שלב 1 · 🍯 שרת המלכודת (187.124.189.97)
+
+**דרישות קדם: `python3` בלבד.** המלכודות הן stdlib טהור — אין pip, אין חבילות apt.
+זה מכוון: ה-apt בשרת הזה שבור (Ubuntu/Kali מעורבבים), ומלכודת שאי אפשר לפרוס
+היא מלכודת שאין לך.
+
+```bash
+ssh root@187.124.189.97
+
+# בדיקת דרישות קדם — כנראה כבר מותקן
+python3 --version || apt-get install -y python3   # דרוש 3.7+
+
+# הבא את הקוד (בלי git? ראה חלופה למטה)
+apt-get install -y git 2>/dev/null || true
+git clone https://github.com/Hareli26/kali-tools-gui /opt/src
+cd /opt/src && chmod +x deploy/install-honeypot.sh
+
+# התקן — הסקריפט יסרב לרוץ אם הוא מזהה פרודקשן
+HP_DOMAIN=web.dudaei.com HP_PROD_IP=72.62.150.169 ./deploy/install-honeypot.sh
+```
+
+**הסקריפט מדפיס טוקן בסוף — העתק אותו.**
+
+<details><summary>אין git על השרת? העתק שני קבצים ישירות</summary>
+
+```bash
+# מהמחשב שלך
+scp honeypot/web_pot.py honeypot/collector.py root@187.124.189.97:/opt/honeypot/
+scp deploy/install-honeypot.sh root@187.124.189.97:/tmp/
+ssh root@187.124.189.97 'cd /tmp && HP_DOMAIN=web.dudaei.com HP_PROD_IP=72.62.150.169 bash install-honeypot.sh'
+```
+</details>
+
+### שלב 2 · 🛡️ שרת הפרודקשן (kali.dudaei.com)
+
+```bash
+ssh root@72.62.150.169
+cd /opt/kali-gui && git pull && systemctl restart kali-gui
+
+# רשום את המלכודת + הפעל פולינג אוטומטי כל 60 שניות
+chmod +x deploy/install-sensor.sh
+POT_ID=web POT_URL=http://187.124.189.97:8081 POT_TOKEN='<הטוקן משלב 1>' \
+  ./deploy/install-sensor.sh
+```
+
+לחלופין דרך ה-UI: מסך **🍯 מלכודות** → **➕ הוסף מלכודת**.
+
+### שלב 3 · אימות
+
+```bash
+# על המלכודת
+systemctl status web-pot hp-collector
+curl -s localhost:8081/health
+
+# תקוף אותה מכל מקום — התקיפה תופיע ב-kali.dudaei.com תוך דקה
+curl "http://web.dudaei.com/api/v1/users?id=1'%20OR%201=1--"
+curl -A "sqlmap/1.7" http://web.dudaei.com/.env
+
+# על הפרודקשן
+journalctl -u kali-sensor -f
+cd /opt/kali-gui && python3 sensor.py --list
+```
+
+| פורט | חשיפה | למה |
+|---|---|---|
+| `80/443` → `8080` | 🌍 **כל העולם** | זה הפיתיון. זו כל המטרה. |
+| `8081` (קולקטור) | 🔒 **רק 72.62.150.169** | ערוץ ניהול. מוגן בטוקן **וגם** ב-firewall. |
+
+---
+
+## 🚀 הרצה ידנית (פיתוח)
 
 ```bash
 # ברירת מחדל: 0.0.0.0:8080, אירועים -> ./events.jsonl
