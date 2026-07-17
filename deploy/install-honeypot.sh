@@ -183,9 +183,16 @@ fi
 if [ -n "$HP_DOMAIN" ]; then
   if command -v caddy >/dev/null 2>&1; then
     say "configuring Caddy for ${HP_DOMAIN}"
+    # header_up overwrites X-Forwarded-For with the peer Caddy actually saw.
+    # Without it Caddy APPENDS, so a client pre-seeding the header arrives as
+    # "spoofed, real" and anything reading the first hop would blame whoever the
+    # attacker named. The pot only trusts the last hop anyway — this is the
+    # second lock on the same door.
     cat > /etc/caddy/Caddyfile <<EOF
 ${HP_DOMAIN} {
-    reverse_proxy 127.0.0.1:${HP_PORT}
+    reverse_proxy 127.0.0.1:${HP_PORT} {
+        header_up X-Forwarded-For {remote_host}
+    }
 }
 EOF
     systemctl reload caddy || systemctl restart caddy || warn "reload Caddy manually"

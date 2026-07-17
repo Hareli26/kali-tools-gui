@@ -47,6 +47,12 @@ MAX_FIELD = 2048              # per captured header/field
 MAX_EVENTS_BYTES = 64 * 1024 * 1024   # rotate the log past this
 _LOCK = threading.Lock()
 
+# Hosts whose X-Forwarded-For we believe. Anyone else's is just a header they
+# typed. Default: a reverse proxy on this same box (Caddy).
+TRUSTED_PROXIES = {p.strip() for p in
+                   (os.environ.get("HP_TRUST_PROXY") or "127.0.0.1,::1").split(",")
+                   if p.strip()}
+
 # ------------------------------------------------------------ event logging --
 def log_event(ev):
     """Append one event as JSON to the log. Best-effort: never raise upward."""
@@ -221,12 +227,28 @@ class Pot(BaseHTTPRequestHandler):
             pass
 
     def _client_ip(self):
-        # Behind Caddy/nginx the real IP arrives in a forwarding header.
-        for h in ("X-Forwarded-For", "X-Real-IP"):
-            v = self.headers.get(h)
-            if v:
-                return v.split(",")[0].strip()
-        return self.client_address[0]
+        """Who actually connected — the one field an attacker must not choose.
+
+        X-Forwarded-For is a request header, so a client can send whatever they
+        like in it. It is only evidence when a proxy WE trust wrote it, and even
+        then only its last hop is trustworthy: a proxy APPENDS the peer it saw,
+        so `spoofed, real` is what arrives when the client pre-seeds the header.
+        Taking [0] would hand attribution to the attacker; take [-1], and only
+        when the connection itself came from a trusted proxy.
+
+        Direct hits (e.g. straight to :8080, bypassing Caddy) ignore the header
+        entirely — there, the socket is the only truth.
+        """
+        peer = self.client_address[0]
+        if peer not in TRUSTED_PROXIES:
+            return peer
+        xff = self.headers.get("X-Forwarded-For")
+        if xff:
+            hops = [h.strip() for h in xff.split(",") if h.strip()]
+            if hops:
+                return hops[-1]
+        real = self.headers.get("X-Real-IP")
+        return real.strip() if real else peer
 
     def _capture(self, body=b""):
         """Record the request verbatim. This is the honeypot's entire product."""
