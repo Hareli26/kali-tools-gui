@@ -184,21 +184,61 @@ if [ "$PORT_BUSY" = "1" ]; then
   systemctl disable ssh-pot 2>/dev/null || true
   warn "port ${HP_SSH_PORT} is IN USE (your real sshd). The pot is installed but NOT started."
   echo
+  # Modern Ubuntu (22.04+/24.04) activates sshd via ssh.socket, so the listening
+  # port is set by the SOCKET, not by sshd_config 'Port' — a Port directive is
+  # silently ignored. This procedure edits the socket instead. It's an isolated
+  # override, so a mistake reverts with one rm.
+  SOCK_ACTIVATED=0
+  systemctl is-active --quiet ssh.socket 2>/dev/null && SOCK_ACTIVATED=1
   printf '\033[1;37m   Move your admin SSH off 22 SAFELY, then start the pot:\033[0m\n'
+  if [ "$SOCK_ACTIVATED" = "1" ]; then
   cat <<GUIDE
 
-   Uses an isolated drop-in file so a mistake is one 'rm' away from full revert.
+   (This host uses ssh.socket activation — the socket sets the port, not sshd_config.)
+   NEVER close your current session until step 2 confirms the new port works.
+
+   1) Listen on BOTH 22 and 2222 (explicit IPv4+IPv6 so 22 keeps accepting IPv4):
+        ufw allow 2222/tcp
+        mkdir -p /etc/systemd/system/ssh.socket.d
+        printf '[Socket]\\nListenStream=\\nListenStream=0.0.0.0:22\\nListenStream=0.0.0.0:2222\\nListenStream=[::]:22\\nListenStream=[::]:2222\\n' \\
+          > /etc/systemd/system/ssh.socket.d/hp-migration.conf
+        systemctl daemon-reload && systemctl restart ssh.socket
+        ss -ltn | grep -E ':22 |:2222 '          # expect BOTH ports
+
+   2) In a NEW terminal, CONFIRM the new port before touching anything else:
+        ssh -p 2222 root@${IP}
+        (external timeout here = an upstream/provider firewall blocks 2222 —
+         open it in the VPS panel, or pick a port the provider already allows.)
+
+   3) ONLY after 2222 logs in — narrow to 2222 only, freeing 22 (run from the 2222 session):
+        printf '[Socket]\\nListenStream=\\nListenStream=0.0.0.0:2222\\nListenStream=[::]:2222\\n' \\
+          > /etc/systemd/system/ssh.socket.d/hp-migration.conf
+        systemctl daemon-reload && systemctl restart ssh.socket
+        ss -ltn | grep ':22 ' || echo 'port 22 is free'
+
+   4) Start the honeypot on the now-free port 22:
+        systemctl enable --now ssh-pot
+        systemctl status ssh-pot --no-pager | head -5
+
+   Full revert at any point:  rm /etc/systemd/system/ssh.socket.d/hp-migration.conf \\
+                              && systemctl daemon-reload && systemctl restart ssh.socket
+GUIDE
+  else
+  cat <<GUIDE
+
+   (Classic sshd — the Port directive controls the listener.)
    NEVER close your current session until step 2 confirms the new port works.
 
    1) Listen on BOTH 22 and 2222 (a bare 'Port 2222' would DROP 22 — this keeps it):
-        ufw allow 2222/tcp 2>/dev/null
+        ufw allow 2222/tcp
         printf 'Port 22\\nPort 2222\\n' > /etc/ssh/sshd_config.d/99-hp-migration.conf
         sshd -t && systemctl reload ssh          # sshd -t validates BEFORE reload
+        ss -ltn | grep -E ':22 |:2222 '
 
    2) In a NEW terminal, CONFIRM the new port before touching anything else:
         ssh -p 2222 root@${IP}
 
-   3) ONLY after that logs in — switch to 2222 only, freeing 22:
+   3) ONLY after 2222 logs in — switch to 2222 only, freeing 22:
         printf 'Port 2222\\n' > /etc/ssh/sshd_config.d/99-hp-migration.conf
         sshd -t && systemctl reload ssh
         ss -ltn | grep ':22 ' || echo 'port 22 is free'
@@ -209,6 +249,7 @@ if [ "$PORT_BUSY" = "1" ]; then
 
    Full revert at any point:  rm /etc/ssh/sshd_config.d/99-hp-migration.conf && systemctl reload ssh
 GUIDE
+  fi
 else
   systemctl enable --now ssh-pot
   sleep 2
