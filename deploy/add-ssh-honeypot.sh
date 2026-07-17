@@ -54,14 +54,28 @@ if [ -z "$HP_TOKEN" ]; then
 fi
 [ "${#HP_TOKEN}" -ge 20 ] || die "HP_TOKEN too short — use 32+ random chars"
 
-# --- paramiko in a venv (this host only) ------------------------------------
-say "installing paramiko into ${VENV}"
-if [ ! -x "$VENV/bin/python" ]; then
-  python3 -m venv "$VENV" || die "could not create venv (apt-get install -y python3-venv)"
+# --- paramiko (this host only) ----------------------------------------------
+# Prefer the distro package: on Ubuntu `python3 -m venv` silently produces a
+# venv WITHOUT pip unless python3-venv is installed, which is exactly what bit
+# us. apt's python3-paramiko needs no venv and no pip, and runs under the
+# system interpreter. Fall back to a venv only if apt can't provide it.
+say "ensuring paramiko is available"
+PYBIN=/usr/bin/python3
+if python3 -c 'import paramiko' 2>/dev/null; then
+  say "paramiko already present (system)"
+elif { apt-get install -y python3-paramiko >/dev/null 2>&1 || \
+       { apt-get update -qq && apt-get install -y python3-paramiko >/dev/null 2>&1; }; } \
+     && python3 -c 'import paramiko' 2>/dev/null; then
+  say "installed python3-paramiko via apt"
+else
+  warn "apt could not provide python3-paramiko — falling back to a venv"
+  apt-get install -y python3-venv >/dev/null 2>&1 || true
+  rm -rf "$VENV"
+  python3 -m venv "$VENV" || die "venv creation failed (apt-get install -y python3-venv)"
+  "$VENV/bin/pip" install --quiet paramiko || die "pip install paramiko failed"
+  PYBIN="$VENV/bin/python"
 fi
-"$VENV/bin/pip" install --quiet --upgrade pip >/dev/null 2>&1 || true
-"$VENV/bin/pip" install --quiet paramiko || die "pip install paramiko failed"
-say "paramiko $("$VENV/bin/python" -c 'import paramiko; print(paramiko.__version__)') ready"
+say "paramiko $("$PYBIN" -c 'import paramiko; print(paramiko.__version__)') ready via ${PYBIN}"
 
 # --- files ------------------------------------------------------------------
 mkdir -p "$HP_DIR" "$HP_LOG_DIR"
@@ -74,7 +88,7 @@ install -m 0644 "$SRC/honeypot/ssh_pot.py" "$HP_DIR/ssh_pot.py"
 KEYF="$HP_DIR/ssh_host_rsa_key"
 if [ ! -f "$KEYF" ]; then
   say "generating a stable SSH host key"
-  "$VENV/bin/python" -c "import paramiko; paramiko.RSAKey.generate(2048).write_private_key_file('$KEYF')"
+  "$PYBIN" -c "import paramiko; paramiko.RSAKey.generate(2048).write_private_key_file('$KEYF')"
 fi
 touch "$HP_LOG_DIR/ssh.jsonl"
 chown nobody:nogroup "$KEYF" "$HP_LOG_DIR/ssh.jsonl" 2>/dev/null || \
@@ -97,7 +111,7 @@ Environment=HP_SSH_PORT=${HP_SSH_PORT}
 Environment=HP_SSH_EVENTS=${HP_LOG_DIR}/ssh.jsonl
 Environment=HP_SSH_HOSTKEY=${KEYF}
 Environment=PYTHONUNBUFFERED=1
-ExecStart=${VENV}/bin/python ${HP_DIR}/ssh_pot.py
+ExecStart=${PYBIN} ${HP_DIR}/ssh_pot.py
 Restart=always
 RestartSec=3
 NoNewPrivileges=true

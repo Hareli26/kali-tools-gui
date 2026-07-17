@@ -251,7 +251,7 @@ HP_SSH_PORT=22 HP_SSH_EVENTS=/var/log/honeypot/ssh.jsonl python3 ssh_pot.py
 ```bash
 sudo HP_PROD_IP=72.62.150.169 ./deploy/add-ssh-honeypot.sh
 ```
-הסקריפט מתקין `paramiko` ב-venv (על השרת המוקרב בלבד), מתקין `ssh-pot.service` +
+הסקריפט מתקין `paramiko` (מעדיף `apt python3-paramiko`, נופל ל-venv; על השרת המוקרב בלבד), מתקין `ssh-pot.service` +
 `hp-collector-ssh.service` (8083). **הוא לא נוגע ב-sshd שלך** — אם פורט 22 תפוס,
 הוא מדפיס נוהל הגירה בטוח (הוסף פורט חדש → **אמת בטרמינל שני שאתה נכנס** → הסר 22
 → הפעל את המלכודת). לעולם אל תסגור את הסשן הראשון לפני שאימתת את החדש.
