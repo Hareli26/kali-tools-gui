@@ -106,15 +106,16 @@ def _flag(cc):
 _CRED_RE = re.compile(r"\buser=(\S+)(?:.*?\b(?:pass|auth)=(\S+))?", re.S)
 
 
-def export_honeypot(vault_dir, hp, correlation, events, attack_lookup=None):
+def export_honeypot(vault_dir, hp, correlation, events, attack_lookup=None,
+                    country_detail=None):
     """Write the honeypot intel into the vault as Attack notes wikilinked to the
     posture Threat notes they cross — so Obsidian's graph shows, visually, which
-    real-world attacks target weaknesses we actually have. Plus a Deception MOC.
-    Fails soft: with no honeypot data it writes nothing."""
+    real-world attacks target weaknesses we actually have. Plus per-Country notes
+    and a Deception MOC. Fails soft: with no honeypot data it writes nothing."""
     hp = hp or {}
     sigs = hp.get("signatures", [])
     if not sigs and not events:
-        return {"attacks": 0}
+        return {"attacks": 0, "countries": 0}
 
     attacks_dir = os.path.join(vault_dir, "Attacks")
     os.makedirs(attacks_dir, exist_ok=True)
@@ -169,11 +170,34 @@ def export_honeypot(vault_dir, hp, correlation, events, attack_lookup=None):
             m.append(f"- [[{_slug(c['attack_name'])}]] × {c['attack_count']} "
                      f"→ אצלנו: [[{_slug(c['weakness_name'])}]]")
 
+    # --- one note per attacking country (techniques + attacker IPs) ---
+    if country_detail:
+        countries_dir = os.path.join(vault_dir, "Countries")
+        os.makedirs(countries_dir, exist_ok=True)
+        for cd in country_detail:
+            cc, country = cd.get("cc", ""), cd.get("country", "?")
+            cl = ["---", "type: country", f"country: {country}", f"cc: {cc}",
+                  f"events: {cd.get('events',0)}",
+                  "tags: [security, deception, country]", "---", "",
+                  f"# {_flag(cc)} {country}", "",
+                  f"- **תקיפות:** {cd.get('events',0)}",
+                  f"- **תוקפים ייחודיים:** {len(cd.get('attackers',[]))}"]
+            if cd.get("techniques"):
+                cl += ["", "## 🎯 טכניקות מהמדינה הזו"]
+                cl += [f"- [[{_slug(_tech_name(t, attack_lookup))}]] — {n}×"
+                       for t, n in cd["techniques"] if t]
+            if cd.get("attackers"):
+                cl += ["", "## 🌐 כתובות תוקפות"]
+                cl += [f"- `{ip}` — {n} בקשות" for ip, n in cd["attackers"][:30]]
+            cl.append("\n> [[🍯 Deception (MOC)]]")
+            with open(os.path.join(countries_dir, _slug(country) + ".md"), "w", encoding="utf-8") as f:
+                f.write("\n".join(cl) + "\n")
+
     if hp.get("top_countries"):
         m += ["", "## 🌍 מדינות תוקפות מובילות"]
         for c in hp["top_countries"]:
             fav = f" · מועדף: [[{_slug(_tech_name(c['top_technique'], attack_lookup))}]]" if c.get("top_technique") else ""
-            m.append(f"- {_flag(c.get('cc',''))} **{c.get('country','?')}** — {c['events']} תקיפות · {c['attackers']} כתובות{fav}")
+            m.append(f"- {_flag(c.get('cc',''))} [[{_slug(c.get('country','?'))}]] — {c['events']} תקיפות · {c['attackers']} כתובות{fav}")
 
     if sigs:
         m += ["", "## 🎯 טכניקות שנצפו (לפי שכיחות)"]
@@ -200,7 +224,7 @@ def export_honeypot(vault_dir, hp, correlation, events, attack_lookup=None):
     with open(os.path.join(vault_dir, "🍯 Deception (MOC).md"), "w", encoding="utf-8") as f:
         f.write("\n".join(m) + "\n")
 
-    return {"attacks": len(sigs), "countries": len(hp.get("top_countries", []))}
+    return {"attacks": len(sigs), "countries": len(country_detail or hp.get("top_countries", []))}
 
 
 def _tech_name(sig, attack_lookup):

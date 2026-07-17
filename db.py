@@ -399,6 +399,30 @@ def hp_stats():
             "top_countries": top_countries}
 
 
+def hp_countries_full(limit=15):
+    """Per-country detail (techniques + attacker IPs) for the Obsidian export."""
+    with _LOCK, _conn() as c:
+        rows = c.execute(
+            "SELECT g.cc cc, g.country country, e.technique tech, e.src_ip ip "
+            "FROM hp_events e JOIN hp_geo g ON e.src_ip=g.ip "
+            "WHERE g.country NOT IN ('','Local')").fetchall()
+    agg = {}
+    for r in rows:
+        d = agg.setdefault(r["country"], {"cc": r["cc"], "country": r["country"],
+                                          "events": 0, "_t": {}, "_i": {}})
+        d["events"] += 1
+        if r["tech"]:
+            d["_t"][r["tech"]] = d["_t"].get(r["tech"], 0) + 1
+        d["_i"][r["ip"]] = d["_i"].get(r["ip"], 0) + 1
+    out = []
+    for d in agg.values():
+        d["techniques"] = sorted(d.pop("_t").items(), key=lambda x: -x[1])
+        d["attackers"] = sorted(d.pop("_i").items(), key=lambda x: -x[1])
+        out.append(d)
+    out.sort(key=lambda d: -d["events"])
+    return out[:limit]
+
+
 def hp_correlate():
     """🔥 Cross the two knowledge bases — the reason the honeypot tier exists.
 

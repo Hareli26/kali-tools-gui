@@ -929,7 +929,8 @@ class Handler(BaseHTTPRequestHandler):
             # posture threat notes they cross, so the graph shows the connection.
             hp_res = obsidian.export_honeypot(
                 VAULT_DIR, db.hp_stats(), db.hp_correlate(),
-                db.hp_list_events(limit=300), attack_kb.get_attack)
+                db.hp_list_events(limit=300), attack_kb.get_attack,
+                country_detail=db.hp_countries_full())
             res.update(hp_res)
             audit(self._user(), "obsidian-export",
                   "%d reports, %d threats, %d attacks" %
