@@ -93,6 +93,53 @@ ATTACK_KB = [
                      'classtype:web-application-attack; sid:1000103; rev:1;)'),
     },
     {
+        # SQL honeypot (port 3306). Must stay ABOVE sqli-attempt: a UDF drop or
+        # INTO OUTFILE is direct DB abuse (RCE / file write), not URL-borne SQLi.
+        "id": "sql-udf-rce",
+        "name": "ניסיון RCE דרך UDF במסד הנתונים",
+        "severity": "critical",
+        "patterns": [r"soname\s+['\"]", r"lib_mysqludf", r"\bsys_exec\s*\(",
+                     r"\bsys_eval\s*\(", r"create\s+function\s+\w+\s+returns\s+\w+\s+soname"],
+        "technique": "התוקף התחבר למסד הנתונים ומנסה לטעון UDF (User-Defined Function) "
+                     "זדוני כדי להריץ פקודות מערכת ישירות מתוך MySQL — השתלטות מלאה על השרת.",
+        "defenses": [
+            "הסר את הרשאת FILE ואת הכתיבה ל-mysql.* ממשתמשי היישום",
+            "הגדר plugin_dir לתיקייה לא ניתנת לכתיבה, ואכוף secure_file_priv",
+            "אל תריץ mysqld כ-root; הגבל את המשתמש שלו במערכת הקבצים",
+            "חסום גישה מרוחקת ל-3306 (bind-address=127.0.0.1 + firewall)",
+        ],
+        "mitre": "T1059 (Command and Scripting Interpreter)",
+        "sigma": ("title: MySQL UDF Creation (Possible RCE)\n"
+                  "logsource:\n  product: mysql\n  category: application\n"
+                  "detection:\n  sel:\n    query|re: '(?i)(create\\s+function.*soname|"
+                  "sys_exec|lib_mysqludf)'\n  condition: sel\nlevel: critical"),
+        "suricata": ('alert tcp $EXTERNAL_NET any -> $HOME_NET 3306 (msg:"MySQL UDF RCE attempt"; '
+                     'flow:to_server; content:"SONAME"; nocase; '
+                     'classtype:attempted-admin; sid:1000114; rev:1;)'),
+    },
+    {
+        "id": "sql-file-access",
+        "name": "קריאה/כתיבת קבצים דרך מסד הנתונים",
+        "severity": "critical",
+        "patterns": [r"into\s+(out|dump)file", r"\bload_file\s*\("],
+        "technique": "התוקף משתמש ב-INTO OUTFILE/DUMPFILE או LOAD_FILE כדי לכתוב "
+                     "קבצים (למשל webshell לתיקיית הווב) או לקרוא קבצים רגישים דרך המסד.",
+        "defenses": [
+            "הגדר secure_file_priv לתיקייה מבודדת (או ריק כדי לחסום לגמרי)",
+            "הסר את הרשאת FILE ממשתמשי היישום",
+            "הרץ mysqld עם משתמש בעל הרשאות מינימליות",
+            "חסום גישה מרוחקת ל-3306",
+        ],
+        "mitre": "T1505.003 (Web Shell) / T1005 (Data from Local System)",
+        "sigma": ("title: MySQL File Read/Write via Query\n"
+                  "logsource:\n  product: mysql\n  category: application\n"
+                  "detection:\n  sel:\n    query|re: '(?i)(into\\s+(out|dump)file|load_file\\s*\\()'\n"
+                  "  condition: sel\nlevel: critical"),
+        "suricata": ('alert tcp $EXTERNAL_NET any -> $HOME_NET 3306 (msg:"MySQL INTO OUTFILE/LOAD_FILE"; '
+                     'flow:to_server; pcre:"/(into\\s+(out|dump)file|load_file)/i"; '
+                     'classtype:attempted-admin; sid:1000115; rev:1;)'),
+    },
+    {
         "id": "sqli-attempt",
         "name": "ניסיון הזרקת SQL",
         "severity": "high",
@@ -332,6 +379,49 @@ ATTACK_KB = [
                      'classtype:web-application-scan; sid:1000112; rev:1;)'),
     },
     {
+        "id": "sql-login",
+        "name": "התחברות ישירה למסד הנתונים",
+        "severity": "high",
+        "patterns": [r"mysql\s+login"],
+        "technique": "התוקף מתחבר ישירות ל-MySQL החשוף (פורט 3306) — ניחוש אישורי "
+                     "ברירת מחדל (root/ריק) או brute-force. חשיפת מסד לאינטרנט היא וקטור מוביל.",
+        "defenses": [
+            "אל תחשוף את המסד לאינטרנט — bind-address=127.0.0.1 + firewall ל-3306",
+            "השבת התחברות root מרוחקת, אכוף סיסמאות חזקות, והרשאות per-host",
+            "הפעל ניטור והגבלת קצב על ניסיונות התחברות; שקול fail2ban",
+            "השתמש בחיבור מוצפן (require_secure_transport) ובמשתמשי יישום ייעודיים",
+        ],
+        "mitre": "T1110 (Brute Force) / T1190 (Exploit Public-Facing Application)",
+        "sigma": ("title: MySQL Login From External Host\n"
+                  "logsource:\n  product: mysql\n  category: application\n"
+                  "detection:\n  sel:\n    event: connect\n"
+                  "  timeframe: 5m\n  condition: sel | count() by src_ip > 10\nlevel: high"),
+        "suricata": ('alert tcp $EXTERNAL_NET any -> $HOME_NET 3306 (msg:"MySQL login from external network"; '
+                     'flow:to_server; threshold:type both,track by_src,count 10,seconds 60; '
+                     'classtype:attempted-recon; sid:1000116; rev:1;)'),
+    },
+    {
+        "id": "sql-enum",
+        "name": "אנומרציית מסד הנתונים",
+        "severity": "low",
+        "patterns": [r"show\s+databases", r"show\s+tables", r"\bmysql\.user\b",
+                     r"@@datadir", r"@@hostname", r"@@version\b", r"@@basedir"],
+        "technique": "לאחר התחברות, התוקף ממפה את המסד — רשימת מסדים/טבלאות, גרסה, "
+                     "נתיבים ומשתמשים — כדי למצוא נתונים רגישים ווקטורי ניצול.",
+        "defenses": [
+            "הענק הרשאות מינימליות — משתמש יישום לא צריך לראות את mysql.user",
+            "הפרד משתמש/מסד לכל יישום (least privilege)",
+            "אל תחשוף את המסד לרשת ציבורית",
+            "נטר שאילתות מטא-דאטה חריגות (information_schema, mysql.*)",
+        ],
+        "mitre": "T1082 (System Information Discovery)",
+        "sigma": ("title: MySQL Schema/User Enumeration\n"
+                  "logsource:\n  product: mysql\n  category: application\n"
+                  "detection:\n  sel:\n    query|re: '(?i)(show\\s+databases|mysql\\.user|@@datadir)'\n"
+                  "  condition: sel\nlevel: low"),
+        "suricata": "",
+    },
+    {
         "id": "scanner-recon",
         "name": "סריקה אוטומטית (כלי סורק מזוהה)",
         "severity": "low",
@@ -485,6 +575,15 @@ if __name__ == "__main__":
         ("GET /%2e%2e%2f%2e%2e%2fetc%2fpasswd", "path-traversal"),
         # double-encoded traversal (%252e -> %2e -> '.')
         ("GET /%252e%252e%252fetc%252fpasswd", "path-traversal"),
+        # --- SQL honeypot (port 3306): direct DB abuse, not URL-borne SQLi ---
+        ("MYSQL LOGIN user=root db= auth=1a2b3c", "sql-login"),
+        ("MYSQL QUERY SELECT 0x3c3f706870 INTO OUTFILE '/var/www/html/s.php'", "sql-file-access"),
+        ("MYSQL QUERY CREATE FUNCTION sys_exec RETURNS int SONAME 'lib_mysqludf_sys.so'", "sql-udf-rce"),
+        ("MYSQL QUERY show databases", "sql-enum"),
+        ("MYSQL QUERY SELECT user,authentication_string FROM mysql.user", "sql-enum"),
+        ("MYSQL QUERY select @@version", "sql-enum"),
+        # a benign connect-time probe must NOT be flagged as enumeration
+        ("MYSQL QUERY select @@version_comment limit 1", None),
     ]
     ok = True
     for blob, want in SAMPLES:

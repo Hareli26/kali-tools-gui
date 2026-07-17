@@ -350,36 +350,51 @@ def llm_plan(intent, target):
 # who noticed the loop could brute-force the honeypot to make us hydra our own
 # login and lock our accounts out. Attackers may influence WHAT WE LOOK FOR,
 # never what we do to ourselves.
-# Values mirror the ones the hand-written playbooks use for the same tool, so an
-# intel-driven step behaves exactly like a normal one.
-def _intel_step_builders():
+# technique id -> the recon/detection steps to add when it is being attempted.
+# Each entry carries its own value-builder so the step is concrete and unique
+# (dedup is by full step signature, not tool id — a mysql-NSE nmap scan is a
+# distinct, useful step even when a generic nmap is already planned). Detection
+# and mapping tools ONLY: aggressive tools (hydra, ...) are excluded on purpose —
+# attackers may influence what we look for, never what we do to ourselves.
+def _threat_plan():
     return {
-        "nmap":     lambda v: {"scan": "-sV", "target": v["host"]},
-        "nikto":    lambda v: {"host": v["url"], "tuning": "123b", "maxtime": "150s"},
-        "gobuster": lambda v: {"mode": "dir", "url": v["url"],
-                               "wordlist": "/usr/share/wordlists/dirb/common.txt"},
-        "whatweb":  lambda v: {"aggr": "3", "target": v["url"]},
-        "sqlmap":   lambda v: {"url": v["url"], "batch": True, "dbs": True},
-        "wpscan":   lambda v: {"url": v["url"], "enumerate": "vp", "random_ua": True},
+        "sqli-attempt":    [("sqlmap", "תוקפים מנסים SQLi — בדוק אם אנחנו פגיעים",
+                             lambda v: {"url": v["url"], "batch": True, "dbs": True})],
+        "xss-attempt":     [("nikto", "תוקפים מנסים XSS — סרוק חולשות ווב",
+                             lambda v: {"host": v["url"], "tuning": "123b", "maxtime": "150s"})],
+        "path-traversal":  [("gobuster", "תוקפים מנסים מעבר תיקיות — מפה נתיבים חשופים",
+                             lambda v: {"mode": "dir", "url": v["url"],
+                                        "wordlist": "/usr/share/wordlists/dirb/common.txt"})],
+        "secret-hunt":     [("gobuster", "תוקפים מחפשים .env/.git — בדוק מה חשוף אצלנו",
+                             lambda v: {"mode": "dir", "url": v["url"],
+                                        "wordlist": "/usr/share/wordlists/dirb/common.txt"})],
+        "cms-probe":       [("wpscan", "תוקפים ממפים CMS — בדוק את שלנו",
+                             lambda v: {"url": v["url"], "enumerate": "vp", "random_ua": True})],
+        "rce-attempt":     [("nikto", "תוקפים מנסים הרצת פקודות — סרוק חולשות",
+                             lambda v: {"host": v["url"], "tuning": "123b", "maxtime": "150s"})],
+        "log4shell":       [("nikto", "ניסיונות Log4Shell — בדוק רכיבים מיושנים",
+                             lambda v: {"host": v["url"], "maxtime": "150s"})],
+        "webshell-upload": [("gobuster", "תוקפים מנסים webshell — מפה נתיבי העלאה",
+                             lambda v: {"mode": "dir", "url": v["url"],
+                                        "wordlist": "/usr/share/wordlists/dirb/common.txt"})],
+        "ssrf-metadata":   [("nikto", "ניסיונות SSRF — סרוק חולשות ווב",
+                             lambda v: {"host": v["url"], "maxtime": "150s"})],
+        # SQL honeypot -> a dedicated MySQL NSE scan, distinct from a plain nmap.
+        "sql-login":       [("nmap", "תוקפים מתחברים למסד — בדוק חשיפת MySQL ואישורים חלשים",
+                             lambda v: {"sv": True, "ports": "3306",
+                                        "scripts": "mysql-info,mysql-empty-password,mysql-users",
+                                        "target": v["host"]})],
+        "sql-udf-rce":     [("nmap", "ניסיונות RCE דרך UDF — בדוק חשיפת MySQL",
+                             lambda v: {"sv": True, "ports": "3306",
+                                        "scripts": "mysql-info,mysql-audit", "target": v["host"]})],
+        "sql-file-access": [("nmap", "ניסיונות קבצים דרך DB — בדוק חשיפת MySQL",
+                             lambda v: {"sv": True, "ports": "3306",
+                                        "scripts": "mysql-info", "target": v["host"]})],
+        "sql-enum":        [("nmap", "אנומרציית DB — בדוק חשיפת MySQL",
+                             lambda v: {"sv": True, "ports": "3306",
+                                        "scripts": "mysql-databases,mysql-users", "target": v["host"]})],
     }
 
-
-THREAT_TOOLS = {
-    "sqli-attempt":    [("sqlmap", "תוקפים מנסים SQLi — בדוק אם אנחנו פגיעים"),
-                        ("nikto", "סריקת חולשות ווב כולל הזרקות")],
-    "xss-attempt":     [("nikto", "תוקפים מנסים XSS — סרוק חולשות ווב")],
-    "path-traversal":  [("nikto", "תוקפים מנסים מעבר תיקיות — סרוק חשיפות"),
-                        ("gobuster", "מפה נתיבים חשופים")],
-    "secret-hunt":     [("gobuster", "תוקפים מחפשים .env/.git — בדוק מה חשוף אצלנו")],
-    "cms-probe":       [("wpscan", "תוקפים ממפים CMS — בדוק את שלנו"),
-                        ("whatweb", "זהה מה אנחנו חושפים על הטכנולוגיה")],
-    "rce-attempt":     [("nikto", "תוקפים מנסים הרצת פקודות — סרוק חולשות")],
-    "log4shell":       [("nikto", "ניסיונות Log4Shell — בדוק רכיבים מיושנים")],
-    "scanner-recon":   [("nmap", "תוקפים סורקים אותנו — מפה מה באמת פתוח")],
-    "cred-attack":     [("nmap", "תוקפים תוקפים אישורים — מפה שירותי הזדהות חשופים")],
-    "webshell-upload": [("gobuster", "תוקפים מנסים להעלות webshell — מפה נתיבי העלאה")],
-    "ssrf-metadata":   [("nikto", "ניסיונות SSRF — סרוק חולשות ווב")],
-}
 
 # One forged request must not steer the agent, so require repeat observations.
 THREAT_MIN_COUNT = 3
@@ -402,28 +417,38 @@ def threat_intel(min_count=THREAT_MIN_COUNT, top=5):
     return out[:top]
 
 
-def _threat_steps(v, existing_ids):
+def _step_sig(st):
+    return (st["tool_id"],
+            json.dumps(st.get("values", {}), sort_keys=True, ensure_ascii=False))
+
+
+def _threat_steps(v, existing_sigs):
     """Turn observed attacks into extra recon steps. Returns (steps, notes).
 
     This is the feedback loop: the Red Team stops testing a fixed checklist and
-    starts testing what the internet is actually throwing at us this week. Every
-    added step says which intel caused it, and the user still approves the plan.
+    starts testing what the internet is actually throwing at us this week. Dedup
+    is by full step signature, so a targeted mysql-NSE scan is still added even
+    when a generic nmap is already planned. Every step names the intel that
+    caused it, and the user still approves the plan.
     """
     steps, notes = [], []
-    builders = _intel_step_builders()
+    plan = _threat_plan()
     known = {t["id"] for t in _catalog().get("tools", [])}
+    seen = set(existing_sigs)
     for sig in threat_intel():
         hit = False
-        for tool_id, why in THREAT_TOOLS.get(sig["sig"], []):
+        for tool_id, why, build in plan.get(sig["sig"], []):
             if len(steps) >= THREAT_MAX_ADD:
                 break
-            if tool_id in existing_ids or tool_id not in known or tool_id not in builders:
+            if tool_id not in known:
                 continue
-            st = _step(tool_id, f"🍯 {why} (נצפה {sig['count']}× במלכודת)",
-                       builders[tool_id](v))
+            st = _step(tool_id, f"🍯 {why} (נצפה {sig['count']}× במלכודת)", build(v))
+            key = _step_sig(st)
+            if key in seen:
+                continue
             st["from_intel"] = sig["sig"]
             steps.append(st)
-            existing_ids.add(tool_id)
+            seen.add(key)
             hit = True
         if hit:
             notes.append(f"{sig['name']} — {sig['count']}×")
@@ -478,7 +503,7 @@ def plan(intent, target, use_llm=False):
 
     # 🍯 close the loop: let what attackers are actually attempting add checks
     # the static playbook never thought to run.
-    intel_steps, intel_notes = _threat_steps(v, {s["tool_id"] for s in steps})
+    intel_steps, intel_notes = _threat_steps(v, {_step_sig(s) for s in steps})
     for st in intel_steps:
         st["playbook"] = "🍯 מודיעין ממלכודות"
         st["needs_root"] = st["tool_id"] in ROOT_TOOLS

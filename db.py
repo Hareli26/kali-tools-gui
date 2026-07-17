@@ -386,6 +386,12 @@ def hp_correlate():
         "webshell-upload": ["exposed-path", "outdated-software"],
         "ssrf-metadata":   ["waf-absent"],
         "xxe-attempt":     ["injection", "outdated-software"],
+        # SQL honeypot (3306): a reachable DB is an open port; abuse of it also
+        # implies the software may be outdated / injectable.
+        "sql-login":       ["open-port-generic"],
+        "sql-file-access": ["open-port-generic", "injection"],
+        "sql-udf-rce":     ["open-port-generic", "outdated-software"],
+        "sql-enum":        ["open-port-generic"],
     }
     with _LOCK, _conn() as c:
         posture = {r["sig"]: dict(r) for r in c.execute(
