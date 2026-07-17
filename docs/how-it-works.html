@@ -124,7 +124,7 @@
 
 <h3>2.3 התקנה</h3>
 <p>ההתקנה אוטומטית כחלק ממתקין השרת (<code>deploy/install-vps.sh</code>, שלב <code>[3b]</code>), שיוצר סביבת
-Python וירטואלית ומתקין את התלות היחידה (<code>mcp&gt;=1.2.0</code>):</p>
+Python וירטואלית ומתקין את התלות של שרת ה‑MCP (<code>mcp&gt;=1.2.0</code>):</p>
 <pre><code>python3 -m venv /opt/kali-gui/.venv
 /opt/kali-gui/.venv/bin/pip install -r /opt/kali-gui/mcp/requirements.txt</code></pre>
 <p>לאחר מכן מחברים את השרת ללקוח MCP. ב‑<strong>Claude Code (CLI)</strong>:</p>
@@ -175,10 +175,11 @@ Python וירטואלית ומתקין את התלות היחידה (<code>mcp&g
 <h3>3.1 עיקרון: מנוע מבוסס‑חוקים (Playbooks), אפס תלויות</h3>
 <p>הסוכנים אינם "קופסה שחורה" — הם <strong>מבוססי‑חוקים</strong> (<code>agents.py</code>): אוסף
 <strong>Playbooks</strong> שקל לביקורת ולעריכה. כל Playbook מכיל מילות‑מפתח (עברית+אנגלית) ופונקציית
-<code>build</code> שבונה רשימת שלבים. יש 14 playbooks (DNS, תת‑דומיינים, סריקת פורטים, בדיקת חדירות,
-SMB/Windows, Active Directory, API, מיפוי רשת, SSL/TLS, SQL Injection, WordPress, OSINT, חיפוש אקספלויטים,
-פורנזיקה/סטגנוגרפיה) ו‑Playbook כללי כברירת מחדל. <em>אופציונלית</em>, אם מוגדר מודל Ollama מקומי, הדוח
-משתדרג לניסוח מבוסס‑LLM — אך המערכת עובדת מצוין גם בלעדיו.</p>
+<code>build</code> שבונה רשימת שלבים. יש 15 playbooks (DNS, תת‑דומיינים, סריקת פורטים, סריקת אתר ווב,
+בדיקת חדירות, SMB/Windows, Active Directory, API, מיפוי רשת, SSL/TLS, SQL Injection, WordPress, OSINT,
+חיפוש אקספלויטים, פורנזיקה/סטגנוגרפיה) ו‑Playbook כללי כברירת מחדל, בתוספת המזנה של <strong>מודיעין
+ממלכודות</strong> (ראה §3.9). <em>אופציונלית</em>, אם מוגדר מודל Ollama מקומי — <strong>תכנון‑AI</strong>
+(ה‑LLM בוחר בעצמו את הכלים) וניסוח דוחות; אך המערכת עובדת מצוין גם בלעדיו.</p>
 
 <h3>3.2 ארבעת סוכני הליבה וזרימת המשימה</h3>
 <div class="diagram">כוונה + מטרה
