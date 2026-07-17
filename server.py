@@ -165,6 +165,14 @@ def save_report(run_id, kind, intent, target, report):
         log("save_report failed: %s" % e)
     _auto_obsidian()
 
+def _cc_flag(cc):
+    """2-letter country code -> flag emoji (regional indicator symbols)."""
+    cc = (cc or "").strip().upper()
+    if len(cc) != 2 or not cc.isalpha():
+        return "🏴"
+    return "".join(chr(0x1F1E6 + ord(ch) - ord("A")) for ch in cc)
+
+
 def _auto_obsidian():
     """Keep the Obsidian vault up to date after every run (opt-out via env).
     Includes the honeypot intel so the deception graph stays current too."""
@@ -1350,8 +1358,51 @@ class Handler(BaseHTTPRequestHandler):
                 if name and name in body:
                     links.append({"source": rid, "target": "t:" + sig})
 
+        # 🍯 deception layer — attacks observed at the honeypots, cross-linked to
+        # the posture threats they exploit, plus the attacking countries. This is
+        # the visual threat map: country → attack → weakness.
+        hp = db.hp_stats()
+        hp_sigs = hp.get("signatures", [])
+        have_threat = {n["id"] for n in nodes if n["type"] == "threat"}
+        if hp_sigs or hp.get("events"):
+            nodes.append({"id": "hp", "label": "🍯 מלכודות", "type": "deception",
+                          "body": "# 🍯 מודיעין ממלכודות\n\n**%d** תקיפות · **%d** תוקפים · **%d** מדינות"
+                                  % (hp.get("events", 0), hp.get("attackers", 0),
+                                     len(hp.get("top_countries", [])))})
+            links.append({"source": "moc", "target": "hp"})
+            for s in hp_sigs:
+                aid = "a:" + s["sig"]
+                info = attack_kb.get_attack(s["sig"]) or {}
+                body = ["# ⚔️ %s" % s.get("name", s["sig"]), "",
+                        "- **חומרה:** %s" % s.get("severity", ""),
+                        "- **נצפה במלכודות:** %d פעמים" % s.get("count", 0)]
+                if info.get("mitre"):
+                    body.append("- **MITRE ATT&CK:** %s" % info["mitre"])
+                if info.get("technique"):
+                    body += ["", info["technique"]]
+                nodes.append({"id": aid, "label": s.get("name", s["sig"]), "type": "attack",
+                              "severity": s.get("severity", ""), "count": s.get("count", 0),
+                              "body": "\n".join(body)})
+                links.append({"source": "hp", "target": aid})
+            for c in db.hp_correlate():          # ⚔️ attack → 🛡️ weakness it exploits
+                tid = "t:" + c["weakness"]
+                if tid in have_threat:
+                    links.append({"source": "a:" + c["attack"], "target": tid})
+            for cd in db.hp_countries_full():    # 🌍 country → ⚔️ its techniques
+                cid = "c:" + cd["country"]
+                flag = _cc_flag(cd.get("cc", ""))
+                nodes.append({"id": cid, "label": ("%s %s" % (flag, cd["country"])).strip(),
+                              "type": "country",
+                              "body": "# %s %s\n\n- **תקיפות:** %d\n- **תוקפים ייחודיים:** %d"
+                                      % (flag, cd["country"], cd.get("events", 0),
+                                         len(cd.get("attackers", [])))})
+                for t, _n in cd.get("techniques", []):
+                    links.append({"source": cid, "target": "a:" + t})
+
         return self._send_json({"nodes": nodes, "links": links,
-                                "counts": {"reports": len(reports), "threats": len(sigs)}})
+                                "counts": {"reports": len(reports), "threats": len(sigs),
+                                           "attacks": len(hp_sigs),
+                                           "countries": len(hp.get("top_countries", []))}})
 
     def _api_fix_plan(self, sig):
         from urllib.parse import unquote

@@ -2040,8 +2040,11 @@ async function loadVault() {
   try {
     const g = await (await fetch("/api/vault/graph")).json();
     VAULT_GRAPH = { nodes: g.nodes || [], links: g.links || [] };
-    $("vlReports").textContent = g.counts ? g.counts.reports : 0;
-    $("vlThreats").textContent = g.counts ? g.counts.threats : 0;
+    const cc = g.counts || {};
+    $("vlReports").textContent = cc.reports || 0;
+    $("vlThreats").textContent = cc.threats || 0;
+    if ($("vlAttacks")) $("vlAttacks").textContent = cc.attacks || 0;
+    if ($("vlCountries")) $("vlCountries").textContent = cc.countries || 0;
     renderVault();
   } catch (e) {
     $("vaultEmpty").textContent = "שגיאה בטעינת הגרף: " + e;
@@ -2307,6 +2310,9 @@ function galProject(p, v, W, H) {
 
 function galColor(n) {
   if (n.type === "moc") return [168, 85, 247];
+  if (n.type === "deception") return [255, 200, 40];   // 🍯 honey hub
+  if (n.type === "country") return [0, 200, 220];       // 🌍 cyan
+  if (n.type === "attack") return [255, 120, 0];        // ⚔️ orange (what attackers try)
   if (n.type === "report") return [47, 129, 247];
   const s = n.severity;
   if (s === "critical") return [255, 45, 45];
@@ -2315,7 +2321,13 @@ function galColor(n) {
   if (s === "low") return [63, 185, 80];
   return [248, 81, 73];
 }
-function galRadius(n) { return n.type === "moc" ? 9 : n.type === "threat" ? Math.min(7, 3 + (n.count || 1)) : 4.5; }
+function galRadius(n) {
+  if (n.type === "moc") return 9;
+  if (n.type === "deception") return 8;
+  if (n.type === "attack" || n.type === "threat") return Math.min(7, 3 + (n.count || 1));
+  if (n.type === "country") return 5.5;
+  return 4.5;
+}
 
 function galaxyLoop() {
   if (!GAL) return;
@@ -2428,16 +2440,20 @@ function galaxyWire() {
   };
 }
 
+const VAULT_TAG = { moc: "🛡️ מרכז", threat: "🎯 איום", report: "📄 דוח",
+                    deception: "🍯 מלכודות", attack: "⚔️ תקיפה", country: "🌍 מדינה" };
+
 function galaxyOpenNote(n) {
-  const tag = n.type === "moc" ? "🛡️ מרכז" : n.type === "threat" ? "🎯 איום" : "📄 דוח";
-  $("vaultPanelTag").textContent = tag;
+  $("vaultPanelTag").textContent = VAULT_TAG[n.type] || "📄 דוח";
   $("vaultPanelBody").innerHTML = mdToHtml(n.body || "*(אין תוכן)*");
   $("vaultPanel").classList.remove("hidden");
 }
 
 function vaultRadius(n) {
   if (n.type === "moc") return 30;
-  if (n.type === "threat") return Math.min(22, 9 + (n.count || 1) * 2);
+  if (n.type === "deception") return 26;
+  if (n.type === "attack" || n.type === "threat") return Math.min(22, 9 + (n.count || 1) * 2);
+  if (n.type === "country") return 14;
   return 11;
 }
 
@@ -2579,8 +2595,7 @@ function vaultWire() {
 
 function vaultOpenNote(n) {
   const panel = $("vaultPanel");
-  const tag = n.type === "moc" ? "🛡️ מרכז" : n.type === "threat" ? "🎯 איום" : "📄 דוח";
-  $("vaultPanelTag").textContent = tag;
+  $("vaultPanelTag").textContent = VAULT_TAG[n.type] || "📄 דוח";
   $("vaultPanelBody").innerHTML = mdToHtml(n.body || "*(אין תוכן)*");
   panel.classList.remove("hidden");
   VAULT.nodes.forEach(x => x._g.classList.toggle("v-active", x === n));
