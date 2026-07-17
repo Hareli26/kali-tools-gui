@@ -393,6 +393,10 @@ def _threat_plan():
         "sql-enum":        [("nmap", "אנומרציית DB — בדוק חשיפת MySQL",
                              lambda v: {"sv": True, "ports": "3306",
                                         "scripts": "mysql-databases,mysql-users", "target": v["host"]})],
+        "ssh-bruteforce":  [("nmap", "תוקפים עושים brute-force ל-SSH — בדוק שיטות אימות וחשיפה",
+                             lambda v: {"sv": True, "ports": "22",
+                                        "scripts": "ssh-auth-methods,ssh2-enum-algos,ssh-hostkey",
+                                        "target": v["host"]})],
     }
 
 

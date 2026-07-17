@@ -392,6 +392,8 @@ def hp_correlate():
         "sql-file-access": ["open-port-generic", "injection"],
         "sql-udf-rce":     ["open-port-generic", "outdated-software"],
         "sql-enum":        ["open-port-generic"],
+        # SSH honeypot (22): brute-force maps straight onto an exposed SSH.
+        "ssh-bruteforce":  ["ssh-exposed", "open-port-generic"],
     }
     with _LOCK, _conn() as c:
         posture = {r["sig"]: dict(r) for r in c.execute(

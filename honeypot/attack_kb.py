@@ -325,6 +325,30 @@ ATTACK_KB = [
                      'classtype:web-application-attack; sid:1000110; rev:1;)'),
     },
     {
+        # Must stay ABOVE cred-attack: the SSH blob carries "user=... pass=..."
+        # which cred-attack's web-login pattern would otherwise swallow.
+        "id": "ssh-bruteforce",
+        "name": "Brute-force על SSH",
+        "severity": "high",
+        "patterns": [r"ssh\s+login\b", r"ssh-2\.0-\S+"],
+        "technique": "התוקף מנסה להתחבר ל-SSH החשוף (פורט 22) עם שמות משתמש וסיסמאות "
+                     "מתוך מילון — הווקטור הנפוץ ביותר באינטרנט. חשיפת SSH מזמינה brute-force מתמשך.",
+        "defenses": [
+            "אכוף אימות מפתחות בלבד — PasswordAuthentication no",
+            "השבת התחברות root — PermitRootLogin no",
+            "התקן fail2ban / הגבל קצב, ושקול שינוי פורט מ-22",
+            "הגבל גישה ב-firewall לכתובות מורשות; שקול MFA",
+        ],
+        "mitre": "T1110 (Brute Force)",
+        "sigma": ("title: SSH Brute-Force (Multiple Auth Failures)\n"
+                  "logsource:\n  product: linux\n  service: auth\n"
+                  "detection:\n  sel:\n    message|contains: 'Failed password'\n"
+                  "  timeframe: 5m\n  condition: sel | count() by src_ip > 10\nlevel: high"),
+        "suricata": ('alert tcp $EXTERNAL_NET any -> $HOME_NET 22 (msg:"SSH brute-force attempt"; '
+                     'flow:to_server; threshold:type both,track by_src,count 10,seconds 60; '
+                     'classtype:attempted-recon; sid:1000117; rev:1;)'),
+    },
+    {
         "id": "cred-attack",
         "name": "תקיפת אישורים (Brute-force / Credential Stuffing)",
         "severity": "high",
@@ -584,6 +608,10 @@ if __name__ == "__main__":
         ("MYSQL QUERY select @@version", "sql-enum"),
         # a benign connect-time probe must NOT be flagged as enumeration
         ("MYSQL QUERY select @@version_comment limit 1", None),
+        # --- SSH honeypot (port 22): must beat cred-attack's web-login pattern ---
+        ("SSH LOGIN user=root pass=123456 client=SSH-2.0-libssh2_1.9.0", "ssh-bruteforce"),
+        ("SSH LOGIN user=admin pass=admin client=SSH-2.0-Go", "ssh-bruteforce"),
+        ("SSH LOGIN user=git pass=key:0a1b2c client=SSH-2.0-paramiko_3.4", "ssh-bruteforce"),
     ]
     ok = True
     for blob, want in SAMPLES:
