@@ -295,6 +295,22 @@ def llm_plan(intent, target):
     The user still approves before anything runs, and commands are argv (no shell)."""
     v = target_variants(target)
     valid = {t["id"] for t in _catalog().get("tools", [])}
+
+    # 🍯 Give the model real threat intel, not just a catalog. Advisory: it is
+    # observed attacker behaviour, and the model's output is still validated
+    # against the catalog below, so this can shift priorities but never smuggle
+    # in a tool we do not have.
+    intel = threat_intel()
+    intel_block = ""
+    if intel:
+        lines = "\n".join(f"- {s['name']} ({s['sig']}) — attempted {s['count']}× "
+                          f"[severity: {s['severity']}]" for s in intel)
+        intel_block = (
+            "\n\nLIVE THREAT INTEL — techniques attackers are CURRENTLY attempting "
+            "against our honeypots:\n%s\n"
+            "Prefer tools that check whether we are vulnerable to these. This is "
+            "real observed activity, so weigh it above generic coverage.\n" % lines)
+
     prompt = (
         "You are a penetration-testing planner. Choose which tools to run for the given "
         "intent and target, using ONLY tools from the catalog below.\n"
@@ -303,8 +319,8 @@ def llm_plan(intent, target):
         '\"values\": {\"<option id>\": \"<value>\"}}.\n'
         "For the target value use the placeholder {target} (host) or {url} (for web tools). "
         "Pick 3-8 relevant steps, ordered logically (recon first). No prose, JSON only.\n\n"
-        "INTENT: %s\nTARGET: %s (host=%s, url=%s)\n\nCATALOG (id | name | category | options):\n%s"
-        % (intent, target, v["host"], v["url"], _tool_brief())
+        "INTENT: %s\nTARGET: %s (host=%s, url=%s)%s\n\nCATALOG (id | name | category | options):\n%s"
+        % (intent, target, v["host"], v["url"], intel_block, _tool_brief())
     )
     raw = llm_generate(prompt, timeout=120)
     if not raw:
@@ -327,6 +343,92 @@ def llm_plan(intent, target):
         vals = s.get("values") if isinstance(s.get("values"), dict) else {}
         steps.append(_step(tid, str(s.get("why", "")).strip(), _subst(vals, v)))
     return steps or None
+
+# ------------------------------------------- 🍯 threat-informed planning -----
+# Which of OUR catalog tools test for a technique attackers are attempting.
+# Detection/recon only. Aggressive tools are deliberately absent: an attacker
+# who noticed the loop could brute-force the honeypot to make us hydra our own
+# login and lock our accounts out. Attackers may influence WHAT WE LOOK FOR,
+# never what we do to ourselves.
+# Values mirror the ones the hand-written playbooks use for the same tool, so an
+# intel-driven step behaves exactly like a normal one.
+def _intel_step_builders():
+    return {
+        "nmap":     lambda v: {"scan": "-sV", "target": v["host"]},
+        "nikto":    lambda v: {"host": v["url"], "tuning": "123b", "maxtime": "150s"},
+        "gobuster": lambda v: {"mode": "dir", "url": v["url"],
+                               "wordlist": "/usr/share/wordlists/dirb/common.txt"},
+        "whatweb":  lambda v: {"aggr": "3", "target": v["url"]},
+        "sqlmap":   lambda v: {"url": v["url"], "batch": True, "dbs": True},
+        "wpscan":   lambda v: {"url": v["url"], "enumerate": "vp", "random_ua": True},
+    }
+
+
+THREAT_TOOLS = {
+    "sqli-attempt":    [("sqlmap", "תוקפים מנסים SQLi — בדוק אם אנחנו פגיעים"),
+                        ("nikto", "סריקת חולשות ווב כולל הזרקות")],
+    "xss-attempt":     [("nikto", "תוקפים מנסים XSS — סרוק חולשות ווב")],
+    "path-traversal":  [("nikto", "תוקפים מנסים מעבר תיקיות — סרוק חשיפות"),
+                        ("gobuster", "מפה נתיבים חשופים")],
+    "secret-hunt":     [("gobuster", "תוקפים מחפשים .env/.git — בדוק מה חשוף אצלנו")],
+    "cms-probe":       [("wpscan", "תוקפים ממפים CMS — בדוק את שלנו"),
+                        ("whatweb", "זהה מה אנחנו חושפים על הטכנולוגיה")],
+    "rce-attempt":     [("nikto", "תוקפים מנסים הרצת פקודות — סרוק חולשות")],
+    "log4shell":       [("nikto", "ניסיונות Log4Shell — בדוק רכיבים מיושנים")],
+    "scanner-recon":   [("nmap", "תוקפים סורקים אותנו — מפה מה באמת פתוח")],
+    "cred-attack":     [("nmap", "תוקפים תוקפים אישורים — מפה שירותי הזדהות חשופים")],
+    "webshell-upload": [("gobuster", "תוקפים מנסים להעלות webshell — מפה נתיבי העלאה")],
+    "ssrf-metadata":   [("nikto", "ניסיונות SSRF — סרוק חולשות ווב")],
+}
+
+# One forged request must not steer the agent, so require repeat observations.
+THREAT_MIN_COUNT = 3
+THREAT_MAX_ADD = 3
+
+
+def threat_intel(min_count=THREAT_MIN_COUNT, top=5):
+    """What attackers are ACTUALLY attempting, most severe first.
+
+    Reads the honeypot signature table — never the Red Team's posture KB. Fails
+    soft: no pots, no DB, no problem. Planning must work with zero honeypots.
+    """
+    try:
+        sigs = db.hp_stats().get("signatures", [])
+    except Exception:
+        return []
+    out = [s for s in sigs if (s.get("count") or 0) >= min_count]
+    rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    out.sort(key=lambda s: (rank.get(s.get("severity"), 9), -(s.get("count") or 0)))
+    return out[:top]
+
+
+def _threat_steps(v, existing_ids):
+    """Turn observed attacks into extra recon steps. Returns (steps, notes).
+
+    This is the feedback loop: the Red Team stops testing a fixed checklist and
+    starts testing what the internet is actually throwing at us this week. Every
+    added step says which intel caused it, and the user still approves the plan.
+    """
+    steps, notes = [], []
+    builders = _intel_step_builders()
+    known = {t["id"] for t in _catalog().get("tools", [])}
+    for sig in threat_intel():
+        hit = False
+        for tool_id, why in THREAT_TOOLS.get(sig["sig"], []):
+            if len(steps) >= THREAT_MAX_ADD:
+                break
+            if tool_id in existing_ids or tool_id not in known or tool_id not in builders:
+                continue
+            st = _step(tool_id, f"🍯 {why} (נצפה {sig['count']}× במלכודת)",
+                       builders[tool_id](v))
+            st["from_intel"] = sig["sig"]
+            steps.append(st)
+            existing_ids.add(tool_id)
+            hit = True
+        if hit:
+            notes.append(f"{sig['name']} — {sig['count']}×")
+    return steps, notes
+
 
 # ---------------------------------------------------------------- planner ----
 def plan(intent, target, use_llm=False):
@@ -374,11 +476,21 @@ def plan(intent, target, use_llm=False):
             st["needs_root"] = st["tool_id"] in ROOT_TOOLS
             steps.append(st)
 
+    # 🍯 close the loop: let what attackers are actually attempting add checks
+    # the static playbook never thought to run.
+    intel_steps, intel_notes = _threat_steps(v, {s["tool_id"] for s in steps})
+    for st in intel_steps:
+        st["playbook"] = "🍯 מודיעין ממלכודות"
+        st["needs_root"] = st["tool_id"] in ROOT_TOOLS
+        steps.append(st)
+
     return {
         "engine": "rules",
         "intent": intent,
         "target": target,
-        "playbooks": [pb["name"] for pb in chosen],
+        "playbooks": [pb["name"] for pb in chosen] +
+                     (["🍯 מודיעין ממלכודות"] if intel_steps else []),
+        "intel": intel_notes,
         "steps": steps,
     }
 

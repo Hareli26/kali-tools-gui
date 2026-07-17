@@ -192,7 +192,7 @@ argv += [positional target]</pre>
 
 <div class="section">
 <h2>7. זרימת נתונים — מאיפה הסוכנים יודעים?</h2>
-<div class="note">שאלת מפתח: הסוכנים אינם "ממציאים" נתונים. הם שואבים משלושה מקורות ברורים וניתנים לביקורת.</div>
+<div class="note">שאלת מפתח: הסוכנים אינם "ממציאים" נתונים. הם שואבים מארבעה מקורות ברורים וניתנים לביקורת.</div>
 <table>
   <tr><th>מקור</th><th>מה הוא מכיל</th><th>מי משתמש בו</th></tr>
   <tr><td><b>1. ידע סטטי (קוד/JSON)</b></td>
@@ -200,12 +200,68 @@ argv += [positional target]</pre>
           <code>bluered.py</code> (כללי הגנה + MITRE)</td>
       <td>Planner, Verifier, Blue</td></tr>
   <tr><td><b>2. נתונים אמיתיים (הכלים)</b></td>
-      <td>הפלט האמיתי של כלי Kali על המטרה — פורטים, גרסאות, חולשות. <b>אמת הקרקע.</b></td>
+      <td>הפלט האמיתי של כלי Kali על המטרה — פורטים, גרסאות, חולשות. <b>אמת הקרקע על עצמנו.</b></td>
       <td>Executor → Verifier</td></tr>
-  <tr><td><b>3. זיכרון מצטבר (קבצים)</b></td>
-      <td><code>knowledge.json</code> (למידה), <code>activity.json</code> (יומן), <code>reports/</code> (דוחות)</td>
+  <tr><td><b>3. זיכרון מצטבר (SQLite)</b></td>
+      <td><code>signatures</code> (למידת תנוחה), <code>activity</code> (יומן), <code>reports</code> (דוחות)</td>
       <td>Learning, Dashboard, Brain</td></tr>
+  <tr><td><b>4. 🍯 מודיעין ממלכודות</b></td>
+      <td><code>hp_signatures</code> — מה תוקפים אמיתיים <b>מנסים</b> נגדנו, שנקלט במלכודות על שרת מוקרב
+          נפרד וסווג מול <code>ATTACK_KB</code>. <b>אמת הקרקע על האויב.</b></td>
+      <td><b>Planner</b>, Blue, Dashboard</td></tr>
 </table>
+
+<h3>7.1 שני בסיסי ידע — ולמה הם נפרדים</h3>
+<p>מקורות 2 ו‑4 נראים דומים אך טוענים טענות <b>הפוכות</b>, ולכן מאוחסנים בנפרד:</p>
+<table>
+  <tr><th></th><th><code>signatures</code> + <code>DEFENSE_KB</code></th><th><code>hp_signatures</code> + <code>ATTACK_KB</code></th></tr>
+  <tr><td><b>מקור</b></td><td>הצוות האדום שלנו סורק מטרה</td><td>תוקפים אמיתיים תוקפים מלכודת</td></tr>
+  <tr><td><b>הטענה</b></td><td>"למטרה הזו <b>יש</b> חולשה" (תנוחה)</td><td>"מישהו <b>ניסה</b> את זה" (התנהגות)</td></tr>
+  <tr><td><b>אמינות</b></td><td>פלט כלי שאנחנו הרצנו</td><td><b>קלט של תוקף — עוין עד שהוכח אחרת</b></td></tr>
+</table>
+<p>ערבוב שלהם היה רושם טענה שגויה ("יש לי חולשת הזרקה" במקום "מישהו ניסה להזריק"), מזהם את סטטיסטיקות
+התנוחה, ו<b>נותן לתוקף לכתוב לבסיס הידע שלנו על עצמנו</b>. לכן: טבלאות נפרדות, לתמיד.</p>
+
+<h3>7.2 🔥 ההצלבה — והלולאה שנסגרת</h3>
+<p>הערך אינו בכל בסיס ידע לחוד אלא <b>בהצלבה</b> (<code>db.hp_correlate()</code>): טכניקה שתוקפים מנסים
+<i>בפועל</i>, נגד חולשה שהסריקה שלנו מצאה <i>אצלנו</i>. חומרה לבדה מדרגת לפי כמה משהו <i>עלול</i> להיות
+רע; ההצלבה מוסיפה האם מישהו <i>באמת מנסה</i>.</p>
+<div class="diagram">🌍 real attacker  ──►  🍯 pot (captures raw)  ──►  🛰️ sensor (pulls, classifies)
+                                                          │
+                                                    ATTACK_KB  ─────┐
+                                                                    ▼
+                                              ┌───────────► hp_correlate()
+                                              │                     │
+  our own scans ──► DEFENSE_KB ──► signatures ┘                     │
+                                                                    ▼
+                          ┌─────────────────────────────────────────┤
+                          ▼                                         ▼
+              [Planner] adds checks for              [Blue report] flags
+              what is ACTUALLY being tried           "under active attack"
+                          │
+                          ▼
+              🔴 Red Team now tests reality, not a fixed checklist</div>
+<p><b>בפועל</b> (נמדד): תוכנית של 5 שלבים ל‑<code>example.com</code> גדלה ל‑8 אחרי שהמלכודת קלטה תקיפות —
+נוספו <code>sqlmap</code> ("תוקפים מנסים SQLi ×47"), <code>gobuster</code> ("מחפשים .env ×18") ו‑<code>wpscan</code>
+("ממפים CMS ×9"). דוח הצוות הכחול מוסיף סעיף <b>"🔥 תעדוף מיידי — חולשות שתוקפים מנסים לנצל עכשיו"</b>.</p>
+
+<h3>7.3 גבולות הלולאה — למה תוקף לא יכול לחטוף את הסוכנים</h3>
+<p>הלולאה מזרימה <b>קלט של תוקף</b> אל לב מערכת ההחלטות, ולכן היא חסומה במכוון:</p>
+<table>
+  <tr><th>סיכון</th><th>הגבלה</th></tr>
+  <tr><td>תוקף יגרום לנו לתקוף את עצמנו</td>
+      <td>רק כלי <b>גילוי/מיפוי</b> נוספים. <code>hydra</code> ודומיו <b>מוחרגים במכוון</b> — תוקף שיזהה
+          את הלולאה יוכל להציף brute‑force וגרום לנו לנעול את חשבונותינו.</td></tr>
+  <tr><td>בקשה מזויפת בודדת תטה תכנון</td><td><code>THREAT_MIN_COUNT = 3</code> — נדרשות תצפיות חוזרות.</td></tr>
+  <tr><td>הצפה תשתלט על התוכנית</td><td><code>THREAT_MAX_ADD = 3</code> — עד 3 שלבים נוספים.</td></tr>
+  <tr><td>הרעלת בסיס הידע</td><td>טבלה נפרדת (<code>hp_signatures</code>); לעולם לא נוגע ב‑<code>signatures</code>.</td></tr>
+  <tr><td>תיקון אוטומטי שינעל אותנו</td>
+      <td><b>אין תיקון אוטומטי מנתוני מלכודת. נקודה.</b> תוקף שיזהה לולאת תיקון יוכל להזין חתימה שתגרום
+          להקשחה שנועלת אותנו בחוץ (הכניסה ל‑VPS היא בסיסמת root ב‑SSH, בלי מפתח).</td></tr>
+  <tr><td>שינוי סמוי</td><td>כל שלב מסומן במודיעין שגרם לו, והמשתמש מאשר את התוכנית לפני הרצה.</td></tr>
+</table>
+<div class="note"><b>העיקרון:</b> תוקפים רשאים להשפיע על <b>מה אנחנו בודקים</b> — לעולם לא על <b>מה שאנחנו
+עושים לעצמנו</b>.</div>
 <div class="diagram">intent + target
      │
      ▼

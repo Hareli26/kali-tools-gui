@@ -346,6 +346,27 @@ def get_detections(signature):
     """Return {sigma?, suricata?} detection rules for a signature (may be empty)."""
     return DETECTION_RULES.get(signature, {})
 
+# ------------------------------------------ 🍯 threat-informed prioritising ---
+def active_threats():
+    """Posture signature -> the honeypot evidence that it is under live attack.
+
+    Severity alone ranks findings by how bad they COULD be. This adds whether
+    anyone is actually trying it, which is the difference between a theoretical
+    risk and one being exercised against us this week. Fails soft: with no
+    honeypots the report is exactly what it always was.
+    """
+    try:
+        rows = db.hp_correlate()
+    except Exception:
+        return {}
+    out = {}
+    for c in rows:
+        cur = out.get(c["weakness"])
+        if not cur or c["attack_count"] > cur["count"]:
+            out[c["weakness"]] = {"name": c["attack_name"], "count": c["attack_count"],
+                                  "severity": c["attack_severity"]}
+    return out
+
 def analyze_finding(text):
     low = text.lower()
     for rule in DEFENSE_KB:
@@ -408,14 +429,27 @@ def purple_report(intent, target, red_steps, threats, learning, when=""):
     lines.append(f"- **🔴 ממצאי הצוות האדום:** {n_red}  |  **🔵 איומים לטיפול הצוות הכחול:** {len(threats)}")
     lines.append("")
 
+    # 🍯 which of these findings are attackers actually exercising right now
+    live = active_threats()
+    under_attack = [t for t in threats if t["signature"] in live]
+
     # executive summary
     crit = [t for t in threats if t["severity"] in ("critical", "high")]
     lines.append("## סיכום מנהלים")
+    if under_attack:
+        lines.append("### 🔥 תעדוף מיידי — חולשות שתוקפים מנסים לנצל *עכשיו*")
+        lines.append("הממצאים הבאים אינם תיאורטיים: המלכודות שלנו קלטו ניסיונות ניצול פעילים "
+                     "מולם. טפל בהם ראשונים.")
+        for t in sorted(under_attack, key=lambda x: -live[x["signature"]]["count"]):
+            a = live[t["signature"]]
+            lines.append(f"- {_SEV_ICON[t['severity']]} **{t['name']}** — "
+                         f"נצפו **{a['count']}** ניסיונות מסוג *{a['name']}* נגד המלכודות")
+        lines.append("")
     if crit:
         lines.append(f"זוהו **{len(crit)}** איומים בחומרה גבוהה/קריטית הדורשים טיפול מיידי:")
         for t in crit:
             lines.append(f"- {_SEV_ICON[t['severity']]} **{t['name']}** ({_SEV_HE[t['severity']]})")
-    else:
+    elif not under_attack:
         lines.append("לא זוהו איומים בחומרה גבוהה. מומלץ ליישם את ההקשחות המפורטות למטה.")
     lines.append("")
 
@@ -425,6 +459,10 @@ def purple_report(intent, target, red_steps, threats, learning, when=""):
         lines.append("לא נמצאו ממצאים הניתנים למיפוי להגנה בשלב זה.")
     for i, t in enumerate(threats, 1):
         lines.append(f"### {i}. {_SEV_ICON[t['severity']]} {t['name']} — חומרה: {_SEV_HE[t['severity']]}")
+        if t["signature"] in live:
+            a = live[t["signature"]]
+            lines.append(f"> 🔥 **תחת תקיפה פעילה.** המלכודות שלנו קלטו **{a['count']}** "
+                         f"ניסיונות *{a['name']}* — זו אינה חולשה תיאורטית.")
         lines.append(f"**האיום:** {t['threat']}")
         if t.get("mitre"):
             lines.append(f"**MITRE ATT&CK:** {t['mitre']}")
@@ -467,6 +505,29 @@ def purple_report(intent, target, red_steps, threats, learning, when=""):
             lines.append("- הממצאים הנפוצים ביותר בהיסטוריה:")
             for x in learning["top"]:
                 lines.append(f"  - {x['name']} — נצפה {x['count']} פעמים")
+
+    # 🍯 the second knowledge base: not what we scanned, but what the world tried
+    try:
+        hp = db.hp_stats()
+    except Exception:
+        hp = None
+    # Gate on either: hp_events is capped at 20k rows, so on a busy pot the raw
+    # events get trimmed while the accumulated signatures — the actual learning —
+    # live on. Keying the section off events alone would hide the knowledge
+    # precisely on the systems that gathered the most of it.
+    if hp and (hp.get("events") or hp.get("signatures")):
+        lines.append("")
+        lines.append("### 🍯 מודיעין ממלכודות הדבש")
+        if hp.get("events"):
+            lines.append(f"- נקלטו **{hp['events']}** תקיפות אמיתיות מ-**{hp['attackers']}** "
+                         f"כתובות שונות ({hp['events_24h']} ב-24 השעות האחרונות).")
+        if hp.get("signatures"):
+            lines.append("- הטכניקות שתוקפים מנסים בפועל:")
+            for s in hp["signatures"][:5]:
+                lines.append(f"  - {_SEV_ICON.get(s['severity'], '⬜')} {s['name']} — "
+                             f"{s['count']}×")
+        lines.append("- *הידע הזה מוזן חזרה לתכנון: הצוות האדום בודק את מה שתוקפים "
+                     "באמת מנסים, לא רק צ'קליסט קבוע.*")
     lines.append("")
     lines.append("---")
     lines.append("*הופק ע\"י Kali Tools GUI · שכבת Purple Team (Red→Broker→Blue→Orchestrator). לשימוש הגנתי מורשה בלבד.*")

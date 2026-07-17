@@ -32,3 +32,15 @@ Thumbs.db
 # Secrets (deployment) — never commit
 .env
 deploy/deploy.env
+
+# Throwaway screenshots from design/verification runs — the docs reference only
+# a curated set; the rest are scratch output and should not bloat the repo.
+docs/shots/about_*.png
+docs/shots/agents_3d.png
+docs/shots/hyperspace_*.png
+docs/shots/living_*.png
+docs/shots/login_feed.png
+docs/shots/matrix_*.png
+docs/shots/neon_*.png
+docs/shots/starwars_crawl.png
+docs/shots/tools_new.png
