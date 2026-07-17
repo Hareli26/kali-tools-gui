@@ -1,6 +1,7 @@
 # Kali Tools GUI 🐉
 
-ממשק גרפי (web) לכלי ה‑Kali Linux שרצים תחת WSL2 על Windows.
+ממשק גרפי (web) לכלי ה‑Kali Linux, רץ על **שרת Kali ייעודי (VPS)** בפרודקשן
+(`kali.dudaei.com`) — עם תמיכה גם ב‑WSL2 על Windows לפיתוח מקומי.
 
 **מצבי עבודה ומסכים:**
 - **🧰 כלים** — בחירת כלי → טופס יכולות + תצוגת פקודה חיה → הרצה → מסך תוצאות נפרד.
@@ -27,7 +28,7 @@
 מספר כלים, סוכנים, סטטוס). כולל פתיח **Star Wars** ומתג שפה **EN/HE**. הכול מכבד `prefers-reduced-motion`.
 
 ## למה זה עובד בכל מצב
-Kali WSL בהתקנת ברירת מחדל היא **מינימלית** — רוב הכלים לא מותקנים.
+Kali בהתקנת ברירת מחדל היא **מינימלית** — רוב הכלים לא מותקנים.
 המערכת **מזהה אוטומטית** אילו כלים מותקנים:
 - כלי מותקן → ניתן להריץ מיד.
 - כלי חסר → כרטיס מסומן "לא מותקן" + כפתור התקנה (דרך `apt` עם סיסמת sudo מקומית).
@@ -35,9 +36,9 @@ Kali WSL בהתקנת ברירת מחדל היא **מינימלית** — רוב
 (`dpkg-query`) ולא לפי קוד היציאה של `apt` — כך ששדרוג נלווה שנכשל אינו מדווח כשל שווא.
 
 ## ארכיטקטורה
-- **Backend** — `server.py`: Python בספרייה הסטנדרטית בלבד (ללא pip). רץ **בתוך** Kali WSL.
-  בונה את הפקודה כמערך `argv` מתוך `tools.json` (מקור אמת), **ללא shell** — הגנה מהזרקת פקודות.
-  מודל *jobs* להרצות ארוכות עם פלט מוזרם וכפתור עצירה.
+- **Backend** — `server.py`: Python בספרייה הסטנדרטית בלבד (ללא pip). רץ על **שרת Kali ייעודי (VPS)**
+  בפרודקשן (WSL2 נתמך לפיתוח מקומי). בונה את הפקודה כמערך `argv` מתוך `tools.json` (מקור אמת),
+  **ללא shell** — הגנה מהזרקת פקודות. מודל *jobs* להרצות ארוכות עם פלט מוזרם וכפתור עצירה.
 - **Frontend** — `web/`: SPA ב‑vanilla JS (ללא build), RTL, ערכת נושא כהה. 3 מסכים:
   1. `index.html` #screen-picker — בחירת כלי (חיפוש + קטגוריות + כרטיסים).
   2. #screen-form — כרטיס הסבר על הכלי ("מה זה ומה אפשר לעשות") + טופס דינמי + תצוגת פקודה חיה. קישור ישיר: `#tool-<id>`.
@@ -48,18 +49,23 @@ Kali WSL בהתקנת ברירת מחדל היא **מינימלית** — רוב
   הפלט מנוקה מקודי ANSI אוטומטית.
 - **שכבת סוכנים** — `agents.py`: מנוע playbooks מבוסס-חוקים (אפס תלויות). ארבעה סוכנים:
   - **Planner** — כוונה בשפה חופשית + מטרה → תוכנית שלבים (בחירת כלים + פקודות מוכנות + הצעות).
+    מוזן גם ב**מודיעין ממלכודות** (ראה למטה): טכניקות שתוקפים מנסים בפועל מוסיפות שלבי בדיקה.
   - **Executor** — מריץ כל שלב ברצף (משתמש בתשתית ה‑jobs).
   - **Verifier** — מנתח פלט + קוד יציאה → verdict (תקין / ממצאים / אזהרה / נכשל) + חילוץ ממצאים.
   - **Reporter** — מרכיב דוח Markdown מלא.
-  - וו LLM אופציונלי: אם מוגדרים `OLLAMA_URL` + `OLLAMA_MODEL` הדוח משתדרג לניסוח AI.
+  - וו LLM אופציונלי: אם מוגדרים `OLLAMA_URL` + `OLLAMA_MODEL` — תכנון‑AI (ה‑LLM בוחר כלים) וניסוח דוחות.
 - **מסכי AI** — #screen-ai-prompt → #screen-ai-plan → #screen-ai-mission → #screen-ai-report.
 - **שכבת Purple Team** — `bluered.py`: מערך סוכנים הגנתי מעל הצוות האדום.
   - **🔴 צוות אדום** — מנוע המשימות מריץ כלים התקפיים ומפיק ממצאים.
   - **🟢 מתווך (Broker)** — ממפה כל ממצא אדום לכלל הגנה, מאחד ומדרג לפי חומרה.
   - **🔵 צוות כחול** — לכל איום: פעולות הגנה, זיהוי/ניטור, שיוך MITRE ATT&CK, תצורה לדוגמה, ו**חוקי זיהוי מוכנים לפריסה (Sigma ל‑SIEM + Suricata ל‑IDS)**.
-  - **🧠 למידה מתמשכת** — `knowledge.json` צובר חתימות ממצאים בין הרצות (מונה + first/last seen).
-  - **🟣 מתזמר (Orchestrator)** — מריץ את הזרימה ומפיק דוח Purple מלא.
+  - **🧠 למידה מתמשכת** — טבלת `signatures` ב‑SQLite צוברת חתימות ממצאים בין הרצות (מונה + first/last seen).
+  - **🟣 מתזמר (Orchestrator)** — מריץ את הזרימה ומפיק דוח Purple מלא. חולשה **תחת תקיפה פעילה** (לפי המלכודות) מסומנת ומתועדפת.
   - הרצה: כפתור "🟣 Purple Team" במסך התוכנית. נקודות קצה: `/api/purple`, `/api/knowledge`.
+- **🍯 שכבת הטעיה (Deception)** — `honeypot/` + `sensor.py`: מלכודות ווב ו‑MySQL על **שרת מוקרב נפרד**
+  (`web.dudaei.com`) קולטות תקיפות אמיתיות; החיישן מושך, מסווג מול `attack_kb` (18 טכניקות + Sigma/Suricata),
+  ומצליב מול תנוחת האבטחה שלנו. **לולאה סגורה**: מה שתוקפים מנסים בפועל משנה את תכנון הסוכנים ותעדוף הדוח.
+  ניהול מלא מ‑`kali.dudaei.com` (מסך 🍯). פירוט: [`honeypot/README.md`](honeypot/README.md).
 - **🔧 סוכן מתקן (Remediation)** — `bluered.py`: מיישם בפועל את הגנות הצוות הכחול (למשל fail2ban,
   עדכוני אבטחה) — **תמיד לאחר אישור מפורש**, עם גיבוי קונפיגים ורישום ביומן. תיקונים מסוכנים
   (SSH/firewall) הם הנחיה בלבד ואינם רצים אוטומטית. נקודות קצה: `/api/fix/<sig>`, `/api/fix`.
@@ -71,33 +77,35 @@ Kali WSL בהתקנת ברירת מחדל היא **מינימלית** — רוב
   → האפליקציה (127.0.0.1). ניהול משתמשים מהממשק (`/api/users`, אדמין בלבד) ולוג ביקורת מלא.
 
 ## הרשאות (root)
-השרת מורץ כ‑**root** בתוך WSL כדי שכל הכלים יעבדו (nmap -sS, tcpdump, masscan ...)
-וגם התקנת חבילות ללא סיסמה.
+השרת מורץ כ‑**root** כדי שכל הכלים יעבדו (nmap -sS, tcpdump, masscan ...) וגם התקנת חבילות ללא סיסמה.
 
-## הרצה — ייצור (מומלץ)
-התקנה חד‑פעמית כשירות systemd שמופעל אוטומטית ומתאושש מקריסה:
-```powershell
-C:\ClaudeCode\kali-gui\install-service.ps1
+## הרצה — ייצור (מומלץ): שרת Kali ייעודי (VPS)
+המערכת רצה בפרודקשן על **שרת Kali ייעודי** (`kali.dudaei.com` / `72.62.150.169`).
+התקנה חד‑פעמית מתקינה את השרשרת המלאה: Caddy (HTTPS אוטומטי) → oauth2‑proxy (Google + allowlist)
+→ האפליקציה על `127.0.0.1:8777` + שירות systemd + שרת MCP:
+```bash
+sudo ./deploy/install-vps.sh
 ```
-זה מתקין את `kali-gui.service` (enable + start), ורושם משימת Windows שמעלה את WSL בכל התחברות.
-לאחר מכן פתח: **http://localhost:8777**
-
 ניהול:
-```powershell
-wsl -d kali-linux -u root -- systemctl status kali-gui     # מצב
-wsl -d kali-linux -u root -- systemctl restart kali-gui    # הפעלה מחדש
-wsl -d kali-linux -u root -- journalctl -u kali-gui -n 50  # לוגים
+```bash
+systemctl status kali-gui      # מצב
+systemctl restart kali-gui     # הפעלה מחדש
+journalctl -u kali-gui -f      # לוגים
 ```
+🍯 **שכבת ההטעיה** נפרסת בנפרד על השרת המוקרב — ראה [`honeypot/README.md`](honeypot/README.md)
+(`deploy/install-honeypot.sh` למלכודת הווב, `deploy/add-sql-honeypot.sh` למלכודת ה‑SQL,
+ו‑`deploy/install-sensor.sh` להפעלת המשיכה האוטומטית בפרודקשן).
 
-## הרצה — פיתוח (ad-hoc)
+## הרצה — פיתוח מקומי (WSL2 / ad-hoc)
+לפיתוח על Windows דרך WSL2:
 ```powershell
 C:\ClaudeCode\kali-gui\start.ps1
-# עצירה:
-wsl -d kali-linux -u root -- pkill -f server.py
+# עצירה:  wsl -d kali-linux -u root -- pkill -f server.py
 ```
+או ישירות: `python3 server.py` (ברירת מחדל `127.0.0.1:8777`).
 
 ## אבטחת ייצור
-- **מאזין ל‑127.0.0.1 בלבד** (לא חשוף לרשת) — WSL2 מעביר `localhost` מ‑Windows.
+- **מאזין ל‑127.0.0.1 בלבד** — חשיפה חיצונית רק דרך Caddy + oauth2‑proxy (התחברות Google).
 - **טוקן אופציונלי**: הגדר `KALIGUI_TOKEN` (ב‑`docs/kali-gui.service`) כדי לדרוש אימות.
 - בדיקת בריאות: `GET /api/health` (ללא אימות) → גרסה, uptime.
 - דוחות נשמרים ב‑`reports/<id>.json` ושורדים אתחולים (`/api/reports`, `/api/report/<id>`).
