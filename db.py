@@ -304,7 +304,7 @@ def hp_add_events(rows):
 
 
 def hp_list_events(limit=200, technique=None, src_ip=None):
-    q = ("SELECT pot,ts,whenstr,src_ip,method,path,ua,technique,severity "
+    q = ("SELECT pot,ts,whenstr,src_ip,method,path,ua,technique,severity,blob "
          "FROM hp_events WHERE 1=1")
     args = []
     if technique:

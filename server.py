@@ -1230,6 +1230,19 @@ class Handler(BaseHTTPRequestHandler):
                 e["fix_count"] = 0
                 e["exposed_to"] = ""
             e["severity_he"] = self.SEV_HE.get(e.get("severity") or "", "—")
+            # 🔑 Surface the harvested credential (SSH/SQL login blobs carry
+            # user=/pass=/auth=) — the whole point of the credential honeypots.
+            # The raw blob stays server-side; only the parsed pair is shipped.
+            blob = e.pop("blob", "") or ""
+            mu = re.search(r"\buser=(\S+)", blob)
+            ms = re.search(r"\b(?:pass|auth)=(\S+)", blob)
+            if mu:
+                cred = mu.group(1)
+                if ms and ms.group(1):
+                    cred += " / " + ms.group(1)
+                e["creds"] = cred[:96]
+            else:
+                e["creds"] = ""
         return self._send_json({"events": events})
 
     def _api_hp_technique(self, tid):

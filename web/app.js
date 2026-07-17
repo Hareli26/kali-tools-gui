@@ -2976,6 +2976,14 @@ async function loadHpFeed(technique, ip) {
       if (e.what) card.appendChild(el("div", "hp-ev-what", e.what));
       card.appendChild(el("code", "hp-ev-req", `${e.method} ${e.path}`));
 
+      // 🔑 harvested credentials (SSH/SQL) — attacker-controlled, so el() escapes
+      if (e.creds) {
+        const cr = el("div", "hp-ev-creds");
+        cr.appendChild(el("span", "hp-ev-creds-ico", "🔑"));
+        cr.appendChild(el("code", "hp-ev-creds-val", e.creds));
+        card.appendChild(cr);
+      }
+
       // 3️⃣ האם אנחנו חשופים — the loudest signal on the card
       if (e.exposed_to) {
         const ex = el("div", "hp-ev-exposed",
