@@ -166,11 +166,15 @@ def save_report(run_id, kind, intent, target, report):
     _auto_obsidian()
 
 def _auto_obsidian():
-    """Keep the Obsidian vault up to date after every run (opt-out via env)."""
+    """Keep the Obsidian vault up to date after every run (opt-out via env).
+    Includes the honeypot intel so the deception graph stays current too."""
     if os.environ.get("KALIGUI_AUTO_OBSIDIAN", "1") != "1":
         return
     try:
         obsidian.export(VAULT_DIR, db.all_reports_full(500), bluered.load_kb(), bluered.get_remediation)
+        obsidian.export_honeypot(VAULT_DIR, db.hp_stats(), db.hp_correlate(),
+                                 db.hp_list_events(limit=300), attack_kb.get_attack,
+                                 country_detail=db.hp_countries_full())
     except Exception as e:
         log("auto-obsidian failed: %s" % e)
 
