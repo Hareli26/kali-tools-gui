@@ -29,10 +29,13 @@ function showScreen(name) {
   const isHistory = name === "history";
   const isPlaybooks = name === "playbooks";
   const isLearning = name === "learning";
+  const isHoney = name === "honeypot";
   const isAI = name.startsWith("ai-") || name === "purple";
-  const isTools = !isDash && !isAI && !isVault && !isUsers && !isHistory && !isPlaybooks && !isLearning;
+  const isTools = !isDash && !isAI && !isVault && !isUsers && !isHistory && !isPlaybooks
+                  && !isLearning && !isHoney;
   const mt = $("modeTools"), ma = $("modeAI"), md = $("modeDash"), mv = $("modeVault"),
-        mu = $("modeUsers"), mh = $("modeHistory"), mp = $("modePlaybooks"), ml = $("modeLearning");
+        mu = $("modeUsers"), mh = $("modeHistory"), mp = $("modePlaybooks"), ml = $("modeLearning"),
+        mhp = $("modeHoney");
   if (mt) mt.classList.toggle("active", isTools);
   if (ma) ma.classList.toggle("active", isAI);
   if (md) md.classList.toggle("active", isDash);
@@ -41,6 +44,7 @@ function showScreen(name) {
   if (mh) mh.classList.toggle("active", isHistory);
   if (mp) mp.classList.toggle("active", isPlaybooks);
   if (ml) ml.classList.toggle("active", isLearning);
+  if (mhp) mhp.classList.toggle("active", isHoney);
   if (isDash) { DASH_ANIMATE = true; loadDashboard(); }
   else if (typeof agents3dStop === "function") agents3dStop();  // pause agents 3D off-screen
   if (isVault) loadVault();
@@ -49,6 +53,7 @@ function showScreen(name) {
   if (isHistory) loadHistory();
   if (isPlaybooks) loadPlaybooks();
   if (isLearning) loadLearning();
+  if (isHoney) loadHoneypot();
   window.scrollTo(0, 0);
 }
 
@@ -2759,8 +2764,324 @@ function staggerReveal(container, sel) {
   });
 }
 
+/* ================================================================ 🍯 HONEYPOTS
+   Deception layer. The pots run on a separate sacrificial host and only ever
+   capture; this screen is the management plane — everything is driven from
+   kali.dudaei.com. Pot tokens live server-side and are never sent to the
+   browser, so the editor's token field is write-only (blank = keep existing). */
+/* SEV_ICON / SEV_HE / escapeHtml are already defined above — reused here. */
+let HP_CAN_MANAGE = false;
+
+function hpMsg(text, ok = true) {
+  const m = $("hpMsg");
+  if (!m) return;
+  m.textContent = text;
+  m.className = "users-msg " + (ok ? "ok" : "bad");
+  setTimeout(() => { m.textContent = ""; m.className = "users-msg"; }, 5000);
+}
+
+async function loadHoneypot() {
+  const feed = $("hpFeed");
+  if (feed) feed.innerHTML = '<div class="audit-empty">טוען...</div>';
+  try {
+    const d = await (await fetch("/api/honeypot")).json();
+    if (d.error) { hpMsg(d.error, false); return; }
+    HP_CAN_MANAGE = !!d.can_manage;
+    const add = $("hpAddBtn");
+    if (add) add.classList.toggle("hidden", !HP_CAN_MANAGE);
+    renderHpStats(d.stats);
+    renderHpCorrelation(d.correlation || []);
+    renderHpTechs(d.stats.top_techniques || []);
+    renderHpAttackers(d.stats.top_attackers || []);
+    renderHpPots(d.pots || []);
+    loadHpFeed();
+    const live = $("hpLive");
+    if (live) {
+      const on = (d.pots || []).some(p => p.enabled && !p.last_error);
+      live.textContent = on ? `● ${d.stats.events_24h} תקיפות ב-24 שעות` : "● ממתין";
+      live.classList.toggle("on", on);
+    }
+  } catch (e) { hpMsg("שגיאה בטעינת המלכודות.", false); }
+}
+
+function renderHpStats(s) {
+  const box = $("hpStats");
+  if (!box) return;
+  box.innerHTML = "";
+  const cards = [
+    ["📡", s.events, "תקיפות נתפסו"],
+    ["🌍", s.attackers, "תוקפים ייחודיים"],
+    ["🕐", s.events_24h, "ב-24 שעות אחרונות"],
+    ["🎯", (s.signatures || []).length, "טכניקות נלמדו"],
+  ];
+  cards.forEach(([icon, n, label]) => {
+    const c = el("div", "stat-card hud tilt reveal");
+    c.appendChild(el("div", "sc-icon", icon));
+    const v = el("div", "sc-val", "0");
+    c.appendChild(v);
+    c.appendChild(el("div", "sc-label", label));
+    box.appendChild(c);
+    if (typeof countUp === "function") countUp(v, n); else v.textContent = n;
+  });
+}
+
+/* The payoff: a technique attackers actually attempt, against a weakness our
+   own Red Team already found here. Threat-informed priority, not a list item. */
+function renderHpCorrelation(rows) {
+  const wrap = $("hpCorrelWrap"), box = $("hpCorrel");
+  if (!box) return;
+  wrap.classList.toggle("hidden", rows.length === 0);
+  box.innerHTML = "";
+  rows.forEach(c => {
+    const card = el("div", "hp-cor-card hud tilt reveal sev-" + c.attack_severity);
+    const top = el("div", "hp-cor-top");
+    top.appendChild(el("span", "hp-cor-icon", SEV_ICON[c.attack_severity] || "⬜"));
+    const t = el("div", "hp-cor-txt");
+    const a = el("div", "hp-cor-attack");
+    a.innerHTML = `<b>${c.attack_name}</b> — נוסה <b>${c.attack_count}×</b> נגד המלכודת`;
+    t.appendChild(a);
+    const w = el("div", "hp-cor-weak");
+    w.innerHTML = `↳ ואצלנו קיים: <b>${c.weakness_name}</b> ` +
+                  `<span class="hp-cor-sev">${SEV_HE[c.weakness_severity] || ""}</span>`;
+    t.appendChild(w);
+    top.appendChild(t);
+    card.appendChild(top);
+    box.appendChild(card);
+  });
+}
+
+function renderHpTechs(techs) {
+  const box = $("hpTechs");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!techs.length) {
+    box.innerHTML = '<div class="audit-empty">עדיין לא נצפו תקיפות. הפעל מלכודת ומשוך.</div>';
+    return;
+  }
+  const max = Math.max(...techs.map(t => t.n)) || 1;
+  techs.forEach(t => {
+    const row = el("div", "hp-tech reveal");
+    row.onclick = () => showHpTechnique(t.technique);
+    const head = el("div", "hp-tech-head");
+    head.appendChild(el("span", "hp-tech-name",
+      `${SEV_ICON[t.severity] || "⬜"} ${t.name || t.technique}`));
+    head.appendChild(el("span", "hp-tech-n", `${t.n}×`));
+    row.appendChild(head);
+    const bar = el("div", "hp-tech-bar");
+    const fill = el("i", "sev-" + t.severity);
+    fill.style.width = Math.round((t.n / max) * 100) + "%";
+    bar.appendChild(fill);
+    row.appendChild(bar);
+    box.appendChild(row);
+  });
+}
+
+function renderHpAttackers(ips) {
+  const box = $("hpAttackers");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!ips.length) { box.innerHTML = '<div class="audit-empty">—</div>'; return; }
+  ips.forEach(a => {
+    const row = el("div", "hp-att reveal");
+    row.onclick = () => loadHpFeed(null, a.src_ip);
+    row.appendChild(el("span", "hp-att-ip", a.src_ip));
+    row.appendChild(el("span", "hp-att-n", `${a.n} בקשות`));
+    row.appendChild(el("span", "hp-att-last", a.last || ""));
+    box.appendChild(row);
+  });
+}
+
+async function loadHpFeed(technique, ip) {
+  const box = $("hpFeed");
+  if (!box) return;
+  const q = new URLSearchParams({ limit: "40" });
+  if (technique) q.set("technique", technique);
+  if (ip) q.set("ip", ip);
+  try {
+    const d = await (await fetch("/api/honeypot/events?" + q)).json();
+    box.innerHTML = "";
+    if (ip || technique) {
+      const clr = el("button", "ghost-btn hp-feed-clear", "✕ נקה סינון");
+      clr.onclick = () => loadHpFeed();
+      box.appendChild(clr);
+    }
+    if (!(d.events || []).length) {
+      box.appendChild(el("div", "audit-empty", "אין תקיפות להצגה."));
+      return;
+    }
+    d.events.forEach(e => {
+      const card = el("div", "hp-ev reveal" + (e.severity ? " sev-" + e.severity : ""));
+      const h = el("div", "hp-ev-head");
+      h.appendChild(el("span", "hp-ev-sev", SEV_ICON[e.severity] || "⬜"));
+      h.appendChild(el("span", "hp-ev-ip", e.src_ip));
+      h.appendChild(el("span", "hp-ev-when", e.whenstr || ""));
+      card.appendChild(h);
+      const req = el("code", "hp-ev-req", `${e.method} ${e.path}`);
+      card.appendChild(req);
+      if (e.technique) {
+        const tag = el("span", "hp-ev-tec", e.technique);
+        tag.onclick = (ev) => { ev.stopPropagation(); showHpTechnique(e.technique); };
+        card.appendChild(tag);
+      }
+      if (e.ua) card.appendChild(el("div", "hp-ev-ua", e.ua.slice(0, 70)));
+      box.appendChild(card);
+    });
+  } catch (e) { box.innerHTML = '<div class="audit-empty">שגיאה בטעינה.</div>'; }
+}
+
+async function showHpTechnique(tid) {
+  const modal = $("hpTechModal"), body = $("hpTechBody");
+  if (!modal) return;
+  body.innerHTML = "טוען...";
+  modal.classList.remove("hidden");
+  try {
+    const d = await (await fetch("/api/honeypot/technique/" + encodeURIComponent(tid))).json();
+    if (d.error) { body.innerHTML = `<p>${d.error}</p>`; return; }
+    const t = d.technique;
+    let h = `<h2>${SEV_ICON[t.severity] || ""} ${t.name}</h2>`;
+    h += `<p class="muted-sm">חומרה: <b>${SEV_HE[t.severity] || t.severity}</b>`;
+    if (t.mitre) h += ` · MITRE ATT&CK: <code>${t.mitre}</code>`;
+    h += `</p>`;
+    h += `<h3>🎯 מה התוקף מנסה לעשות</h3><p>${t.technique}</p>`;
+    h += `<h3>🛡️ איך מתגוננים</h3><ul>${t.defenses.map(x => `<li>${x}</li>`).join("")}</ul>`;
+    if (t.sigma) h += `<h3>🔎 Sigma (SIEM)</h3><pre class="output small">${escapeHtml(t.sigma)}</pre>`;
+    if (t.suricata) h += `<h3>🔎 Suricata (IDS)</h3><pre class="output small">${escapeHtml(t.suricata)}</pre>`;
+    if ((d.recent || []).length) {
+      h += `<h3>📡 נצפה לאחרונה</h3><ul>`;
+      // src_ip/whenstr are attacker-influenced (X-Forwarded-For) — always escape.
+      d.recent.forEach(e => {
+        h += `<li><code>${escapeHtml(e.method + " " + e.path.slice(0, 60))}</code> ` +
+             `<span class="muted-sm">— ${escapeHtml(e.src_ip)}, ` +
+             `${escapeHtml(e.whenstr || "")}</span></li>`;
+      });
+      h += `</ul>`;
+    }
+    body.innerHTML = h;
+  } catch (e) { body.innerHTML = "<p>שגיאה בטעינה.</p>"; }
+}
+
+function renderHpPots(pots) {
+  const box = $("hpPots");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!pots.length) {
+    box.innerHTML = '<div class="audit-empty">אין מלכודות רשומות. ' +
+      (HP_CAN_MANAGE ? 'לחץ "הוסף מלכודת".' : 'פנה למנהל.') + '</div>';
+    return;
+  }
+  pots.forEach(p => {
+    const card = el("div", "hp-pot hud reveal" + (p.last_error ? " bad" : ""));
+    const h = el("div", "hp-pot-head");
+    h.appendChild(el("span", "hp-pot-dot" + (p.enabled && !p.last_error ? " on" : "")));
+    h.appendChild(el("b", "hp-pot-id", p.id));
+    h.appendChild(el("span", "hp-pot-kind", p.kind || "web"));
+    card.appendChild(h);
+    card.appendChild(el("code", "hp-pot-url", p.url));
+    const meta = el("div", "hp-pot-meta");
+    meta.appendChild(el("span", null, `${p.events || 0} אירועים`));
+    meta.appendChild(el("span", null, `סמן: ${p.cursor}`));
+    meta.appendChild(el("span", null, p.last_poll ? `נמשך: ${p.last_poll}` : "טרם נמשך"));
+    card.appendChild(meta);
+    if (p.last_error) card.appendChild(el("div", "hp-pot-err", "⚠️ " + p.last_error));
+    if (HP_CAN_MANAGE) {
+      const acts = el("div", "hp-pot-acts");
+      const ed = el("button", "ghost-btn", "✏️ ערוך");
+      ed.onclick = () => hpPotEditor(p);
+      const del = el("button", "ghost-btn", "🗑️ הסר");
+      del.onclick = () => hpDeletePot(p.id);
+      acts.appendChild(ed); acts.appendChild(del);
+      card.appendChild(acts);
+    }
+    box.appendChild(card);
+  });
+}
+
+function hpPotEditor(pot) {
+  const box = $("hpPotEditor");
+  if (!box) return;
+  const p = pot || { id: "", kind: "web", url: "", enabled: 1 };
+  const isNew = !pot;
+  box.classList.remove("hidden");
+  // Values are assigned via .value below, never interpolated into the markup:
+  // escapeHtml does not escape quotes, so a value containing one would break
+  // out of the attribute. Setting the property sidesteps parsing entirely.
+  box.innerHTML = `
+    <h3>${isNew ? "➕ מלכודת חדשה" : "✏️ עריכת מלכודת"}</h3>
+    <label class="ai-label">מזהה (a-z, 0-9, _, -)</label>
+    <input id="hpfId" class="vault-search" ${isNew ? "" : "disabled"}
+           placeholder="web" autocomplete="off">
+    <label class="ai-label">כתובת הקולקטור</label>
+    <input id="hpfUrl" class="vault-search"
+           placeholder="https://web.dudaei.com:8081" autocomplete="off">
+    <label class="ai-label">טוקן ${isNew ? "" : "(השאר ריק כדי לשמור את הקיים)"}</label>
+    <input id="hpfTok" class="vault-search" type="password" value=""
+           placeholder="${isNew ? "הטוקן מ-HP_TOKEN על שרת המלכודת" : "•••••• ללא שינוי"}"
+           autocomplete="new-password">
+    <label class="aiplan-toggle"><input type="checkbox" id="hpfOn" ${p.enabled ? "checked" : ""}>
+      פעילה — משוך ממנה אירועים</label>
+    <div class="plan-actions">
+      <button id="hpfSave" class="run-btn">💾 שמור</button>
+      <button id="hpfCancel" class="ghost-btn">ביטול</button>
+    </div>`;
+  $("hpfId").value = p.id;
+  $("hpfUrl").value = p.url;
+  if (!isNew) box.querySelector("h3").textContent = "✏️ עריכת " + p.id;
+  $("hpfCancel").onclick = () => { box.classList.add("hidden"); box.innerHTML = ""; };
+  $("hpfSave").onclick = async () => {
+    const body = {
+      id: $("hpfId").value.trim(), kind: "web", url: $("hpfUrl").value.trim(),
+      token: $("hpfTok").value, enabled: $("hpfOn").checked,
+    };
+    try {
+      const d = await (await fetch("/api/honeypot/pots/save", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })).json();
+      if (d.error) return hpMsg(d.error, false);
+      box.classList.add("hidden"); box.innerHTML = "";
+      hpMsg("✅ נשמר.");
+      loadHoneypot();
+    } catch (e) { hpMsg("שגיאה בשמירה.", false); }
+  };
+}
+
+async function hpDeletePot(id) {
+  if (!confirm(`להסיר את המלכודת "${id}"? האירועים שכבר נאספו יישארו.`)) return;
+  try {
+    const d = await (await fetch("/api/honeypot/pots/delete", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    })).json();
+    if (d.error) return hpMsg(d.error, false);
+    hpMsg("הוסרה.");
+    loadHoneypot();
+  } catch (e) { hpMsg("שגיאה בהסרה.", false); }
+}
+
+async function hpPoll() {
+  const btn = $("hpPollBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "🛰️ מושך..."; }
+  try {
+    const d = await (await fetch("/api/honeypot/poll", { method: "POST" })).json();
+    if (d.error) hpMsg(d.error, false);
+    else hpMsg(`✅ נמשכו ${d.pulled} אירועים חדשים מ-${d.pots} מלכודות.`);
+    loadHoneypot();
+  } catch (e) { hpMsg("שגיאה במשיכה.", false); }
+  if (btn) { btn.disabled = false; btn.textContent = "🛰️ משוך עכשיו"; }
+}
+
+function initHoneypot() {
+  const poll = $("hpPollBtn"); if (poll) poll.onclick = hpPoll;
+  const rel = $("hpReload"); if (rel) rel.onclick = loadHoneypot;
+  const add = $("hpAddBtn"); if (add) add.onclick = () => hpPotEditor(null);
+  const cl = $("hpTechClose");
+  if (cl) cl.onclick = () => $("hpTechModal").classList.add("hidden");
+  const m = $("hpTechModal");
+  if (m) m.onclick = (e) => { if (e.target === m) m.classList.add("hidden"); };
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-  init(); initFx(); initI18n(); initMotion();
+  init(); initFx(); initI18n(); initMotion(); initHoneypot();
   const rep = $("crawlReplay"); if (rep) rep.onclick = playCrawl;
   maybeCrawl();
 });

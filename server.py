@@ -34,6 +34,8 @@ import db        # noqa: E402  (SQLite data store)
 import agents    # noqa: E402  (agent engine: planner / verifier / reporter)
 import bluered   # noqa: E402  (purple-team: broker / blue team / learning)
 import obsidian  # noqa: E402  (Obsidian vault export)
+import sensor    # noqa: E402  (🍯 honeypot sensor: pulls pots -> classifies -> DB)
+from honeypot import attack_kb  # noqa: E402  (observed-attack knowledge base)
 WEB_DIR = os.path.join(HERE, "web")
 TOOLS_FILE = os.path.join(HERE, "tools.json")
 
@@ -695,6 +697,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_brain()
         if p == "/api/vault/graph":
             return self._api_vault_graph()
+        if p == "/api/honeypot":
+            return self._api_hp_overview()
+        if p == "/api/honeypot/events":
+            return self._api_hp_events()
+        if p == "/api/honeypot/techniques":
+            return self._send_json({"techniques": attack_kb.techniques()})
+        if p.startswith("/api/honeypot/technique/"):
+            return self._api_hp_technique(p.rsplit("/", 1)[-1])
         if p == "/api/reports":
             return self._api_reports()
         if p.startswith("/api/report/"):
@@ -748,6 +758,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._api_llm_enhance()
         if p == "/api/roles/set":
             return self._api_role_set()
+        if p == "/api/honeypot/pots/save":
+            return self._api_hp_pot_save()
+        if p == "/api/honeypot/pots/delete":
+            return self._api_hp_pot_delete()
+        if p == "/api/honeypot/poll":
+            return self._api_hp_poll()
         if p == "/api/plan":
             return self._api_plan()
         if p == "/api/mission":
@@ -1159,6 +1175,83 @@ class Handler(BaseHTTPRequestHandler):
             info["target"] = rp.target
             out["purple"] = info
         return self._send_json(out)
+
+    # -- 🍯 deception layer ---------------------------------------------------
+    def _api_hp_overview(self):
+        """Pots, live stats, and the cross-reference against our own posture."""
+        pots = db.hp_list_pots()          # token is never selected out of the DB
+        for p in pots:
+            p["events"] = 0
+        counts = {}
+        for e in db.hp_list_events(limit=1000):
+            counts[e["pot"]] = counts.get(e["pot"], 0) + 1
+        for p in pots:
+            p["events"] = counts.get(p["id"], 0)
+        s = db.hp_stats()
+        for t in s["top_techniques"]:
+            r = attack_kb.get_attack(t["technique"])
+            t["name"] = r["name"] if r else t["technique"]
+        return self._send_json({
+            "pots": pots, "stats": s, "correlation": db.hp_correlate(),
+            "can_manage": self._is_admin(),
+        })
+
+    def _api_hp_events(self):
+        from urllib.parse import urlparse, parse_qs
+        q = parse_qs(urlparse(self.path).query)
+        return self._send_json({"events": db.hp_list_events(
+            limit=int((q.get("limit") or ["200"])[0] or 200),
+            technique=(q.get("technique") or [None])[0],
+            src_ip=(q.get("ip") or [None])[0])})
+
+    def _api_hp_technique(self, tid):
+        r = attack_kb.get_attack(tid)
+        if not r:
+            return self._send_json({"error": "unknown technique"}, 404)
+        seen = db.hp_list_events(limit=8, technique=tid)
+        return self._send_json({"technique": r, "recent": seen})
+
+    def _api_hp_pot_save(self):
+        if not self._is_admin():
+            return self._deny()
+        d = self._read_json()
+        pid = (d.get("id") or "").strip()
+        url = (d.get("url") or "").strip()
+        if not pid or not url:
+            return self._send_json({"error": "id and url are required"}, 400)
+        if not re.match(r"^[a-z0-9_-]{1,32}$", pid):
+            return self._send_json({"error": "id must be a-z 0-9 _ - (max 32)"}, 400)
+        if not url.startswith(("http://", "https://")):
+            return self._send_json({"error": "url must start with http:// or https://"}, 400)
+        db.hp_save_pot(pid, (d.get("kind") or "web"), url, (d.get("token") or "").strip(),
+                       1 if d.get("enabled", True) else 0,
+                       time.strftime("%Y-%m-%d %H:%M:%S"))
+        audit(self._user(), "honeypot-pot-save", f"{pid} -> {url}")
+        return self._send_json({"ok": True, "pots": db.hp_list_pots()})
+
+    def _api_hp_pot_delete(self):
+        if not self._is_admin():
+            return self._deny()
+        pid = (self._read_json().get("id") or "").strip()
+        db.hp_delete_pot(pid)
+        audit(self._user(), "honeypot-pot-delete", pid)
+        return self._send_json({"ok": True, "pots": db.hp_list_pots()})
+
+    def _api_hp_poll(self):
+        """Pull now, on demand, from the UI.
+
+        Everything a pot returns is attacker-influenced input: it is classified
+        into hp_events/hp_signatures only, never into the Red Team's posture KB,
+        and it never triggers a remediation. Advice only — a human applies it.
+        """
+        if not self._can("run"):
+            return self._deny()
+        try:
+            res = sensor.poll_all(verbose=False)
+        except Exception as e:
+            return self._send_json({"error": str(e)[:200]}, 500)
+        audit(self._user(), "honeypot-poll", f"pots={res['pots']} events=+{res['pulled']}")
+        return self._send_json({"ok": True, **res, "stats": db.hp_stats()})
 
     def _api_vault_graph(self):
         """Graph of the Obsidian vault (reports + threats + MOC) for the in-app

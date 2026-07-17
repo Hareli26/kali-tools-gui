@@ -43,6 +43,7 @@
         <button id="modeHistory" class="mode-tab" data-goto="history" data-i18n="nav.history">🕓 היסטוריה</button>
         <button id="modeLearning" class="mode-tab" data-goto="learning" data-i18n="nav.learning">📚 למידה</button>
         <button id="modeVault" class="mode-tab" data-goto="vault" data-i18n="nav.vault">📓 Obsidian</button>
+        <button id="modeHoney" class="mode-tab" data-goto="honeypot" data-i18n="nav.honey">🍯 מלכודות</button>
         <button id="modeUsers" class="mode-tab hidden" data-goto="users" data-i18n="nav.users">👥 משתמשים</button>
         <button id="modePlaybooks" class="mode-tab hidden" data-goto="playbooks" data-i18n="nav.playbooks">✏️ Playbooks</button>
       </nav>
@@ -316,6 +317,68 @@
       </div>
     </div>
   </main>
+
+  <!-- ===================== 🍯 HONEYPOTS (deception) ===================== -->
+  <main id="screen-honeypot" class="screen">
+    <div class="vault-hero">
+      <div>
+        <h1>🍯 מלכודות דבש</h1>
+        <p class="dash-sub">תקיפות אמיתיות מהעולם האמיתי. המלכודות רצות על שרת מוקרב ונפרד,
+          מתעדות כל בקשה, והמערכת כאן מסווגת מה תוקפים באמת מנסים — ומצליבה את זה מול החולשות שלנו.</p>
+      </div>
+      <div class="dash-hero-actions">
+        <span id="hpLive" class="live-pill">● ממתין</span>
+        <button id="hpPollBtn" class="run-btn">🛰️ משוך עכשיו</button>
+        <button id="hpReload" class="ghost-btn">🔄 רענן</button>
+      </div>
+    </div>
+
+    <div id="hpMsg" class="users-msg"></div>
+
+    <!-- the reason this tier exists -->
+    <section id="hpCorrelWrap" class="hp-correl-wrap hidden">
+      <h2 class="dash-section">🔥 איומים מאומתים — תוקפים מנסים את זה, ואנחנו חשופים לזה</h2>
+      <p class="hp-correl-hint">הצלבה בין מה שנתפס במלכודות (<b>התנהגות תוקפים</b>)
+        לבין ממצאי הצוות האדום שלנו (<b>התנוחה שלנו</b>). זה לא "עוד ממצא ברשימה" — זה תעדוף מבוסס איום אמיתי.</p>
+      <div id="hpCorrel" class="hp-correl"></div>
+    </section>
+
+    <div id="hpStats" class="stats-row"></div>
+
+    <div class="dash-two">
+      <section>
+        <h2 class="dash-section">🎯 טכניקות שנצפו</h2>
+        <div id="hpTechs" class="hp-techs"></div>
+        <h3 class="dash-subsection">🌍 תוקפים מובילים</h3>
+        <div id="hpAttackers" class="hp-attackers"></div>
+      </section>
+      <section>
+        <h2 class="dash-section">📡 תקיפות אחרונות</h2>
+        <div id="hpFeed" class="hp-feed"></div>
+      </section>
+    </div>
+
+    <div class="dash-section-row">
+      <h2 class="dash-section">🍯 המלכודות</h2>
+      <button id="hpAddBtn" class="ghost-btn hidden">➕ הוסף מלכודת</button>
+    </div>
+    <div id="hpPotEditor" class="pb-editor hidden"></div>
+    <div id="hpPots" class="hp-pots"></div>
+
+    <div class="users-note">
+      🛡️ <b>נתוני מלכודת הם קלט לא מהימן.</b> התוקף שולט בקלט של המלכודת מעצם הגדרתה, ולכן:
+      החתימות נשמרות בטבלה נפרדת (<code>hp_signatures</code>) ולעולם לא מעורבבות עם ממצאי התנוחה,
+      ו<b>אף פעם אין תיקון אוטומטי</b> מנתוני מלכודת — רק המלצה שאדם מאשר ומיישם.
+    </div>
+  </main>
+
+  <!-- ===================== 🍯 TECHNIQUE DETAIL MODAL ===================== -->
+  <div id="hpTechModal" class="modal-overlay hidden">
+    <div class="modal threat-modal">
+      <button id="hpTechClose" class="modal-x">✕</button>
+      <div id="hpTechBody"></div>
+    </div>
+  </div>
 
   <!-- ===================== AI: PROMPT ===================== -->
   <main id="screen-ai-prompt" class="screen">

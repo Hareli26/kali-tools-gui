@@ -62,6 +62,28 @@ def init():
         CREATE TABLE IF NOT EXISTS roles(
             email TEXT PRIMARY KEY, role TEXT
         );
+        -- 🍯 Deception layer. Deliberately SEPARATE from `signatures`:
+        -- `signatures` records posture ("this target HAS a weakness", from our
+        -- Red Team). These record behaviour ("someone ATTEMPTED this", from the
+        -- honeypots) and are attacker-controlled by definition — mixing them
+        -- would corrupt the posture stats and let an attacker write our KB.
+        CREATE TABLE IF NOT EXISTS hp_pots(
+            id TEXT PRIMARY KEY, kind TEXT, url TEXT, token TEXT,
+            cursor INTEGER DEFAULT 0, enabled INTEGER DEFAULT 1,
+            last_poll TEXT, last_error TEXT, added TEXT
+        );
+        CREATE TABLE IF NOT EXISTS hp_events(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pot TEXT, ts REAL, whenstr TEXT, src_ip TEXT, method TEXT,
+            path TEXT, ua TEXT, technique TEXT, severity TEXT, blob TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_hp_ev_ts  ON hp_events(ts DESC);
+        CREATE INDEX IF NOT EXISTS idx_hp_ev_ip  ON hp_events(src_ip);
+        CREATE INDEX IF NOT EXISTS idx_hp_ev_tec ON hp_events(technique);
+        CREATE TABLE IF NOT EXISTS hp_signatures(
+            sig TEXT PRIMARY KEY, name TEXT, severity TEXT, count INTEGER DEFAULT 0,
+            sources INTEGER DEFAULT 0, first_seen TEXT, last_seen TEXT
+        );
         """)
     _migrate_from_json()
 
@@ -225,6 +247,167 @@ def list_roles():
 def delete_role(email):
     with _LOCK, _conn() as c:
         c.execute("DELETE FROM roles WHERE email=?", (email,))
+
+
+# ------------------------------------------------- 🍯 deception layer ---------
+def hp_list_pots():
+    with _LOCK, _conn() as c:
+        rows = c.execute("SELECT id,kind,url,cursor,enabled,last_poll,last_error,added "
+                         "FROM hp_pots ORDER BY added").fetchall()
+    return [dict(r) for r in rows]          # note: token deliberately not selected
+
+
+def hp_get_pot(pid):
+    with _LOCK, _conn() as c:
+        r = c.execute("SELECT * FROM hp_pots WHERE id=?", (pid,)).fetchone()
+    return dict(r) if r else None
+
+
+def hp_save_pot(pid, kind, url, token, enabled=1, added=""):
+    """Upsert a pot. An empty token keeps the stored one (so the UI can edit a
+    pot without the secret ever being sent back to the browser)."""
+    with _LOCK, _conn() as c:
+        if token:
+            c.execute("INSERT INTO hp_pots(id,kind,url,token,enabled,added) VALUES(?,?,?,?,?,?) "
+                      "ON CONFLICT(id) DO UPDATE SET kind=excluded.kind, url=excluded.url, "
+                      "token=excluded.token, enabled=excluded.enabled",
+                      (pid, kind, url, token, enabled, added))
+        else:
+            c.execute("INSERT INTO hp_pots(id,kind,url,token,enabled,added) VALUES(?,?,?,'',?,?) "
+                      "ON CONFLICT(id) DO UPDATE SET kind=excluded.kind, url=excluded.url, "
+                      "enabled=excluded.enabled", (pid, kind, url, enabled, added))
+
+
+def hp_delete_pot(pid):
+    with _LOCK, _conn() as c:
+        c.execute("DELETE FROM hp_pots WHERE id=?", (pid,))
+
+
+def hp_set_cursor(pid, cursor, last_poll, last_error=""):
+    with _LOCK, _conn() as c:
+        c.execute("UPDATE hp_pots SET cursor=?, last_poll=?, last_error=? WHERE id=?",
+                  (cursor, last_poll, last_error, pid))
+
+
+def hp_add_events(rows):
+    """Bulk-insert classified events. rows: list of dicts. Returns count added."""
+    if not rows:
+        return 0
+    with _LOCK, _conn() as c:
+        c.executemany(
+            "INSERT INTO hp_events(pot,ts,whenstr,src_ip,method,path,ua,technique,severity,blob) "
+            "VALUES(:pot,:ts,:when,:src_ip,:method,:path,:ua,:technique,:severity,:blob)", rows)
+        # cap the table — a honeypot under a flood must not fill the disk
+        c.execute("DELETE FROM hp_events WHERE id NOT IN "
+                  "(SELECT id FROM hp_events ORDER BY id DESC LIMIT 20000)")
+    return len(rows)
+
+
+def hp_list_events(limit=200, technique=None, src_ip=None):
+    q = ("SELECT pot,ts,whenstr,src_ip,method,path,ua,technique,severity "
+         "FROM hp_events WHERE 1=1")
+    args = []
+    if technique:
+        q += " AND technique=?"
+        args.append(technique)
+    if src_ip:
+        q += " AND src_ip=?"
+        args.append(src_ip)
+    q += " ORDER BY id DESC LIMIT ?"
+    args.append(min(1000, max(1, limit)))
+    with _LOCK, _conn() as c:
+        return [dict(r) for r in c.execute(q, args)]
+
+
+def hp_update_signatures(techniques, when):
+    """Accumulate observed-attack signatures. Mirrors update_kb, but writes the
+    honeypot table — these are attacker-controlled and must never be mixed into
+    the Red Team's posture KB."""
+    new = []
+    with _LOCK, _conn() as c:
+        for t in techniques:
+            sig = t["signature"]
+            ex = c.execute("SELECT count FROM hp_signatures WHERE sig=?", (sig,)).fetchone()
+            if ex:
+                c.execute("UPDATE hp_signatures SET count=count+?, last_seen=? WHERE sig=?",
+                          (t.get("count", 1), when, sig))
+            else:
+                c.execute("INSERT INTO hp_signatures(sig,name,severity,count,sources,"
+                          "first_seen,last_seen) VALUES(?,?,?,?,?,?,?)",
+                          (sig, t["name"], t["severity"], t.get("count", 1),
+                           t.get("sources", 1), when, when))
+                new.append(t["name"])
+    return new
+
+
+def hp_stats():
+    with _LOCK, _conn() as c:
+        total = c.execute("SELECT COUNT(*) n FROM hp_events").fetchone()["n"]
+        attackers = c.execute("SELECT COUNT(DISTINCT src_ip) n FROM hp_events").fetchone()["n"]
+        day = c.execute("SELECT COUNT(*) n FROM hp_events WHERE ts > ?",
+                        (time.time() - 86400,)).fetchone()["n"]
+        top_tec = [dict(r) for r in c.execute(
+            "SELECT technique, severity, COUNT(*) n FROM hp_events "
+            "WHERE technique IS NOT NULL AND technique!='' "
+            "GROUP BY technique ORDER BY n DESC LIMIT 10")]
+        top_ip = [dict(r) for r in c.execute(
+            "SELECT src_ip, COUNT(*) n, MAX(whenstr) last FROM hp_events "
+            "GROUP BY src_ip ORDER BY n DESC LIMIT 10")]
+        sigs = [dict(r) for r in c.execute(
+            "SELECT sig,name,severity,count,first_seen,last_seen FROM hp_signatures "
+            "ORDER BY count DESC")]
+    return {"events": total, "attackers": attackers, "events_24h": day,
+            "top_techniques": top_tec, "top_attackers": top_ip, "signatures": sigs}
+
+
+def hp_correlate():
+    """🔥 Cross the two knowledge bases — the reason the honeypot tier exists.
+
+    `signatures`    = what OUR scans say is weak here          (posture)
+    `hp_signatures` = what attackers are ACTUALLY attempting   (behaviour)
+
+    A technique under active attempt against a weakness we already know we have
+    is not "another finding in a list" — it is a threat-informed priority. The
+    mapping is by shared ATT&CK-style intent, not by id, since the two KBs are
+    keyed differently by design.
+    """
+    # attack technique -> the posture signatures it would exploit
+    LINK = {
+        "sqli-attempt":    ["injection", "waf-absent"],
+        "xss-attempt":     ["injection", "waf-absent", "missing-security-header"],
+        "rce-attempt":     ["outdated-software", "waf-absent"],
+        "log4shell":       ["outdated-software"],
+        "shellshock":      ["outdated-software"],
+        "path-traversal":  ["exposed-path", "waf-absent"],
+        "secret-hunt":     ["exposed-path", "directory-indexing"],
+        "cred-attack":     ["ssh-exposed", "rdp-exposed", "no-tls"],
+        "cms-probe":       ["exposed-path", "default-file", "outdated-software"],
+        "scanner-recon":   ["open-port-generic", "waf-absent"],
+        "webshell-upload": ["exposed-path", "outdated-software"],
+        "ssrf-metadata":   ["waf-absent"],
+        "xxe-attempt":     ["injection", "outdated-software"],
+    }
+    with _LOCK, _conn() as c:
+        posture = {r["sig"]: dict(r) for r in c.execute(
+            "SELECT sig,name,severity,count FROM signatures")}
+        attacks = {r["sig"]: dict(r) for r in c.execute(
+            "SELECT sig,name,severity,count FROM hp_signatures")}
+    out = []
+    for atk_sig, atk in attacks.items():
+        for weak_sig in LINK.get(atk_sig, []):
+            w = posture.get(weak_sig)
+            if not w:
+                continue
+            out.append({
+                "attack": atk_sig, "attack_name": atk["name"],
+                "attack_count": atk["count"], "attack_severity": atk["severity"],
+                "weakness": weak_sig, "weakness_name": w["name"],
+                "weakness_severity": w["severity"],
+            })
+    # loudest confirmed threat first
+    rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    out.sort(key=lambda x: (rank.get(x["attack_severity"], 9), -x["attack_count"]))
+    return out
 
 
 def stats():
