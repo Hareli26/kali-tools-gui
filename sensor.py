@@ -45,6 +45,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "honeypot"))
 
 import db                                  # noqa: E402
+import geo                                  # noqa: E402  (🌍 IP -> country, cached)
 from honeypot import attack_kb             # noqa: E402
 
 PULL_LIMIT = 500          # events per request
@@ -138,6 +139,7 @@ def poll_pot(pot, verbose=False):
                 "blob": _clip(blob, MAX_BLOB),
             })
         db.hp_add_events(rows)
+        geo.enrich({r["src_ip"] for r in rows})     # 🌍 resolve new IPs (cached, best-effort)
         total_new += len(rows)
         since = data.get("next", since + len(events))
         db.hp_set_cursor(pid, since, when, "")

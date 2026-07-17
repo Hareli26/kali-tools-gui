@@ -2810,6 +2810,7 @@ async function loadHoneypot(quiet) {
     renderHpStats(d.stats);
     renderHpCorrelation(d.correlation || []);
     renderHpTechs(d.stats.top_techniques || []);
+    renderHpCountries(d.stats.top_countries || []);
     renderHpAttackers(d.stats.top_attackers || []);
     renderHpPots(d.pots || []);
     loadHpFeed(HP_FILTER.technique, HP_FILTER.ip);
@@ -2872,6 +2873,7 @@ function renderHpCorrelation(rows) {
 function renderHpTechs(techs) {
   const box = $("hpTechs");
   if (!box) return;
+  techs.forEach(t => { if (t.technique) TECH_NAMES[t.technique] = t.name || t.technique; });
   box.innerHTML = "";
   if (!techs.length) {
     box.innerHTML = '<div class="audit-empty">עדיין לא נצפו תקיפות. הפעל מלכודת ומשוך.</div>';
@@ -2895,6 +2897,12 @@ function renderHpTechs(techs) {
   });
 }
 
+// 2-letter country code -> flag emoji (regional indicator symbols; no data needed).
+function flagEmoji(cc) {
+  if (!cc || cc.length !== 2 || !/^[A-Za-z]{2}$/.test(cc)) return "🏴";
+  return cc.toUpperCase().replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
+}
+
 function renderHpAttackers(ips) {
   const box = $("hpAttackers");
   if (!box) return;
@@ -2903,12 +2911,55 @@ function renderHpAttackers(ips) {
   ips.forEach(a => {
     const row = el("div", "hp-att reveal");
     row.onclick = () => loadHpFeed(null, a.src_ip);
-    row.appendChild(el("span", "hp-att-ip", a.src_ip));
+    const ip = el("span", "hp-att-ip");
+    ip.appendChild(el("span", "hp-flag", flagEmoji(a.cc)));
+    if (a.country) ip.title = a.country;
+    ip.appendChild(document.createTextNode(" " + a.src_ip));
+    row.appendChild(ip);
     row.appendChild(el("span", "hp-att-n", `${a.n} בקשות`));
     row.appendChild(el("span", "hp-att-last", a.last || ""));
     box.appendChild(row);
   });
 }
+
+// 🌍 where attacks come from + each country's favourite technique.
+function renderHpCountries(countries) {
+  const box = $("hpCountries");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!countries.length) {
+    box.innerHTML = '<div class="audit-empty">אין עדיין נתוני מיקום (מצטבר עם הזמן).</div>';
+    return;
+  }
+  const max = Math.max(...countries.map(c => c.events)) || 1;
+  countries.forEach(c => {
+    const row = el("div", "hp-country reveal");
+    const head = el("div", "hp-country-head");
+    const name = el("span", "hp-country-name");
+    name.appendChild(el("span", "hp-flag", flagEmoji(c.cc)));
+    name.appendChild(document.createTextNode(" " + (c.country || c.cc || "?")));
+    head.appendChild(name);
+    head.appendChild(el("span", "hp-country-n", `${c.events} · ${c.attackers} IP`));
+    row.appendChild(head);
+    const bar = el("div", "hp-country-bar");
+    const fill = el("i");
+    fill.style.width = Math.round((c.events / max) * 100) + "%";
+    bar.appendChild(fill);
+    row.appendChild(bar);
+    if (c.top_technique) {
+      const fav = el("div", "hp-country-fav");
+      fav.textContent = "🎯 מועדף: " + techniqueName(c.top_technique);
+      fav.style.cursor = "pointer";
+      fav.onclick = () => showHpTechnique(c.top_technique);
+      row.appendChild(fav);
+    }
+    box.appendChild(row);
+  });
+}
+
+// technique id -> Hebrew name, from whatever the feed/techs already loaded.
+let TECH_NAMES = {};
+function techniqueName(id) { return TECH_NAMES[id] || id; }
 
 async function loadHpFeed(technique, ip) {
   const box = $("hpFeed");
@@ -2952,11 +3003,13 @@ async function loadHpFeed(technique, ip) {
       const card = el("div", "hp-ev reveal" + (e.severity ? " sev-" + e.severity : "") +
                              (e.exposed_to ? " exposed" : ""));
 
-      // 1️⃣ מי — the source, when, and the danger level
+      // 1️⃣ מי — the source (with country flag on hover), when, danger level
       const h = el("div", "hp-ev-head");
       h.appendChild(el("span", "hp-ev-sev", SEV_ICON[e.severity] || "⬜"));
-      const ip = el("span", "hp-ev-ip", "🌍 " + e.src_ip);
-      ip.title = "הצג רק תקיפות מ-" + e.src_ip;
+      const ip = el("span", "hp-ev-ip");
+      ip.appendChild(el("span", "hp-flag", flagEmoji(e.cc)));
+      ip.appendChild(document.createTextNode(" " + e.src_ip));
+      ip.title = (e.country ? e.country + " — " : "") + "הצג רק תקיפות מ-" + e.src_ip;
       ip.onclick = (ev) => { ev.stopPropagation(); loadHpFeed(null, e.src_ip); };
       h.appendChild(ip);
       if (e.severity) {

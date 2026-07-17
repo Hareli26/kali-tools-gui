@@ -84,6 +84,10 @@ def init():
             sig TEXT PRIMARY KEY, name TEXT, severity TEXT, count INTEGER DEFAULT 0,
             sources INTEGER DEFAULT 0, first_seen TEXT, last_seen TEXT
         );
+        -- geo cache: each attacker IP is resolved to a country once and reused.
+        CREATE TABLE IF NOT EXISTS hp_geo(
+            ip TEXT PRIMARY KEY, cc TEXT, country TEXT, ts REAL
+        );
         """)
     _migrate_from_json()
 
@@ -303,17 +307,33 @@ def hp_add_events(rows):
     return len(rows)
 
 
+def hp_geo_get(ip):
+    """Cached (cc, country) for an IP, or None if never resolved."""
+    with _LOCK, _conn() as c:
+        r = c.execute("SELECT cc, country FROM hp_geo WHERE ip=?", (ip,)).fetchone()
+    return (r["cc"], r["country"]) if r else None
+
+
+def hp_geo_set(ip, cc, country):
+    with _LOCK, _conn() as c:
+        c.execute("INSERT INTO hp_geo(ip,cc,country,ts) VALUES(?,?,?,?) "
+                  "ON CONFLICT(ip) DO UPDATE SET cc=excluded.cc, country=excluded.country",
+                  (ip, cc, country, time.time()))
+
+
 def hp_list_events(limit=200, technique=None, src_ip=None):
-    q = ("SELECT pot,ts,whenstr,src_ip,method,path,ua,technique,severity,blob "
-         "FROM hp_events WHERE 1=1")
+    # LEFT JOIN geo so a country resolved later shows up on past events too.
+    q = ("SELECT e.pot,e.ts,e.whenstr,e.src_ip,e.method,e.path,e.ua,e.technique,"
+         "e.severity,e.blob, COALESCE(g.cc,'') cc, COALESCE(g.country,'') country "
+         "FROM hp_events e LEFT JOIN hp_geo g ON e.src_ip=g.ip WHERE 1=1")
     args = []
     if technique:
-        q += " AND technique=?"
+        q += " AND e.technique=?"
         args.append(technique)
     if src_ip:
-        q += " AND src_ip=?"
+        q += " AND e.src_ip=?"
         args.append(src_ip)
-    q += " ORDER BY id DESC LIMIT ?"
+    q += " ORDER BY e.id DESC LIMIT ?"
     args.append(min(1000, max(1, limit)))
     with _LOCK, _conn() as c:
         return [dict(r) for r in c.execute(q, args)]
@@ -351,13 +371,32 @@ def hp_stats():
             "WHERE technique IS NOT NULL AND technique!='' "
             "GROUP BY technique ORDER BY n DESC LIMIT 10")]
         top_ip = [dict(r) for r in c.execute(
-            "SELECT src_ip, COUNT(*) n, MAX(whenstr) last FROM hp_events "
-            "GROUP BY src_ip ORDER BY n DESC LIMIT 10")]
+            "SELECT e.src_ip, COUNT(*) n, MAX(e.whenstr) last, "
+            "COALESCE(g.cc,'') cc, COALESCE(g.country,'') country "
+            "FROM hp_events e LEFT JOIN hp_geo g ON e.src_ip=g.ip "
+            "GROUP BY e.src_ip ORDER BY n DESC LIMIT 10")]
         sigs = [dict(r) for r in c.execute(
             "SELECT sig,name,severity,count,first_seen,last_seen FROM hp_signatures "
             "ORDER BY count DESC")]
+        # 🌍 top attacking countries + each one's favourite technique
+        crows = c.execute(
+            "SELECT g.cc cc, g.country country, COUNT(*) n, COUNT(DISTINCT e.src_ip) ips "
+            "FROM hp_events e JOIN hp_geo g ON e.src_ip=g.ip "
+            "WHERE g.country NOT IN ('','Local') "
+            "GROUP BY g.country ORDER BY n DESC LIMIT 8").fetchall()
+        fav = {}
+        for r in c.execute(
+                "SELECT g.country country, e.technique tech, COUNT(*) n "
+                "FROM hp_events e JOIN hp_geo g ON e.src_ip=g.ip "
+                "WHERE e.technique!='' AND g.country NOT IN ('','Local') "
+                "GROUP BY g.country, e.technique ORDER BY n DESC"):
+            fav.setdefault(r["country"], r["tech"])   # ordered by n desc → first is top
+        top_countries = [{"cc": r["cc"], "country": r["country"], "events": r["n"],
+                          "attackers": r["ips"], "top_technique": fav.get(r["country"], "")}
+                         for r in crows]
     return {"events": total, "attackers": attackers, "events_24h": day,
-            "top_techniques": top_tec, "top_attackers": top_ip, "signatures": sigs}
+            "top_techniques": top_tec, "top_attackers": top_ip, "signatures": sigs,
+            "top_countries": top_countries}
 
 
 def hp_correlate():
