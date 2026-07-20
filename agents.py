@@ -95,6 +95,7 @@ PLAYBOOKS = [
         "keywords": ["subdomain", "תת דומיין", "תת-דומיין", "subdomains", "תת דומיינים", "asset"],
         "build": lambda v: [
             _step("subfinder", "גילוי תת-דומיינים פסיבי ומהיר", {"domain": v["domain"], "silent": True}),
+            _step("amass", "מיפוי נכסים מקיף (OWASP Amass, passive)", {"cmd": "enum", "passive": True, "domain": v["domain"]}),
             _step("sublist3r", "תת-דומיינים ממנועי חיפוש", {"domain": v["domain"]}),
             _step("assetfinder", "נכסים ותת-דומיינים קשורים", {"target": v["domain"], "subsonly": True}),
         ],
