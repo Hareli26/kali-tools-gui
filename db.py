@@ -84,11 +84,22 @@ def init():
             sig TEXT PRIMARY KEY, name TEXT, severity TEXT, count INTEGER DEFAULT 0,
             sources INTEGER DEFAULT 0, first_seen TEXT, last_seen TEXT
         );
-        -- geo cache: each attacker IP is resolved to a country once and reused.
+        -- geo + OSINT cache: each attacker IP is enriched once and reused —
+        -- country, ISP/org/ASN, reverse-DNS, and proxy/hosting flags.
         CREATE TABLE IF NOT EXISTS hp_geo(
-            ip TEXT PRIMARY KEY, cc TEXT, country TEXT, ts REAL
+            ip TEXT PRIMARY KEY, cc TEXT, country TEXT, ts REAL,
+            isp TEXT, org TEXT, asn TEXT, reverse TEXT,
+            proxy INTEGER DEFAULT 0, hosting INTEGER DEFAULT 0
         );
         """)
+    # migrate older hp_geo (country-only) to the enriched schema
+    for col, typ in (("isp", "TEXT"), ("org", "TEXT"), ("asn", "TEXT"),
+                     ("reverse", "TEXT"), ("proxy", "INTEGER"), ("hosting", "INTEGER")):
+        try:
+            with _LOCK, _conn() as c:
+                c.execute("ALTER TABLE hp_geo ADD COLUMN %s %s" % (col, typ))
+        except Exception:
+            pass  # column already exists
     _migrate_from_json()
 
 
@@ -308,17 +319,21 @@ def hp_add_events(rows):
 
 
 def hp_geo_get(ip):
-    """Cached (cc, country) for an IP, or None if never resolved."""
+    """Full cached enrichment for an IP as a dict, or None if never resolved."""
     with _LOCK, _conn() as c:
-        r = c.execute("SELECT cc, country FROM hp_geo WHERE ip=?", (ip,)).fetchone()
-    return (r["cc"], r["country"]) if r else None
+        r = c.execute("SELECT cc,country,isp,org,asn,reverse,proxy,hosting "
+                      "FROM hp_geo WHERE ip=?", (ip,)).fetchone()
+    return dict(r) if r else None
 
 
-def hp_geo_set(ip, cc, country):
+def hp_geo_set(ip, cc, country, isp="", org="", asn="", reverse="", proxy=0, hosting=0):
     with _LOCK, _conn() as c:
-        c.execute("INSERT INTO hp_geo(ip,cc,country,ts) VALUES(?,?,?,?) "
-                  "ON CONFLICT(ip) DO UPDATE SET cc=excluded.cc, country=excluded.country",
-                  (ip, cc, country, time.time()))
+        c.execute("INSERT INTO hp_geo(ip,cc,country,isp,org,asn,reverse,proxy,hosting,ts) "
+                  "VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(ip) DO UPDATE SET "
+                  "cc=excluded.cc, country=excluded.country, isp=excluded.isp, org=excluded.org, "
+                  "asn=excluded.asn, reverse=excluded.reverse, proxy=excluded.proxy, "
+                  "hosting=excluded.hosting",
+                  (ip, cc, country, isp, org, asn, reverse, int(proxy), int(hosting), time.time()))
 
 
 def hp_list_events(limit=200, technique=None, src_ip=None):
@@ -372,7 +387,10 @@ def hp_stats():
             "GROUP BY technique ORDER BY n DESC LIMIT 10")]
         top_ip = [dict(r) for r in c.execute(
             "SELECT e.src_ip, COUNT(*) n, MAX(e.whenstr) last, "
-            "COALESCE(g.cc,'') cc, COALESCE(g.country,'') country "
+            "COALESCE(g.cc,'') cc, COALESCE(g.country,'') country, "
+            "COALESCE(g.org,'') org, COALESCE(g.isp,'') isp, COALESCE(g.asn,'') asn, "
+            "COALESCE(g.reverse,'') reverse, COALESCE(g.proxy,0) proxy, "
+            "COALESCE(g.hosting,0) hosting "
             "FROM hp_events e LEFT JOIN hp_geo g ON e.src_ip=g.ip "
             "GROUP BY e.src_ip ORDER BY n DESC LIMIT 10")]
         sigs = [dict(r) for r in c.execute(

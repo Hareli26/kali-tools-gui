@@ -36,11 +36,17 @@ def _is_public(ip):
         return False
 
 
+# Fields pulled from ip-api (all free): country + full OSINT profile of the IP —
+# ISP, org, AS, reverse DNS, and the proxy/hosting flags that tell a home user
+# from a datacenter box (a hosting IP attacking you is almost always a rented or
+# compromised server, not a person).
+_FIELDS = "status,countryCode,country,isp,org,as,reverse,proxy,hosting,query"
+
+
 def _batch(ips):
-    """Resolve a chunk of IPs via ip-api. Returns {ip: (cc, country)}; {} on any
+    """Resolve a chunk of IPs via ip-api. Returns {ip: profile-dict}; {} on any
     failure (so callers don't cache a miss)."""
-    body = json.dumps([{"query": ip, "fields": "countryCode,country,query"}
-                       for ip in ips]).encode("utf-8")
+    body = json.dumps([{"query": ip, "fields": _FIELDS} for ip in ips]).encode("utf-8")
     req = urllib.request.Request(BATCH_URL, data=body,
                                  headers={"Content-Type": "application/json",
                                           "User-Agent": "kali-gui-geo/1.0"})
@@ -54,41 +60,42 @@ def _batch(ips):
         for item in data:
             q = item.get("query")
             if q and item.get("status") != "fail":
-                out[q] = (item.get("countryCode") or "", item.get("country") or "")
+                out[q] = {
+                    "cc": item.get("countryCode") or "", "country": item.get("country") or "",
+                    "isp": item.get("isp") or "", "org": item.get("org") or "",
+                    "asn": item.get("as") or "", "reverse": item.get("reverse") or "",
+                    "proxy": 1 if item.get("proxy") else 0,
+                    "hosting": 1 if item.get("hosting") else 0,
+                }
     return out
 
 
 def enrich(ips):
-    """Resolve a set of IPs to countries, using and filling the DB cache.
-    Returns {ip: (cc, country)}. Never raises — geo is best-effort."""
-    out, todo, seen = {}, [], set()
+    """Enrich a set of IPs (country + OSINT profile), using and filling the DB
+    cache. Never raises — enrichment is best-effort. Country-only entries from
+    the old schema are re-looked-up so they gain the OSINT fields."""
+    todo, seen = [], set()
     try:
         for ip in ips:
             if not ip or ip in seen:
                 continue
             seen.add(ip)
             cached = db.hp_geo_get(ip)
-            if cached is not None:
-                out[ip] = cached
-            elif not _is_public(ip):
-                db.hp_geo_set(ip, "", "Local")     # 127.x / 10.x / ::1 / ...
-                out[ip] = ("", "Local")
+            if cached is not None and (cached.get("isp") or cached.get("country") == "Local"):
+                continue                            # already fully enriched
+            if not _is_public(ip):
+                db.hp_geo_set(ip, "", "Local")      # 127.x / 10.x / ::1 / ...
             else:
                 todo.append(ip)
 
         todo = todo[:MAX_LOOKUPS_PER_RUN]
         for i in range(0, len(todo), BATCH_MAX):
-            chunk = todo[i:i + BATCH_MAX]
-            res = _batch(chunk)
-            for ip in chunk:
-                if ip in res:
-                    db.hp_geo_set(ip, res[ip][0], res[ip][1])
-                    out[ip] = res[ip]
-                else:
-                    out[ip] = ("", "")             # unknown now — retry next run, not cached
+            res = _batch(todo[i:i + BATCH_MAX])
+            for ip, p in res.items():               # only successful lookups are cached
+                db.hp_geo_set(ip, p["cc"], p["country"], p["isp"], p["org"],
+                              p["asn"], p["reverse"], p["proxy"], p["hosting"])
     except Exception:
         pass
-    return out
 
 
 if __name__ == "__main__":

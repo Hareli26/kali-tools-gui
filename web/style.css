@@ -1364,13 +1364,17 @@ h1, .dash-section { text-shadow: 0 0 12px rgba(0,255,110,.35); }
 .hp-country-fav:hover { text-decoration: underline; }
 
 .hp-attackers { display: grid; gap: 6px; }
-.hp-att { display: flex; gap: 10px; align-items: center; cursor: pointer;
-  padding: 8px 11px; border-radius: 8px; background: rgba(6,22,12,.4);
-  border: 1px solid rgba(60,220,120,.14); transition: .16s; }
+.hp-att { display: block; cursor: pointer; padding: 8px 11px; border-radius: 8px;
+  background: rgba(6,22,12,.4); border: 1px solid rgba(60,220,120,.14); transition: .16s; }
 .hp-att:hover { border-color: rgba(0,255,120,.5); }
+.hp-att-top { display: flex; gap: 8px; align-items: center; }
 .hp-att-ip { font-family: var(--mono); font-size: 12.5px; color: #eafff0; flex: 1; }
-.hp-att-n { font-size: 11.5px; color: var(--accent); }
-.hp-att-last { font-size: 10.5px; color: var(--text-dim); }
+.hp-att-n { font-size: 11.5px; color: var(--accent); white-space: nowrap; }
+.hp-att-org { font-size: 10.5px; color: var(--text-dim); margin-top: 3px;
+  direction: ltr; text-align: left; word-break: break-word; }
+.hp-badge { font-size: 9.5px; border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+.hp-badge.host  { color: #ffb84d; background: rgba(255,159,64,.14); border: 1px solid rgba(255,159,64,.4); }
+.hp-badge.proxy { color: #c99dff; background: rgba(168,85,247,.14); border: 1px solid rgba(168,85,247,.4); }
 
 .hp-feed { display: grid; gap: 8px; max-height: 620px; overflow-y: auto; padding-inline-end: 4px; }
 .hp-feed-clear { margin-bottom: 4px; }

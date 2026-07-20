@@ -2926,13 +2926,24 @@ function renderHpAttackers(ips) {
   ips.forEach(a => {
     const row = el("div", "hp-att reveal");
     row.onclick = () => loadHpFeed(null, a.src_ip);
+    // line 1: flag · IP · badges · request count
+    const top = el("div", "hp-att-top");
     const ip = el("span", "hp-att-ip");
     ip.appendChild(el("span", "hp-flag", flagEmoji(a.cc)));
-    if (a.country) ip.title = a.country;
     ip.appendChild(document.createTextNode(" " + a.src_ip));
-    row.appendChild(ip);
-    row.appendChild(el("span", "hp-att-n", `${a.n} בקשות`));
-    row.appendChild(el("span", "hp-att-last", a.last || ""));
+    top.appendChild(ip);
+    if (a.hosting) top.appendChild(el("span", "hp-badge host", "🖥️ hosting"));
+    if (a.proxy) top.appendChild(el("span", "hp-badge proxy", "🎭 proxy/VPN"));
+    top.appendChild(el("span", "hp-att-n", `${a.n} בקשות`));
+    row.appendChild(top);
+    // line 2: the OSINT profile — org / AS / country
+    const org = a.org || a.isp || "";
+    const bits = [a.country, org, a.asn].filter(Boolean).join(" · ");
+    if (bits) {
+      const meta = el("div", "hp-att-org", bits);
+      if (a.reverse) meta.title = "reverse-DNS: " + a.reverse;
+      row.appendChild(meta);
+    }
     box.appendChild(row);
   });
 }
