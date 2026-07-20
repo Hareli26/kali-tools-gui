@@ -231,6 +231,28 @@ PLAYBOOKS = [
         ],
     },
     {
+        # 🔵 Blue OSINT — "what does an attacker see about us?". Maps our public
+        # footprint (subdomains, leaked emails, exposed services, lookalike
+        # domains) so the Blue Team can shrink the attack surface. Passive only.
+        "id": "exposure", "name": "סריקת חשיפה (מה תוקף רואה עליי)",
+        "keywords": ["חשיפה", "exposure", "footprint", "טביעת רגל", "משטח תקיפה",
+                     "attack surface", "מה חשוף", "מה תוקף רואה", "osint הגנתי",
+                     "phishing", "typosquat", "מתחזה", "brand", "external"],
+        "build": lambda v: [
+            _step("whois", "רישום הדומיין — בעלות, רשם ותאריכים", {"target": v["domain"]}),
+            _step("amass", "מיפוי תת-דומיינים ונכסים ציבוריים (passive)",
+                  {"cmd": "enum", "passive": True, "domain": v["domain"]}),
+            _step("theharvester", "אימיילים, שמות ומארחים ממקורות ציבוריים",
+                  {"domain": v["domain"], "source": "all"}),
+            _step("dnstwist", "דומיינים מתחזים / פישינג (typosquatting)",
+                  {"registered": True, "domain": v["domain"]},
+                  "מוצא וריאציות רשומות של הדומיין — התחזות למותג / פישינג"),
+            _step("shodan", "שירותים ופורטים חשופים לאינטרנט (Shodan)",
+                  {"cmd": "host" if v["is_ip"] else "domain", "query": v["host"]},
+                  "דורש מפתח API מוגדר (shodan init)"),
+        ],
+    },
+    {
         "id": "exploit_search", "name": "חיפוש אקספלויטים (Exploit-DB)",
         "keywords": ["exploit", "אקספלויט", "exploitdb", "exploit-db", "searchsploit",
                      "cve", "poc", "פרצה ידועה", "known vuln", "אקספלויטים"],
