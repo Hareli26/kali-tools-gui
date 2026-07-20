@@ -192,7 +192,7 @@ argv += [positional target]</pre>
 
 <div class="section">
 <h2>7. זרימת נתונים — מאיפה הסוכנים יודעים?</h2>
-<div class="note">שאלת מפתח: הסוכנים אינם "ממציאים" נתונים. הם שואבים מארבעה מקורות ברורים וניתנים לביקורת.</div>
+<div class="note">שאלת מפתח: הסוכנים אינם "ממציאים" נתונים. הם שואבים מחמישה מקורות ברורים וניתנים לביקורת.</div>
 <table>
   <tr><th>מקור</th><th>מה הוא מכיל</th><th>מי משתמש בו</th></tr>
   <tr><td><b>1. ידע סטטי (קוד/JSON)</b></td>
@@ -209,6 +209,10 @@ argv += [positional target]</pre>
       <td><code>hp_signatures</code> — מה תוקפים אמיתיים <b>מנסים</b> נגדנו, שנקלט במלכודות על שרת מוקרב
           נפרד וסווג מול <code>ATTACK_KB</code>. <b>אמת הקרקע על האויב.</b></td>
       <td><b>Planner</b>, Blue, Dashboard</td></tr>
+  <tr><td><b>5. 🌍 העשרת OSINT לתוקפים</b></td>
+      <td><code>hp_geo</code> — כל כתובת תוקף מועשרת פעם אחת (cached) דרך <code>geo.py</code> (ip-api, stdlib):
+          מדינה, ISP/ארגון, ASN, reverse-DNS וסימוני hosting/proxy. <b>"מי תוקף אותי".</b></td>
+      <td>Dashboard, Countries</td></tr>
 </table>
 
 <h3>7.1 שני בסיסי ידע — ולמה הם נפרדים</h3>
