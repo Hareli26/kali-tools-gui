@@ -179,6 +179,16 @@ def poll_all(verbose=True):
                 tec = ", ".join(f"{k}×{v}" for k, v in
                                 sorted(res["techniques"].items(), key=lambda x: -x[1])[:5])
                 print(f"✅ {pot['id']}: +{res['pulled']} events" + (f"  [{tec}]" if tec else ""))
+    # 🌍 backfill: enrich attacker IPs that are missing OSINT (also catches IPs
+    # captured before enrichment existed). Bounded + cached, so it's cheap.
+    try:
+        missing = db.hp_ips_missing_geo(200)
+        if missing:
+            geo.enrich(missing)
+            if verbose:
+                print(f"🌍 enriched {len(missing)} attacker IP(s)")
+    except Exception:
+        pass
     return {"pots": len(pots), "pulled": total}
 
 

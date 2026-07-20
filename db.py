@@ -417,6 +417,18 @@ def hp_stats():
             "top_countries": top_countries}
 
 
+def hp_ips_missing_geo(limit=200):
+    """Distinct attacker IPs that still lack OSINT enrichment — never resolved,
+    or resolved country-only before enrichment existed. Excludes Local IPs."""
+    with _LOCK, _conn() as c:
+        rows = c.execute(
+            "SELECT DISTINCT e.src_ip FROM hp_events e "
+            "LEFT JOIN hp_geo g ON e.src_ip=g.ip "
+            "WHERE g.ip IS NULL OR (COALESCE(g.isp,'')='' "
+            "AND COALESCE(g.country,'') NOT IN ('Local')) LIMIT ?", (limit,)).fetchall()
+    return [r["src_ip"] for r in rows]
+
+
 def hp_countries_full(limit=15):
     """Per-country detail (techniques + attacker IPs) for the Obsidian export."""
     with _LOCK, _conn() as c:
