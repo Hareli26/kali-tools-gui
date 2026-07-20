@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<!-- RENDER: this doc uses inline SVG; render with chromium, not weasyprint:
+     chromium --headless --no-sandbox --no-pdf-header-footer --print-to-pdf=out.pdf file://.../database.html -->
+
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4 landscape; margin: 14mm 14mm 16mm 14mm;
+    @bottom-center { content: "תרשים בסיס הנתונים (ERD) · Kali Tools GUI"; font-size: 8pt; color: #999; }
+    @bottom-left { content: "עמ' " counter(page) " מתוך " counter(pages); font-size: 8pt; color: #999; }
+  }
+  @page cover { @bottom-center { content: none } @bottom-left { content: none } }
+  * { box-sizing: border-box; }
+  body { font-family: 'Noto Sans Hebrew','DejaVu Sans',Arial,sans-serif; color: #1a2230; line-height: 1.6; font-size: 10pt; }
+  h1 { color: #4a1d6b; font-size: 17pt; margin: 0 0 4pt; }
+  h2 { color: #4a1d6b; font-size: 13pt; margin: 14pt 0 6pt; border-bottom: 2px solid #7c3aed; padding-bottom: 3pt; }
+  h3 { color: #223; font-size: 11pt; margin: 10pt 0 3pt; }
+  p, li { font-size: 9.6pt; }
+  code { font-family: 'DejaVu Sans Mono',monospace; background: #f1ecf8; padding: 1px 4px; border-radius: 3px;
+    font-size: 8.8pt; direction: ltr; unicode-bidi: embed; }
+  table { width: 100%; border-collapse: collapse; margin: 5pt 0 10pt; font-size: 8.8pt; }
+  th, td { border: 1px solid #d8cdea; padding: 3px 6px; text-align: right; vertical-align: top; }
+  th { background: #f3edfb; color: #4a1d6b; font-weight: 700; }
+  td.k { font-family: 'DejaVu Sans Mono',monospace; direction: ltr; unicode-bidi: embed; }
+  .pk { color: #7c3aed; font-weight: 700; }
+  .fk { color: #c2410c; font-weight: 700; }
+  .cover { page: cover; text-align: center; page-break-after: always; padding-top: 22mm; }
+  .cover .kicker { color: #7c3aed; letter-spacing: 3px; font-size: 12pt; }
+  .cover h1 { font-size: 26pt; color: #4a1d6b; margin: 8pt 0; }
+  .cover .sub { font-size: 13pt; color: #445; margin-bottom: 5mm; }
+  .cover .logo { font-size: 44pt; }
+  .cover .box { display: inline-block; text-align: right; margin-top: 12mm; border: 1px solid #d8cdea;
+    border-radius: 8px; padding: 12px 24px; font-size: 10.5pt; background: #faf8fd; }
+  .cover .box b { color: #4a1d6b; }
+  .note { background: #f6f2fc; border-right: 4px solid #7c3aed; padding: 8px 12px; border-radius: 4px;
+    margin: 8pt 0; font-size: 9.4pt; }
+  .legend { font-size: 8.8pt; color: #555; margin: 2pt 0 8pt; }
+  .legend b { color: #4a1d6b; }
+  .erd { display: block; direction: ltr; height: 150mm; width: 233mm; max-width: 100%; margin: 4pt auto 0;
+    border: 1px solid #e6def5; border-radius: 8px; background: #fcfbff; }
+  .two { column-count: 2; column-gap: 16px; }
+  .two > div { break-inside: avoid; }
+  .section { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="logo">🗄️</div>
+  <div class="kicker">DATABASE SCHEMA &amp; ERD</div>
+  <h1>Kali Tools GUI</h1>
+  <div class="sub">תרשים בסיס הנתונים — ישויות, קשרים וסכימה מלאה</div>
+  <div class="box">
+    <div>מגיש: <b>הראלי דודאי</b></div>
+    <div>ת.ז.: 027225721</div>
+    <div>דוא"ל: hareli26@gmail.com</div>
+    <div>מוסד: <b>מכללת HackerU</b> · קורס: אדריכלות AI</div>
+    <div>מנחה: שחף · תאריך: יולי 2026</div>
+    <div>מנוע: <b>SQLite</b> (<code>kaligui.db</code>) · ספריית פייתון סטנדרטית</div>
+  </div>
+</div>
+
+<!-- ===================== ERD ===================== -->
+<div>
+<h2>1. תרשים ישויות-קשרים (ERD)</h2>
+<div class="legend">
+  <b>מקרא:</b> <span class="pk">🔑 מפתח ראשי (PK)</span> · <span class="fk">→ קשר לוגי (מפתח זר)</span> ·
+  🍯 שכבת הטעיה · 🛡️ Purple Team · ⚙️ תפעול ·
+  <b>הערה:</b> SQLite ללא אילוצי FK — הקשרים נאכפים בקוד (JOIN-ים), ולכן מסומנים מקווקו.
+</div>
+
+<svg class="erd" width="1180" height="760" viewBox="0 0 1180 760" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" font-family="Arial">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrR" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrRs" markerWidth="9" markerHeight="9" refX="1" refY="3" orient="auto">
+      <path d="M7,0 L0,3 L7,6 Z" fill="#dc2626"/>
+    </marker>
+  </defs>
+
+  <!-- cluster zones -->
+  <rect x="18" y="70" width="872" height="470" rx="12" fill="#fff8e6" stroke="#e8cf94"/>
+  <text x="34" y="92" font-size="13" font-weight="700" fill="#8a6d1a">🍯 שכבת הטעיה — מודיעין מלכודות</text>
+  <rect x="906" y="70" width="256" height="470" rx="12" fill="#f6f2fc" stroke="#d3c4ef"/>
+  <text x="922" y="92" font-size="13" font-weight="700" fill="#5b2a8c">🛡️ Purple Team</text>
+  <rect x="18" y="558" width="1144" height="184" rx="12" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text x="34" y="580" font-size="13" font-weight="700" fill="#475569">⚙️ תפעול (מאגרים עצמאיים)</text>
+
+  <!-- relationship lines (drawn first, under boxes) -->
+  <!-- hp_pots -> hp_events (pot) -->
+  <path d="M250,215 H320" stroke="#7c3aed" stroke-width="1.6" fill="none" marker-end="url(#arr)"/>
+  <text x="258" y="208" font-size="9" fill="#555">1 : N</text>
+  <!-- hp_events -> hp_signatures (technique) -->
+  <path d="M560,190 H640" stroke="#7c3aed" stroke-width="1.6" fill="none" marker-end="url(#arr)"/>
+  <text x="566" y="183" font-size="9" fill="#555">technique → sig (N:1)</text>
+  <!-- hp_events -> hp_geo (src_ip) -->
+  <path d="M430,398 V430" stroke="#7c3aed" stroke-width="1.6" fill="none" marker-end="url(#arr)"/>
+  <text x="436" y="418" font-size="9" fill="#555">src_ip → ip (N:1)</text>
+  <!-- hp_signatures <-> signatures (cross-reference / the loop) -->
+  <path d="M865,300 C900,340 905,300 934,300" stroke="#dc2626" stroke-width="1.8" fill="none"
+        stroke-dasharray="6 3" marker-end="url(#arr)"/>
+  <path d="M934,318 C905,320 900,360 865,320" stroke="#dc2626" stroke-width="1.8" fill="none"
+        stroke-dasharray="6 3" marker-end="url(#arrR)"/>
+  <text x="792" y="352" font-size="10" font-weight="700" fill="#dc2626">🔥 הצלבה (hp_correlate)</text>
+
+  <!-- ===== hp_pots ===== -->
+  <g>
+    <rect x="40" y="150" width="210" height="150" rx="5" fill="#fff" stroke="#c9b98a"/>
+    <rect x="40" y="150" width="210" height="22" fill="#b8860b"/>
+    <text x="50" y="165" font-size="11" font-weight="700" fill="#fff">hp_pots</text>
+    <text x="50" y="188" font-size="9" fill="#333"><tspan fill="#7c3aed" font-weight="700">🔑 id</tspan>  · המלכודות הרשומות</text>
+    <text x="50" y="205" font-size="9" fill="#333">kind · url · token</text>
+    <text x="50" y="222" font-size="9" fill="#333">cursor · enabled</text>
+    <text x="50" y="239" font-size="9" fill="#333">last_poll · last_error</text>
+    <text x="50" y="256" font-size="9" fill="#333">added</text>
+    <text x="50" y="286" font-size="8" fill="#8a6d1a">כתובת + טוקן לכל מלכודת;</text>
+    <text x="50" y="297" font-size="8" fill="#8a6d1a">cursor = סמן המשיכה</text>
+  </g>
+
+  <!-- ===== hp_events (hub) ===== -->
+  <g>
+    <rect x="320" y="120" width="240" height="270" rx="5" fill="#fff" stroke="#c9b98a"/>
+    <rect x="320" y="120" width="240" height="22" fill="#b8860b"/>
+    <text x="330" y="135" font-size="11" font-weight="700" fill="#fff">hp_events</text>
+    <text x="330" y="158" font-size="9"><tspan fill="#7c3aed" font-weight="700">🔑 id</tspan>  · תקיפה גולמית שנתפסה</text>
+    <text x="330" y="176" font-size="9"><tspan fill="#c2410c" font-weight="700">pot →</tspan> hp_pots.id</text>
+    <text x="330" y="194" font-size="9"><tspan fill="#c2410c" font-weight="700">technique →</tspan> hp_signatures.sig</text>
+    <text x="330" y="212" font-size="9"><tspan fill="#c2410c" font-weight="700">src_ip →</tspan> hp_geo.ip</text>
+    <text x="330" y="230" font-size="9" fill="#333">whenstr · ts · method</text>
+    <text x="330" y="248" font-size="9" fill="#333">path · ua · severity</text>
+    <text x="330" y="266" font-size="9" fill="#333">blob (הבקשה המלאה)</text>
+    <text x="330" y="300" font-size="8" fill="#8a6d1a">אינדקסים: ts · src_ip · technique</text>
+    <text x="330" y="316" font-size="8" fill="#8a6d1a">מוגבל ל-20,000 שורות (גיזום)</text>
+    <text x="330" y="356" font-size="8.5" fill="#555" font-style="italic">— הצומת המרכזי של המודיעין —</text>
+  </g>
+
+  <!-- ===== hp_geo ===== -->
+  <g>
+    <rect x="320" y="430" width="240" height="100" rx="5" fill="#fff" stroke="#c9b98a"/>
+    <rect x="320" y="430" width="240" height="22" fill="#b8860b"/>
+    <text x="330" y="445" font-size="11" font-weight="700" fill="#fff">hp_geo  🌍 OSINT</text>
+    <text x="330" y="468" font-size="9"><tspan fill="#7c3aed" font-weight="700">🔑 ip</tspan>  · העשרת תוקף (cached)</text>
+    <text x="330" y="485" font-size="9" fill="#333">cc · country · isp · org · asn</text>
+    <text x="330" y="502" font-size="9" fill="#333">reverse · proxy · hosting</text>
+    <text x="330" y="521" font-size="8" fill="#8a6d1a">"מי תוקף אותי" — ip-api, מטמון</text>
+  </g>
+
+  <!-- ===== hp_signatures ===== -->
+  <g>
+    <rect x="640" y="150" width="225" height="180" rx="5" fill="#fff" stroke="#c9b98a"/>
+    <rect x="640" y="150" width="225" height="22" fill="#b8860b"/>
+    <text x="650" y="165" font-size="11" font-weight="700" fill="#fff">hp_signatures</text>
+    <text x="650" y="188" font-size="9"><tspan fill="#7c3aed" font-weight="700">🔑 sig</tspan>  · טכניקת תקיפה נצפתה</text>
+    <text x="650" y="205" font-size="9" fill="#333">name · severity</text>
+    <text x="650" y="222" font-size="9" fill="#333">count · sources</text>
+    <text x="650" y="239" font-size="9" fill="#333">first_seen · last_seen</text>
+    <text x="650" y="272" font-size="8" fill="#8a6d1a">ATTACK_KB — "מה תוקפים</text>
+    <text x="650" y="284" font-size="8" fill="#8a6d1a">מנסים" (התנהגות)</text>
+    <text x="650" y="312" font-size="8" fill="#8a6d1a">נפרד מ-signatures בכוונה!</text>
+  </g>
+
+  <!-- ===== signatures (posture) ===== -->
+  <g>
+    <rect x="930" y="150" width="222" height="160" rx="5" fill="#fff" stroke="#c4b0ea"/>
+    <rect x="930" y="150" width="222" height="22" fill="#7c3aed"/>
+    <text x="940" y="165" font-size="11" font-weight="700" fill="#fff">signatures</text>
+    <text x="940" y="188" font-size="9"><tspan fill="#7c3aed" font-weight="700">🔑 sig</tspan>  · חולשה שסרקנו</text>
+    <text x="940" y="205" font-size="9" fill="#333">name · severity</text>
+    <text x="940" y="222" font-size="9" fill="#333">count</text>
+    <text x="940" y="239" font-size="9" fill="#333">first_seen · last_seen</text>
+    <text x="940" y="272" font-size="8" fill="#5b2a8c">DEFENSE_KB — "מה חלש</text>
+    <text x="940" y="284" font-size="8" fill="#5b2a8c">אצלי" (תנוחה)</text>
+  </g>
+
+  <!-- ===== reports ===== -->
+  <g>
+    <rect x="930" y="360" width="222" height="160" rx="5" fill="#fff" stroke="#c4b0ea"/>
+    <rect x="930" y="360" width="222" height="22" fill="#7c3aed"/>
+    <text x="940" y="375" font-size="11" font-weight="700" fill="#fff">reports</text>
+    <text x="940" y="398" font-size="9"><tspan fill="#7c3aed" font-weight="700">🔑 id</tspan>  · דוח Markdown שמור</text>
+    <text x="940" y="415" font-size="9" fill="#333">kind · intent · target</text>
+    <text x="940" y="432" font-size="9" fill="#333">ts · whenstr</text>
+    <text x="940" y="449" font-size="9" fill="#333">report (הדוח המלא)</text>
+    <text x="940" y="482" font-size="8" fill="#5b2a8c">שורד אתחולים; מיוצא</text>
+    <text x="940" y="494" font-size="8" fill="#5b2a8c">ל-Obsidian</text>
+  </g>
+
+  <!-- ===== Ops tables ===== -->
+  <g>
+    <rect x="40" y="600" width="200" height="132" rx="5" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="40" y="600" width="200" height="20" fill="#475569"/>
+    <text x="49" y="614" font-size="10.5" font-weight="700" fill="#fff">activity</text>
+    <text x="49" y="636" font-size="8.5"><tspan fill="#7c3aed" font-weight="700">🔑 rowid_</tspan>  · יומן הרצות</text>
+    <text x="49" y="652" font-size="8.5" fill="#333">id · ts · type · intent</text>
+    <text x="49" y="668" font-size="8.5" fill="#333">target · user · status</text>
+    <text x="49" y="684" font-size="8.5" fill="#333">data (JSON מלא)</text>
+    <text x="49" y="712" font-size="8" fill="#64748b">500 אחרונים (גיזום)</text>
+  </g>
+  <g>
+    <rect x="258" y="600" width="185" height="112" rx="5" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="258" y="600" width="185" height="20" fill="#475569"/>
+    <text x="267" y="614" font-size="10.5" font-weight="700" fill="#fff">audit</text>
+    <text x="267" y="636" font-size="8.5"><tspan fill="#7c3aed" font-weight="700">🔑 id</tspan>  · יומן ביקורת</text>
+    <text x="267" y="652" font-size="8.5" fill="#333">ts · user</text>
+    <text x="267" y="668" font-size="8.5" fill="#333">action · detail</text>
+    <text x="267" y="696" font-size="8" fill="#64748b">מי עשה מה ומתי</text>
+  </g>
+  <g>
+    <rect x="461" y="600" width="150" height="100" rx="5" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="461" y="600" width="150" height="20" fill="#475569"/>
+    <text x="470" y="614" font-size="10.5" font-weight="700" fill="#fff">roles</text>
+    <text x="470" y="636" font-size="8.5"><tspan fill="#7c3aed" font-weight="700">🔑 email</tspan></text>
+    <text x="470" y="652" font-size="8.5" fill="#333">role</text>
+    <text x="470" y="680" font-size="8" fill="#64748b">RBAC: admin /</text>
+    <text x="470" y="692" font-size="8" fill="#64748b">operator / viewer</text>
+  </g>
+  <g>
+    <rect x="629" y="600" width="155" height="100" rx="5" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="629" y="600" width="155" height="20" fill="#475569"/>
+    <text x="638" y="614" font-size="10.5" font-weight="700" fill="#fff">playbooks</text>
+    <text x="638" y="636" font-size="8.5"><tspan fill="#7c3aed" font-weight="700">🔑 id</tspan></text>
+    <text x="638" y="652" font-size="8.5" fill="#333">data (JSON)</text>
+    <text x="638" y="680" font-size="8" fill="#64748b">חוקי סוכן מותאמים</text>
+    <text x="638" y="692" font-size="8" fill="#64748b">(עורך ה-UI)</text>
+  </g>
+  <g>
+    <rect x="802" y="600" width="150" height="100" rx="5" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="802" y="600" width="150" height="20" fill="#475569"/>
+    <text x="811" y="614" font-size="10.5" font-weight="700" fill="#fff">meta</text>
+    <text x="811" y="636" font-size="8.5"><tspan fill="#7c3aed" font-weight="700">🔑 k</tspan></text>
+    <text x="811" y="652" font-size="8.5" fill="#333">v</text>
+    <text x="811" y="680" font-size="8" fill="#64748b">key/value —</text>
+    <text x="811" y="692" font-size="8" fill="#64748b">למשל מונה ריצות</text>
+  </g>
+  <g>
+    <rect x="970" y="600" width="182" height="100" rx="5" fill="#fbfbfd" stroke="#cbd5e1" stroke-dasharray="3 2"/>
+    <text x="979" y="620" font-size="9" font-weight="700" fill="#475569">🔗 קשרים לוגיים בלבד</text>
+    <text x="979" y="640" font-size="8" fill="#64748b">SQLite ללא FK — נאכף</text>
+    <text x="979" y="653" font-size="8" fill="#64748b">בקוד (db.py JOIN-ים).</text>
+    <text x="979" y="672" font-size="8" fill="#64748b">נעילה סדרתית (RLock),</text>
+    <text x="979" y="685" font-size="8" fill="#64748b">rollback journal.</text>
+  </g>
+</svg>
+</div>
+
+<!-- ===================== schema tables ===================== -->
+<div class="section">
+<h2>2. סכימה מלאה — 11 טבלאות</h2>
+
+<div class="two">
+<div>
+<h3>🍯 hp_pots — המלכודות הרשומות</h3>
+<table>
+<tr><th>עמודה</th><th>טיפוס</th><th>תיאור</th></tr>
+<tr><td class="k pk">id 🔑</td><td>TEXT</td><td>מזהה המלכודת (web/sql/ssh)</td></tr>
+<tr><td class="k">kind</td><td>TEXT</td><td>סוג</td></tr>
+<tr><td class="k">url</td><td>TEXT</td><td>כתובת הקולקטור</td></tr>
+<tr><td class="k">token</td><td>TEXT</td><td>טוקן משיכה (לא נשלח לדפדפן)</td></tr>
+<tr><td class="k">cursor</td><td>INTEGER</td><td>סמן המשיכה (שורה אחרונה)</td></tr>
+<tr><td class="k">enabled</td><td>INTEGER</td><td>פעילה?</td></tr>
+<tr><td class="k">last_poll · last_error · added</td><td>TEXT</td><td>מצב אחרון</td></tr>
+</table>
+</div>
+
+<div>
+<h3>🍯 hp_events — תקיפות גולמיות</h3>
+<table>
+<tr><th>עמודה</th><th>טיפוס</th><th>תיאור</th></tr>
+<tr><td class="k pk">id 🔑</td><td>INTEGER</td><td>מזהה אוטומטי</td></tr>
+<tr><td class="k fk">pot →</td><td>TEXT</td><td>hp_pots.id</td></tr>
+<tr><td class="k fk">technique →</td><td>TEXT</td><td>hp_signatures.sig</td></tr>
+<tr><td class="k fk">src_ip →</td><td>TEXT</td><td>hp_geo.ip</td></tr>
+<tr><td class="k">ts · whenstr</td><td>REAL·TEXT</td><td>זמן</td></tr>
+<tr><td class="k">method · path · ua</td><td>TEXT</td><td>הבקשה</td></tr>
+<tr><td class="k">severity</td><td>TEXT</td><td>חומרה</td></tr>
+<tr><td class="k">blob</td><td>TEXT</td><td>הבקשה המלאה (למסווג)</td></tr>
+</table>
+<p class="legend">אינדקסים: <code>ts</code>, <code>src_ip</code>, <code>technique</code>. מוגבל ל-20K שורות.</p>
+</div>
+
+<div>
+<h3>🍯🌍 hp_geo — העשרת OSINT לתוקפים</h3>
+<table>
+<tr><th>עמודה</th><th>טיפוס</th><th>תיאור</th></tr>
+<tr><td class="k pk">ip 🔑</td><td>TEXT</td><td>כתובת התוקף</td></tr>
+<tr><td class="k">cc · country</td><td>TEXT</td><td>מדינה + קוד</td></tr>
+<tr><td class="k">isp · org · asn</td><td>TEXT</td><td>ספק / ארגון / ASN</td></tr>
+<tr><td class="k">reverse</td><td>TEXT</td><td>reverse-DNS</td></tr>
+<tr><td class="k">proxy · hosting</td><td>INTEGER</td><td>VPN/proxy · דאטה-סנטר</td></tr>
+</table>
+</div>
+
+<div>
+<h3>🍯 hp_signatures — טכניקות שנצפו (ATTACK_KB)</h3>
+<table>
+<tr><th>עמודה</th><th>טיפוס</th><th>תיאור</th></tr>
+<tr><td class="k pk">sig 🔑</td><td>TEXT</td><td>מזהה טכניקה</td></tr>
+<tr><td class="k">name · severity</td><td>TEXT</td><td>שם + חומרה</td></tr>
+<tr><td class="k">count · sources</td><td>INTEGER</td><td>מונה · מקורות</td></tr>
+<tr><td class="k">first_seen · last_seen</td><td>TEXT</td><td>נצפה ראשון/אחרון</td></tr>
+</table>
+</div>
+
+<div>
+<h3>🛡️ signatures — חולשות שסרקנו (DEFENSE_KB)</h3>
+<table>
+<tr><th>עמודה</th><th>טיפוס</th><th>תיאור</th></tr>
+<tr><td class="k pk">sig 🔑</td><td>TEXT</td><td>מזהה חולשה</td></tr>
+<tr><td class="k">name · severity</td><td>TEXT</td><td>שם + חומרה</td></tr>
+<tr><td class="k">count</td><td>INTEGER</td><td>מונה הופעות</td></tr>
+<tr><td class="k">first_seen · last_seen</td><td>TEXT</td><td>נצפה ראשון/אחרון</td></tr>
+</table>
+</div>
+
+<div>
+<h3>🛡️ reports — דוחות שמורים</h3>
+<table>
+<tr><th>עמודה</th><th>טיפוס</th><th>תיאור</th></tr>
+<tr><td class="k pk">id 🔑</td><td>TEXT</td><td>מזהה הדוח</td></tr>
+<tr><td class="k">kind · intent · target</td><td>TEXT</td><td>סוג / כוונה / מטרה</td></tr>
+<tr><td class="k">ts · whenstr</td><td>REAL·TEXT</td><td>זמן</td></tr>
+<tr><td class="k">report</td><td>TEXT</td><td>הדוח (Markdown)</td></tr>
+</table>
+</div>
+
+<div>
+<h3>⚙️ activity — יומן פעילות</h3>
+<table>
+<tr><th>עמודה</th><th>טיפוס</th><th>תיאור</th></tr>
+<tr><td class="k pk">rowid_ 🔑</td><td>INTEGER</td><td>מזהה אוטומטי</td></tr>
+<tr><td class="k">id · ts · whenstr · type</td><td>—</td><td>מטא</td></tr>
+<tr><td class="k">intent · target · user · status</td><td>TEXT</td><td>פרטי הריצה</td></tr>
+<tr><td class="k">data</td><td>TEXT</td><td>האירוע המלא (JSON)</td></tr>
+</table>
+</div>
+
+<div>
+<h3>⚙️ audit · roles · playbooks · meta</h3>
+<table>
+<tr><th>טבלה</th><th>עמודות</th></tr>
+<tr><td class="k">audit</td><td><span class="pk">id🔑</span> · ts · user · action · detail</td></tr>
+<tr><td class="k">roles</td><td><span class="pk">email🔑</span> · role &nbsp;(RBAC)</td></tr>
+<tr><td class="k">playbooks</td><td><span class="pk">id🔑</span> · data (JSON)</td></tr>
+<tr><td class="k">meta</td><td><span class="pk">k🔑</span> · v &nbsp;(key/value)</td></tr>
+</table>
+</div>
+</div>
+</div>
+
+<!-- ===================== relationships & design ===================== -->
+<div class="section">
+<h2>3. קשרים והחלטות תכן</h2>
+<table>
+<tr><th>קשר</th><th>סוג</th><th>משמעות</th></tr>
+<tr><td class="k">hp_pots.id ← hp_events.pot</td><td>1 : N</td><td>כל מלכודת כותבת אירועים רבים</td></tr>
+<tr><td class="k">hp_signatures.sig ← hp_events.technique</td><td>1 : N</td><td>כל אירוע מסווג לטכניקת תקיפה</td></tr>
+<tr><td class="k">hp_geo.ip ← hp_events.src_ip</td><td>1 : N</td><td>כל כתובת תוקף מועשרת פעם אחת (JOIN בתצוגות)</td></tr>
+<tr><td class="k">hp_signatures ⟷ signatures</td><td><span class="fk">🔥 הצלבה</span></td><td>הלב של המערכת: <code>hp_correlate()</code> מצליב "מה תוקפים מנסים" מול "מה חלש אצלנו" — קשר לוגי במפה בקוד, לא ב-DB</td></tr>
+</table>
+
+<div class="note">
+<strong>למה שני בסיסי חתימות נפרדים (signatures ו-hp_signatures)?</strong> הם טוענים טענות
+<strong>הפוכות</strong>: <code>signatures</code> = "למטרה יש חולשה" (תנוחה, מהצוות האדום שלנו); <code>hp_signatures</code> =
+"מישהו ניסה את זה" (התנהגות, מהמלכודות — קלט של תוקף). ערבוב היה מזהם את הסטטיסטיקות ומאפשר לתוקף לכתוב
+לבסיס הידע שלנו על עצמנו. לכן טבלאות נפרדות — וההצלבה ביניהן היא הערך.
+</div>
+
+<h3>3.1 עקרונות תכן</h3>
+<ul>
+  <li><strong>SQLite, ספרייה סטנדרטית</strong> (<code>db.py</code>) — אפס תלויות. הגירה אוטומטית חד-פעמית מקבצי JSON ישנים (<code>knowledge.json</code>, <code>activity.json</code>) ו-<code>ALTER TABLE</code> להוספת עמודות ה-OSINT ל-<code>hp_geo</code> קיים.</li>
+  <li><strong>ללא אילוצי FK</strong> — הקשרים לוגיים ונאכפים בקוד (JOIN-ים ב-<code>db.py</code>). מתאים למאגר תיעודי קליל שבו חלק מהשדות הם JSON (<code>data</code>, <code>blob</code>).</li>
+  <li><strong>גישה בטוחה לזרימות</strong> — כל פעולה עטופה ב-<code>RLock</code> גלובלי + חיבור עם timeout; rollback journal (נייד בין מערכות קבצים).</li>
+  <li><strong>גיזום</strong> — <code>hp_events</code> ל-20K שורות, <code>activity</code> ל-500 — כדי שהמאגר לא יגדל ללא גבול תחת מלכודת עמוסה.</li>
+  <li><strong>נתוני תוקף = קלט לא מהימן</strong> — <code>hp_events</code>/<code>hp_signatures</code>/<code>hp_geo</code> אף פעם לא מעורבבים עם <code>signatures</code>, ולעולם לא מפעילים תיקון אוטומטי.</li>
+</ul>
+
+<p class="legend" style="margin-top:10pt">— סוף מסמך תרשים בסיס הנתונים · הראלי דודאי · מכללת HackerU · 2026 —</p>
+</div>
+
+</body>
+</html>
