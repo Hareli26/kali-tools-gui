@@ -264,6 +264,18 @@
 
     <div id="learnStats" class="learn-stats"></div>
     <div id="learnList" class="learn-list"></div>
+
+    <!-- 🍯 what the agents learned from REAL attacks caught by the honeypots -->
+    <div id="hpLearnSection" class="hp-learn-section hidden">
+      <div class="learn-intro hp-intro">
+        <h3>🍯 מה נלמד מהמלכודות (תקיפות אמיתיות)</h3>
+        <p>בזמן שההגנות למעלה נלמדות מהסריקות שלנו, הקטע הזה נלמד מ<strong>תוקפים אמיתיים</strong> שנתפסו במלכודות הדבש
+        (<code>web.dudaei.com</code>). כל טכניקה מסווגת אוטומטית לפי <strong>ATTACK_KB</strong>, נספרת, ומוצלבת מול החולשות שלנו —
+        כשטכניקה שתוקפים <em>מנסים בפועל</em> פוגשת חולשה שכבר זיהינו, זו <strong class="corr-hl">התראה בעדיפות עליונה</strong> ולא עוד שורה ברשימה.</p>
+      </div>
+      <div id="hpLearnStats" class="learn-stats"></div>
+      <div id="hpLearnList" class="learn-list"></div>
+    </div>
   </main>
 
   <!-- ===================== PLAYBOOK EDITOR (admin) ===================== -->

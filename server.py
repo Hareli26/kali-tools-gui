@@ -1116,9 +1116,54 @@ class Handler(BaseHTTPRequestHandler):
                 "first_seen": rec.get("first_seen", ""), "last_seen": rec.get("last_seen", ""),
             })
         items.sort(key=lambda x: (0 if x["learned"] else 1, -x["seen"], sevrank.get(x["severity"], 9)))
+
+        # --- 🍯 what the agents learned from REAL attacks caught by the honeypots.
+        # Kept as a SEPARATE list (attacker-controlled ATTACK_KB, never mixed into
+        # the posture KB above) and crossed with our weaknesses = the learning loop.
+        try:
+            hp = db.hp_stats()
+        except Exception:
+            hp = {}
+        hp_sig_map = {s["sig"]: s for s in hp.get("signatures", [])}
+        try:
+            corr = db.hp_correlate()
+        except Exception:
+            corr = []
+        corr_map = {}
+        for link in corr:                      # keep the loudest weakness per attack
+            corr_map.setdefault(link["attack"], link)
+        hp_items, hp_sev = [], {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        for r in attack_kb.ATTACK_KB:
+            aid = r["id"]
+            rec = hp_sig_map.get(aid)
+            learned = rec is not None
+            if learned:
+                hp_sev[r["severity"]] = hp_sev.get(r["severity"], 0) + 1
+            link = corr_map.get(aid)
+            hp_items.append({
+                "id": aid, "name": r["name"], "severity": r["severity"],
+                "threat": r.get("technique", ""), "defenses": r.get("defenses", []),
+                "mitre": r.get("mitre", ""), "sigma": r.get("sigma", ""),
+                "suricata": r.get("suricata", ""),
+                "learned": learned, "seen": (rec or {}).get("count", 0),
+                "sources": (rec or {}).get("sources", 0),
+                "first_seen": (rec or {}).get("first_seen", ""),
+                "last_seen": (rec or {}).get("last_seen", ""),
+                "correlated": bool(link),
+                "weakness_name": (link or {}).get("weakness_name", ""),
+            })
+        hp_items.sort(key=lambda x: (0 if x["learned"] else 1, 0 if x["correlated"] else 1,
+                                     -x["seen"], sevrank.get(x["severity"], 9)))
+
         return self._send_json({
             "runs": kb.get("runs", 0), "learned": len(sigs),
             "total_types": len(bluered.DEFENSE_KB), "severity": sev_counts, "items": items,
+            "honeypot": {
+                "events": hp.get("events", 0), "attackers": hp.get("attackers", 0),
+                "events_24h": hp.get("events_24h", 0), "learned": len(hp_sig_map),
+                "total_types": len(attack_kb.ATTACK_KB), "correlated": len(corr),
+                "severity": hp_sev, "items": hp_items,
+            },
         })
 
     def _api_history(self):

@@ -1427,7 +1427,7 @@ function init() {
   $("userEmail").onkeydown = (e) => { if (e.key === "Enter") addUser(); };
   $("pbNewBtn").onclick = () => pbOpenEditor(null);
   $("learnReload").onclick = () => loadLearning();
-  $("learnSearch").oninput = (e) => renderLearnList(e.target.value);
+  $("learnSearch").oninput = (e) => { renderLearnList(e.target.value); renderHpLearn(null, e.target.value); };
   $("histReload").onclick = () => loadHistory();
   $("histTarget").onchange = () => { HIST_SEL = []; renderHistory(); $("histCompare").classList.add("hidden"); };
   $("histCompareBtn").onclick = runCompare;
@@ -1551,6 +1551,7 @@ async function enhanceReport() {
 /* ============================================================ LEARNING MATERIALS
    What the system learned + how it handles each threat, as an educational Q&A. */
 let LEARN_ITEMS = [];
+let HP_LEARN_ITEMS = [];
 
 async function loadLearning() {
   const list = $("learnList");
@@ -1560,6 +1561,7 @@ async function loadLearning() {
     LEARN_ITEMS = d.items || [];
     renderLearnStats(d);
     renderLearnList("");
+    renderHpLearn(d.honeypot || {}, "");
   } catch (e) { list.innerHTML = '<div class="audit-empty">שגיאה בטעינה.</div>'; }
 }
 
@@ -1614,6 +1616,73 @@ function learnCard(it) {
     (it.learned
       ? `נצפה <b>${it.seen}</b> פעמים · ראשון: ${escapeHtml(it.first_seen || "?")} · אחרון: ${escapeHtml(it.last_seen || "?")}`
       : `טרם נצפה בהרצות. כשיופיע בבדיקה — המערכת תלמד אותו אוטומטית ותתחיל לספור.`) + `</div></div>`;
+  body.innerHTML = html;
+  head.onclick = () => { body.classList.toggle("hidden"); head.classList.toggle("open"); };
+  card.appendChild(head); card.appendChild(body);
+  return card;
+}
+
+/* --------- 🍯 honeypot learning: techniques learned from REAL attacks --------- */
+function renderHpLearn(hp, term) {
+  const sect = $("hpLearnSection");
+  if (hp) HP_LEARN_ITEMS = hp.items || [];
+  // only show the section once at least one attack technique has been observed
+  const anyLearned = HP_LEARN_ITEMS.some(it => it.learned);
+  if (!HP_LEARN_ITEMS.length || !anyLearned) { sect.classList.add("hidden"); return; }
+  sect.classList.remove("hidden");
+
+  if (hp) {
+    const sc = hp.severity || {};
+    $("hpLearnStats").innerHTML =
+      `<div class="lstat"><b>${hp.events || 0}</b><span>אירועים שנתפסו</span></div>` +
+      `<div class="lstat"><b>${hp.attackers || 0}</b><span>תוקפים (IP)</span></div>` +
+      `<div class="lstat"><b>${hp.learned || 0}/${hp.total_types || 0}</b><span>טכניקות שנלמדו</span></div>` +
+      `<div class="lstat corr"><b>${hp.correlated || 0}</b><span>הצלבות לחולשה 🔥</span></div>` +
+      `<div class="lstat crit"><b>${sc.critical || 0}</b><span>קריטי</span></div>` +
+      `<div class="lstat high"><b>${sc.high || 0}</b><span>גבוה</span></div>`;
+  }
+
+  term = (term || "").trim().toLowerCase();
+  const list = $("hpLearnList");
+  list.innerHTML = "";
+  const items = HP_LEARN_ITEMS.filter(it => !term ||
+    it.name.toLowerCase().includes(term) || (it.threat || "").toLowerCase().includes(term) ||
+    (it.mitre || "").toLowerCase().includes(term) || (it.weakness_name || "").toLowerCase().includes(term));
+  if (!items.length) { list.innerHTML = '<div class="audit-empty">לא נמצאו טכניקות תואמות.</div>'; return; }
+  items.forEach(it => list.appendChild(hpLearnCard(it)));
+}
+
+function hpLearnCard(it) {
+  const card = el("div", "learn-card hp-learn-card " + it.severity + (it.correlated ? " correlated" : ""));
+  const head = el("button", "learn-head");
+  const badge = it.learned
+    ? `<span class="learn-badge learned">נצפה ${it.seen}× · ${it.sources || 1} מקורות</span>`
+    : `<span class="learn-badge new">טרם נצפה</span>`;
+  head.innerHTML =
+    `<span class="learn-sev">${SEV_ICON[it.severity] || ""}</span>` +
+    `<span class="learn-name">${escapeHtml(it.name)}</span>` +
+    (it.correlated ? `<span class="learn-badge corr">🔥 מוצלב לחולשה</span>` : "") +
+    badge + `<span class="learn-toggle">▾</span>`;
+  const body = el("div", "learn-body hidden");
+  const list = (arr) => "<ul>" + (arr || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") + "</ul>";
+  let html = "";
+  html += `<div class="qa"><div class="q">❓ מה התוקף מנסה לעשות?</div><div class="a">${escapeHtml(it.threat)}</div></div>`;
+  if (it.correlated)
+    html += `<div class="qa corr-box"><div class="q">🔥 למה זה קריטי אצלנו?</div><div class="a">` +
+      `טכניקה זו נתפסה <b>בפועל</b> מול המערכת, והיא פוגשת חולשה שכבר זיהינו: <b>${escapeHtml(it.weakness_name)}</b>. ` +
+      `זו לא תיאוריה — תוקפים מנסים את זה עכשיו נגד נקודת תורפה קיימת. עדיפות טיפול עליונה.</div></div>`;
+  html += `<div class="qa"><div class="q">🛡️ איך מתגוננים?</div><div class="a">${list(it.defenses)}</div></div>`;
+  if (it.sigma || it.suricata) {
+    html += `<div class="qa"><div class="q">👁️ חוקי זיהוי</div><div class="a">`;
+    if (it.sigma) html += `<div class="qa-sub">חוק Sigma (SIEM):</div><pre>${escapeHtml(it.sigma)}</pre>`;
+    if (it.suricata) html += `<div class="qa-sub">חוק Suricata (IDS):</div><pre>${escapeHtml(it.suricata)}</pre>`;
+    html += `</div></div>`;
+  }
+  if (it.mitre) html += `<div class="qa"><div class="q">🎯 MITRE ATT&CK</div><div class="a"><span class="mitre">${escapeHtml(it.mitre)}</span></div></div>`;
+  html += `<div class="qa"><div class="q">📊 מה נלמד מהמלכודות?</div><div class="a">` +
+    (it.learned
+      ? `נצפה <b>${it.seen}</b> פעמים מ‑<b>${it.sources || 1}</b> מקורות · ראשון: ${escapeHtml(it.first_seen || "?")} · אחרון: ${escapeHtml(it.last_seen || "?")}`
+      : `הטכניקה מוכרת ל‑ATTACK_KB אך טרם נצפתה במלכודות. אם תוקף ינסה אותה — הסוכן יזהה, יספור, ויצליב אוטומטית.`) + `</div></div>`;
   body.innerHTML = html;
   head.onclick = () => { body.classList.toggle("hidden"); head.classList.toggle("open"); };
   card.appendChild(head); card.appendChild(body);
